@@ -12,6 +12,7 @@
     "dev:bot": "pnpm --filter @libremod/bot dev",
     "deploy-commands": "pnpm --filter @libremod/bot deploy-commands",
     "db:generate": "pnpm --filter @libremod/db generate",
-    "db:migrate": "pnpm --filter @libremod/db migrate"
+    "db:migrate": "pnpm --filter @libremod/db migrate",
+    "test": "pnpm -r test"
   }
 }

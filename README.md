@@ -10,6 +10,20 @@ Website: [libremod.dev](https://libremod.dev) · Geplante Funktionen: [ROADMAP.m
 
 > Libremod befindet sich in einer frühen Entwicklungsphase.
 
+## Befehle
+
+| Befehl                                | Wofür                                                        |
+| ------------------------------------- | ------------------------------------------------------------ |
+| `/warn`                               | Verwarnung mit Grund                                         |
+| `/timeout`, `/untimeout`              | Stummschalten für eine Dauer (z. B. `10m`, `2h`, `1d`)       |
+| `/kick`                               | Vom Server werfen                                            |
+| `/ban`, `/unban`                      | Bannen, auf Wunsch befristet (`dauer: 7d`), läuft selbst aus |
+| `/purge`                              | Bis zu 100 Nachrichten aufräumen, optional nur von einer Person |
+| `/cases`, `/case show/reason/revoke`  | Fallakte ansehen, Gründe ändern, Verwarnungen zurücknehmen   |
+| `/config modlog/dm/escalation/show`   | Mod-Log-Kanal, Direktnachrichten, Verwarnungsstufen          |
+
+Der Bot braucht auf dem Server die Rechte **Mitglieder kicken**, **Mitglieder bannen**, **Mitglieder im Timeout**, **Nachrichten verwalten** und **Nachrichten senden** im Mod-Log-Kanal. Seine Rolle muss über den Rollen der Mitglieder stehen, die er moderieren soll.
+
 ## Aufbau
 
 | Ordner           | Inhalt                                                |
