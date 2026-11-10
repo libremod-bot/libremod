@@ -7,6 +7,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ f
 
   return (
     <section className="hero">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className="hero-logo" src="/logo-emblem.webp" alt="Libremod-Logo" width={200} height={200} />
       <span className="badge info">100 % kostenlos · Open Source</span>
       <h1>Dein Server, gut geschützt.</h1>
       <p className="lead">

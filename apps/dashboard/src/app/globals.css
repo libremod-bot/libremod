@@ -120,13 +120,11 @@ p {
 }
 
 .brand-mark {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, var(--accent), #7c5cff);
-  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: block;
+  box-shadow: 0 0 0 1px var(--border), 0 0 14px rgba(76, 180, 255, 0.35);
 }
 
 .brand span {
@@ -813,6 +811,13 @@ th {
   flex-direction: column;
   align-items: center;
   gap: 1.25rem;
+}
+
+.hero-logo {
+  width: 200px;
+  height: 200px;
+  border-radius: 28px;
+  box-shadow: 0 0 0 1px var(--border), 0 18px 50px rgba(76, 180, 255, 0.25), 0 0 80px rgba(124, 92, 255, 0.18);
 }
 
 .hero h1 {
