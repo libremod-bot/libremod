@@ -7,6 +7,7 @@ import {
   integer,
   serial,
   text,
+  jsonb,
   uniqueIndex,
   index,
   primaryKey,
@@ -25,6 +26,11 @@ export const guildSettings = pgTable("guild_settings", {
   caseCounter: integer("case_counter").notNull().default(0),
   /** Betroffene vor Kick/Ban/Timeout/Verwarnung per Direktnachricht informieren. */
   dmOnAction: boolean("dm_on_action").notNull().default(true),
+  /** Raid-Schutz: ab raidJoinThreshold Beitritten in raidWindowSeconds greift raidAction. */
+  raidEnabled: boolean("raid_enabled").notNull().default(false),
+  raidJoinThreshold: integer("raid_join_threshold").notNull().default(10),
+  raidWindowSeconds: integer("raid_window_seconds").notNull().default(10),
+  raidAction: varchar("raid_action", { length: 16 }).notNull().default("alert"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -79,3 +85,49 @@ export const warnEscalations = pgTable(
 );
 
 export type WarnEscalation = typeof warnEscalations.$inferSelect;
+
+export const automodFilter = pgEnum("automod_filter", ["spam", "invites", "links", "words", "caps", "mentions"]);
+export type AutomodFilter = (typeof automodFilter.enumValues)[number];
+
+export const automodAction = pgEnum("automod_action", ["delete", "warn", "timeout", "kick", "ban"]);
+export type AutomodAction = (typeof automodAction.enumValues)[number];
+
+/** Filter-spezifische Einstellungen. Nicht genutzte Felder bleiben leer. */
+export interface AutomodConfig {
+  /** spam: Nachrichten pro 5 Sekunden, caps: Prozent, mentions: Anzahl */
+  threshold?: number;
+  /** words: verbotene Wörter, * am Ende = beliebige Endung */
+  words?: string[];
+  /** links: erlaubte Domains inkl. Subdomains */
+  allowedDomains?: string[];
+}
+
+/** Eine Regel pro Filter und Server. */
+export const automodRules = pgTable(
+  "automod_rules",
+  {
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    filter: automodFilter("filter").notNull(),
+    enabled: boolean("enabled").notNull().default(false),
+    action: automodAction("action").notNull().default("delete"),
+    /** Für Timeout bzw. befristeten Ban. */
+    durationSeconds: integer("duration_seconds"),
+    config: jsonb("config").$type<AutomodConfig>().notNull().default({}),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.filter] })],
+);
+
+export type AutomodRule = typeof automodRules.$inferSelect;
+
+export const exemptionKind = pgEnum("exemption_kind", ["role", "channel"]);
+
+/** Rollen und Kanäle, in denen die Auto-Moderation nicht eingreift. */
+export const automodExemptions = pgTable(
+  "automod_exemptions",
+  {
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    kind: exemptionKind("kind").notNull(),
+    targetId: varchar("target_id", { length: 32 }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.kind, t.targetId] })],
+);

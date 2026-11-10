@@ -4,9 +4,10 @@ import { moderationBlocker } from "../../lib/permissions.js";
 export type GuildInteraction = ChatInputCommandInteraction<"cached">;
 
 /** Antwortet nur für den Ausführenden sichtbar. */
-export function replyPrivate(interaction: ChatInputCommandInteraction, content: string) {
+export async function replyPrivate(interaction: ChatInputCommandInteraction, content: string): Promise<void> {
   const payload = { content, flags: MessageFlags.Ephemeral, allowedMentions: { parse: [] } } as const;
-  return interaction.deferred || interaction.replied ? interaction.editReply(content) : interaction.reply(payload);
+  if (interaction.deferred || interaction.replied) await interaction.editReply(content);
+  else await interaction.reply(payload);
 }
 
 /** Stellt sicher, dass der Befehl auf einem Server läuft, auf dem der Bot geladen ist. */
