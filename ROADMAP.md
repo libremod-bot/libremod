@@ -16,6 +16,7 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 
 - Filter für Spam, Einladungslinks, fremde Links, Wortlisten, Großbuchstaben und Massen-Erwähnungen
 - Pro Filter wählbare Reaktion: löschen, verwarnen, Timeout, Kick oder Ban
+- Eigener Hinweistext pro Filter, den die betroffene Person sieht
 - Ausnahmen für Rollen und Kanäle
 - Schutz vor Raids (viele neue Mitglieder in kurzer Zeit)
 
@@ -31,23 +32,29 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 - Willkommens- und Abschiedsnachrichten mit Platzhaltern und eigenem Embed
 - Automatische Rollen beim Beitritt
 - Selbstvergabe von Rollen per Reaktion, Button oder Auswahlmenü
+- Begrüßungsbild mit Avatar und Servername, Hintergrund und Text frei wählbar
+- Sprachkanal-Rolle: Wer in einem Sprachkanal ist, bekommt eine Rolle und sieht den passenden Textkanal
 
 ## 0.5 Community
 
 - Level-System für Text- und Sprachaktivität mit frei einstellbaren XP-Werten und Rollenbelohnungen
-- Eigene Befehle mit Antworttexten oder Embeds
+- Eigene Befehle mit Antworttexten oder Embeds, auf Wunsch mit mehreren Antworten im Zufallswechsel
+- Highlight-Kanal: Nachrichten mit vielen Reaktionen werden dort gesammelt
 - Embed-Editor und zeitgesteuerte Nachrichten
 - Zähler-Kanäle (Mitglieder, Ziele und mehr)
 - Temporäre Sprachkanäle, die sich nach Gebrauch selbst löschen
+- Kanäle automatisch in festen Abständen leeren
+- Automatischer Langsam-Modus, der sich nach der Aktivität im Kanal richtet
 
 ## 0.6 Benachrichtigungen
 
-- Neue Videos und Livestreams (z. B. YouTube und Twitch)
+- Neue Videos und Livestreams (z. B. YouTube, Twitch, Kick, TikTok)
+- Neue Beiträge aus Reddit-Communities
 - RSS-Feeds
 
 ## Später
 
-- Ticket-System für Support-Anfragen
+- Ticket-System für Support-Anfragen mit eigenen Formularfeldern, Buttons und Texten sowie einstellbarer Höchstzahl offener Tickets pro Person
 - Server-Währung mit Shop
 - Eigener Name und Avatar des Bots pro Server, soweit Discord das erlaubt (beim Selbsthosten ohnehin frei wählbar)
 
