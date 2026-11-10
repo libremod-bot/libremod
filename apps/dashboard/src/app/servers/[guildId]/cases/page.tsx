@@ -1,5 +1,6 @@
 import { and, desc, eq, modCases, type CaseType } from "@libremod/db";
 import { Notice } from "@/components/Notice";
+import { PageHeader } from "@/components/PageHeader";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
 import { revokeWarning } from "../actions";
@@ -39,7 +40,7 @@ export default async function CasesPage({
 
   return (
     <>
-      <h1>Fallakte</h1>
+      <PageHeader icon="list" title="Fallakte" description="Alle Moderationsaktionen auf deinem Server, die neuesten zuerst." />
       <Notice saved={gespeichert} error={fehler} />
 
       <form className="card" method="get">
@@ -48,7 +49,7 @@ export default async function CasesPage({
           <input id="nutzer" name="nutzer" type="text" inputMode="numeric" defaultValue={userFilter ?? ""} placeholder="z. B. 123456789012345678" />
           <div className="hint">Die ID bekommst du in Discord per Rechtsklick auf die Person → „Nutzer-ID kopieren“ (Entwicklermodus).</div>
         </div>
-        <div className="actions">
+        <div style={{ display: "flex", gap: "1rem", alignItems: "center", marginTop: "0.85rem" }}>
           <button type="submit" className="secondary">
             Filtern
           </button>
@@ -58,7 +59,7 @@ export default async function CasesPage({
 
       <div className="card table-wrap">
         {cases.length === 0 ? (
-          <p className="muted">Noch keine Fälle{userFilter ? " für diese Person" : ""}.</p>
+          <p className="empty">Noch keine Fälle{userFilter ? " für diese Person" : ""}.</p>
         ) : (
           <table>
             <thead>
@@ -76,7 +77,7 @@ export default async function CasesPage({
                 <tr key={c.id}>
                   <td>{c.caseNumber}</td>
                   <td>
-                    <span className="badge">{LABELS[c.type]}</span>
+                    <span className={`badge ${c.type === "ban" ? "danger" : c.type === "unban" || c.type === "untimeout" ? "on" : "warn"}`}>{LABELS[c.type]}</span>
                     {c.automatic && <div className="small muted">automatisch</div>}
                     {!c.active && (c.type === "warn" || c.type === "ban") && <div className="small muted">nicht mehr aktiv</div>}
                   </td>

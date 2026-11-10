@@ -1,6 +1,9 @@
 import { automodExemptions, automodFilter, automodRules, eq, guildSettings, type AutomodFilter } from "@libremod/db";
 import { DEFAULT_THRESHOLDS, formatDuration } from "@libremod/shared";
+import { Icon, type IconName } from "@/components/Icon";
 import { Notice } from "@/components/Notice";
+import { PageHeader } from "@/components/PageHeader";
+import { Switch } from "@/components/Switch";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
 import { CHANNEL_CATEGORY, getGuildChannels, getGuildRoles } from "@/lib/discord";
@@ -8,30 +11,40 @@ import { saveAutomod } from "../actions";
 
 export const metadata = { title: "Auto-Mod · Libremod" };
 
-const FILTERS: Record<AutomodFilter, { label: string; description: string; threshold?: string }> = {
+const FILTERS: Record<AutomodFilter, { label: string; description: string; icon: IconName; threshold?: string }> = {
   spam: {
     label: "Spam",
     description: "Zu viele Nachrichten in kurzer Zeit oder dreimal derselbe Text.",
+    icon: "spam",
     threshold: "Nachrichten in 5 Sekunden",
   },
-  invites: { label: "Einladungslinks", description: "Einladungen zu anderen Discord-Servern." },
-  links: { label: "Links", description: "Alle Links, außer zu erlaubten Domains." },
-  words: { label: "Wortfilter", description: "Wörter aus deiner Liste, auch mit Ersatzzeichen wie 1d10t." },
-  caps: { label: "Großbuchstaben", description: "Nachrichten, die überwiegend in Großbuchstaben geschrieben sind.", threshold: "Prozent" },
+  invites: { label: "Einladungslinks", description: "Einladungen zu anderen Discord-Servern.", icon: "invite" },
+  links: { label: "Links", description: "Alle Links, außer zu Domains, die du erlaubst.", icon: "link" },
+  words: { label: "Wortfilter", description: "Wörter aus deiner Liste, auch mit Tricks wie „1d10t“.", icon: "words" },
+  caps: { label: "Großbuchstaben", description: "Nachrichten, die überwiegend in Großbuchstaben sind.", icon: "caps", threshold: "Prozent" },
   mentions: {
     label: "Massen-Erwähnungen",
-    description: "Viele Erwähnungen in einer Nachricht oder @everyone ohne Berechtigung.",
+    description: "Viele Erwähnungen auf einmal oder @everyone ohne Recht.",
+    icon: "at",
     threshold: "Erwähnungen",
   },
 };
 
 const ACTIONS = [
-  ["delete", "Nur löschen"],
-  ["warn", "Löschen + verwarnen"],
+  ["delete", "Nachricht löschen"],
+  ["warn", "Löschen + Verwarnung"],
   ["timeout", "Löschen + Timeout"],
   ["kick", "Löschen + Kick"],
   ["ban", "Löschen + Ban"],
 ] as const;
+
+const ACTION_SHORT: Record<string, string> = {
+  delete: "Löschen",
+  warn: "Verwarnung",
+  timeout: "Timeout",
+  kick: "Kick",
+  ban: "Ban",
+};
 
 export default async function AutomodPage({
   params,
@@ -58,106 +71,130 @@ export default async function AutomodPage({
 
   return (
     <>
-      <h1>Auto-Mod</h1>
+      <PageHeader
+        icon="shield"
+        title="Auto-Mod"
+        description="Libremod löscht unerwünschte Nachrichten automatisch und bestraft auf Wunsch. Schalte einfach ein, was du brauchst."
+      />
       <Notice saved={gespeichert} error={fehler} />
 
-      <form action={saveAutomod.bind(null, guildId)}>
+      <form action={saveAutomod.bind(null, guildId)} className="stack">
         <div className="card">
-          <label className="check">
-            <input type="checkbox" name="automodEnabled" defaultChecked={settings?.automodEnabled ?? false} />
-            Auto-Moderation einschalten
-          </label>
-          <div className="hint">
-            Hauptschalter für alle Filter unten. Mitglieder mit „Nachrichten verwalten“ sind immer ausgenommen.
-          </div>
+          <Switch
+            name="automodEnabled"
+            defaultChecked={settings?.automodEnabled ?? false}
+            label="Auto-Moderation"
+            description="Hauptschalter für alle Filter. Mitglieder mit „Nachrichten verwalten“ sind immer ausgenommen."
+          />
         </div>
 
-        {(automodFilter.enumValues as readonly AutomodFilter[]).map((f) => {
-          const rule = byFilter.get(f);
-          const info = FILTERS[f];
-          const defaultThreshold = DEFAULT_THRESHOLDS[f as keyof typeof DEFAULT_THRESHOLDS];
-          return (
-            <section className="card" key={f}>
-              <div className="card-head">
-                <div>
-                  <h2>{info.label}</h2>
-                  <div className="muted small">{info.description}</div>
-                </div>
-                <label className="check">
-                  <input type="checkbox" name={`${f}.enabled`} defaultChecked={rule?.enabled ?? false} />
-                  Aktiv
-                </label>
-              </div>
-              <div className="row">
-                <div className="field">
-                  <label htmlFor={`${f}.action`}>Bei Verstoß</label>
-                  <select id={`${f}.action`} name={`${f}.action`} defaultValue={rule?.action ?? "delete"}>
-                    {ACTIONS.map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="field">
-                  <label htmlFor={`${f}.duration`}>Dauer</label>
-                  <input
-                    id={`${f}.duration`}
-                    name={`${f}.duration`}
-                    type="text"
-                    placeholder="z. B. 10m, 1d"
-                    defaultValue={rule?.durationSeconds ? compactDuration(rule.durationSeconds) : ""}
-                  />
-                  <div className="hint">Für Timeout (Standard 10 Minuten) oder befristeten Ban.</div>
-                </div>
-                {info.threshold && (
-                  <div className="field">
-                    <label htmlFor={`${f}.threshold`}>Schwelle ({info.threshold})</label>
-                    <input
-                      id={`${f}.threshold`}
-                      name={`${f}.threshold`}
-                      type="number"
-                      min={f === "caps" ? 50 : 2}
-                      max={100}
-                      placeholder={String(defaultThreshold)}
-                      defaultValue={rule?.config.threshold ?? ""}
-                    />
+        <section>
+          <h2 style={{ marginBottom: "0.85rem" }}>Filter</h2>
+          <div className="filters">
+            {(automodFilter.enumValues as readonly AutomodFilter[]).map((f) => {
+              const rule = byFilter.get(f);
+              const info = FILTERS[f];
+              const defaultThreshold = DEFAULT_THRESHOLDS[f as keyof typeof DEFAULT_THRESHOLDS];
+              const action = rule?.action ?? "delete";
+              return (
+                <div className="card filter-card" key={f}>
+                  <div className="filter-head">
+                    <div className="module-icon">
+                      <Icon name={info.icon} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <Switch name={`${f}.enabled`} defaultChecked={rule?.enabled ?? false} label={info.label} description={info.description} />
+                    </div>
                   </div>
-                )}
-              </div>
-              {f === "words" && (
-                <div className="field">
-                  <label htmlFor="words.list">Wortliste</label>
-                  <textarea
-                    id="words.list"
-                    name="words.list"
-                    defaultValue={(rule?.config.words ?? []).join("\n")}
-                    placeholder={"ein Wort pro Zeile\nidiot*"}
-                  />
-                  <div className="hint">Ein Wort pro Zeile. Ein * am Ende trifft auch Endungen (idiot* → idioten).</div>
+
+                  <div className="field" style={{ marginTop: "1rem" }}>
+                    <label htmlFor={`${f}.action`}>Was passiert bei einem Verstoß?</label>
+                    <select id={`${f}.action`} name={`${f}.action`} defaultValue={action}>
+                      {ACTIONS.map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {f === "words" && (
+                    <div className="field">
+                      <label htmlFor="words.list">Verbotene Wörter</label>
+                      <textarea
+                        id="words.list"
+                        name="words.list"
+                        defaultValue={(rule?.config.words ?? []).join("\n")}
+                        placeholder={"ein Wort pro Zeile\nidiot*"}
+                      />
+                      <div className="hint">Ein * am Ende trifft auch Endungen (idiot* → idioten).</div>
+                    </div>
+                  )}
+                  {f === "links" && (
+                    <div className="field">
+                      <label htmlFor="links.allowedDomains">Erlaubte Domains</label>
+                      <textarea
+                        id="links.allowedDomains"
+                        name="links.allowedDomains"
+                        defaultValue={(rule?.config.allowedDomains ?? []).join("\n")}
+                        placeholder={"youtube.com\nlibremod.dev"}
+                        style={{ minHeight: 80 }}
+                      />
+                      <div className="hint">Eine Domain pro Zeile, Subdomains sind automatisch erlaubt.</div>
+                    </div>
+                  )}
+
+                  <details className="more">
+                    <summary>
+                      Erweitert
+                      {rule?.durationSeconds ? ` · ${ACTION_SHORT[action]} ${formatDuration(rule.durationSeconds)}` : ""}
+                      {rule?.config.threshold ? ` · Schwelle ${rule.config.threshold}` : ""}
+                    </summary>
+                    <div className="grid-3">
+                      <div>
+                        <label htmlFor={`${f}.duration`}>Dauer</label>
+                        <input
+                          id={`${f}.duration`}
+                          name={`${f}.duration`}
+                          type="text"
+                          placeholder="z. B. 10m, 1d"
+                          defaultValue={rule?.durationSeconds ? compactDuration(rule.durationSeconds) : ""}
+                        />
+                        <div className="hint">Für Timeout (Standard 10 Minuten) oder befristeten Ban.</div>
+                      </div>
+                      {info.threshold && (
+                        <div>
+                          <label htmlFor={`${f}.threshold`}>Schwelle</label>
+                          <input
+                            id={`${f}.threshold`}
+                            name={`${f}.threshold`}
+                            type="number"
+                            min={f === "caps" ? 50 : 2}
+                            max={100}
+                            placeholder={String(defaultThreshold)}
+                            defaultValue={rule?.config.threshold ?? ""}
+                          />
+                          <div className="hint">
+                            {info.threshold}, Standard {defaultThreshold}.
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </details>
                 </div>
-              )}
-              {f === "links" && (
-                <div className="field">
-                  <label htmlFor="links.allowedDomains">Erlaubte Domains</label>
-                  <textarea
-                    id="links.allowedDomains"
-                    name="links.allowedDomains"
-                    defaultValue={(rule?.config.allowedDomains ?? []).join("\n")}
-                    placeholder={"youtube.com\nlibremod.dev"}
-                  />
-                  <div className="hint">Eine Domain pro Zeile, Subdomains sind automatisch mit erlaubt.</div>
-                </div>
-              )}
-            </section>
-          );
-        })}
+              );
+            })}
+          </div>
+        </section>
 
         <section className="card">
-          <h2>Ausnahmen</h2>
-          <p className="muted small">Mehrfachauswahl mit Strg bzw. Cmd.</p>
-          <div className="row">
-            <div className="field">
+          <div className="card-title">
+            <Icon name="users" />
+            <h2>Ausnahmen</h2>
+          </div>
+          <p className="card-sub">Rollen und Kanäle, in denen die Auto-Mod nicht eingreift. Mehrfachauswahl mit Strg bzw. Cmd.</p>
+          <div className="grid-3">
+            <div>
               <label htmlFor="exemptRoles">Rollen</label>
               <select id="exemptRoles" name="exemptRoles" multiple defaultValue={exemptRoles}>
                 {roles.map((r) => (
@@ -167,7 +204,7 @@ export default async function AutomodPage({
                 ))}
               </select>
             </div>
-            <div className="field">
+            <div>
               <label htmlFor="exemptChannels">Kanäle und Kategorien</label>
               <select id="exemptChannels" name="exemptChannels" multiple defaultValue={exemptChannels}>
                 {channels.map((c) => (
@@ -180,28 +217,31 @@ export default async function AutomodPage({
           </div>
         </section>
 
-        <section className="card">
-          <div className="card-head">
-            <div>
-              <h2>Raid-Schutz</h2>
-              <div className="muted small">Reagiert, wenn sehr viele Mitglieder in kurzer Zeit beitreten.</div>
+        <section className="card" id="raid">
+          <div className="filter-head">
+            <div className="module-icon">
+              <Icon name="shield" />
             </div>
-            <label className="check">
-              <input type="checkbox" name="raidEnabled" defaultChecked={settings?.raidEnabled ?? false} />
-              Aktiv
-            </label>
+            <div style={{ flex: 1 }}>
+              <Switch
+                name="raidEnabled"
+                defaultChecked={settings?.raidEnabled ?? false}
+                label="Raid-Schutz"
+                description="Reagiert, wenn sehr viele Mitglieder in kurzer Zeit beitreten. Bleibt danach 5 Minuten aktiv."
+              />
+            </div>
           </div>
-          <div className="row">
-            <div className="field">
+          <div className="grid-3" style={{ marginTop: "1rem" }}>
+            <div>
               <label htmlFor="raidJoinThreshold">Ab Beitritten</label>
               <input id="raidJoinThreshold" name="raidJoinThreshold" type="number" min={3} max={100} defaultValue={settings?.raidJoinThreshold ?? 10} />
             </div>
-            <div className="field">
+            <div>
               <label htmlFor="raidWindowSeconds">Innerhalb von Sekunden</label>
               <input id="raidWindowSeconds" name="raidWindowSeconds" type="number" min={5} max={600} defaultValue={settings?.raidWindowSeconds ?? 10} />
             </div>
-            <div className="field">
-              <label htmlFor="raidAction">Neue Mitglieder während des Raids</label>
+            <div>
+              <label htmlFor="raidAction">Mit neuen Mitgliedern</label>
               <select id="raidAction" name="raidAction" defaultValue={settings?.raidAction ?? "alert"}>
                 <option value="alert">Nur im Mod-Log warnen</option>
                 <option value="timeout">Timeout (1 Stunde)</option>
@@ -210,11 +250,11 @@ export default async function AutomodPage({
               </select>
             </div>
           </div>
-          <div className="hint">Der Raid-Modus bleibt nach dem letzten verdächtigen Beitritt 5 Minuten aktiv.</div>
         </section>
 
-        <div className="actions">
-          <button type="submit">Alles speichern</button>
+        <div className="savebar">
+          <span className="small muted">Änderungen gelten sofort nach dem Speichern.</span>
+          <button type="submit">Speichern</button>
         </div>
       </form>
     </>

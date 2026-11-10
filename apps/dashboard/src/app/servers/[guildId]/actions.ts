@@ -55,7 +55,7 @@ async function ensureSettings(guildId: string) {
 
 export async function saveModeration(guildId: string, form: FormData) {
   await requireGuildAccess(guildId);
-  const path = `/servers/${guildId}`;
+  const path = `/servers/${guildId}/moderation`;
   const channel = text(form, "modLogChannelId");
   if (channel && !SNOWFLAKE.test(channel)) back(path, "Ungültiger Kanal.");
 
@@ -71,7 +71,7 @@ export async function saveModeration(guildId: string, form: FormData) {
 
 export async function addEscalation(guildId: string, form: FormData) {
   await requireGuildAccess(guildId);
-  const path = `/servers/${guildId}`;
+  const path = `/servers/${guildId}/moderation`;
   const warnCount = int(form, "warnCount", 1, 100);
   const action = text(form, "action") as EscalationAction;
   const durationInput = text(form, "duration");
@@ -98,7 +98,7 @@ export async function removeEscalation(guildId: string, warnCount: number) {
   const { db, notifySettingsChanged } = database();
   await db.delete(warnEscalations).where(and(eq(warnEscalations.guildId, guildId), eq(warnEscalations.warnCount, warnCount)));
   await notifySettingsChanged(guildId);
-  back(`/servers/${guildId}`);
+  back(`/servers/${guildId}/moderation`);
 }
 
 // --- Auto-Mod ---

@@ -3,6 +3,7 @@ import Link from "next/link";
 import "./globals.css";
 import { getUser } from "@/lib/session";
 import { avatarUrl } from "@/lib/discord";
+import { Icon } from "@/components/Icon";
 
 export const metadata: Metadata = {
   title: "Libremod Dashboard",
@@ -16,7 +17,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <header className="topbar">
           <Link href={session ? "/servers" : "/"} className="brand">
-            Libre<span>mod</span>
+            <span className="brand-mark">
+              <Icon name="shield" size={16} />
+            </span>
+            Libremod
           </Link>
           {session && (
             <div className="user">

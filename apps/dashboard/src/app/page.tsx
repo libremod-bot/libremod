@@ -7,15 +7,23 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ f
 
   return (
     <section className="hero">
-      <h1>Libremod Dashboard</h1>
-      <p className="muted">
-        Moderation, Auto-Mod und Fallakte für deinen Discord-Server. Kostenlos, ohne Premium-Stufen, quelloffen.
+      <span className="badge info">100 % kostenlos · Open Source</span>
+      <h1>Dein Server, gut geschützt.</h1>
+      <p className="lead">
+        Moderation, Auto-Mod und Fallakte für Discord. Alle Funktionen für alle, ohne Premium-Stufen.
       </p>
-      {fehler && <div className="notice error">Die Anmeldung hat nicht geklappt. Bitte versuche es noch einmal.</div>}
-      <a className="button" href="/api/auth/login">
+      <div className="hero-features">
+        <span className="badge">Bans &amp; Timeouts</span>
+        <span className="badge">Spam- &amp; Linkfilter</span>
+        <span className="badge">Wortfilter</span>
+        <span className="badge">Raid-Schutz</span>
+        <span className="badge">Fallakte</span>
+      </div>
+      {fehler && <div className="toast error">Die Anmeldung hat nicht geklappt. Bitte versuche es noch einmal.</div>}
+      <a className="button big" href="/api/auth/login">
         Mit Discord anmelden
       </a>
-      <p className="small muted" style={{ marginTop: "1.5rem" }}>
+      <p className="small muted">
         Wir fragen nur deinen Namen und deine Server-Liste ab, um zu zeigen, welche Server du verwalten darfst.
       </p>
     </section>

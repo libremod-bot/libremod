@@ -21,7 +21,7 @@ export default async function GuildLayout({
         </div>
         <SidebarLinks guildId={guildId} />
       </nav>
-      <div>{children}</div>
+      <div className="stack">{children}</div>
     </div>
   );
 }
