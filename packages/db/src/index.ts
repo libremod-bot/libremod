@@ -1,4 +1,3 @@
-import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema.js";
@@ -7,22 +6,18 @@ export * from "./schema.js";
 export { schema };
 export { and, eq, desc, lte, sql, count, isNotNull } from "drizzle-orm";
 
+const SETTINGS_CHANNEL = "libremod_settings";
+
 export function createDb(url: string) {
   const client = postgres(url);
-  return { db: drizzle(client, { schema }), close: () => client.end() };
+  return {
+    db: drizzle(client, { schema }),
+    close: () => client.end(),
+    /** Meldet dem Bot, dass sich Einstellungen eines Servers geändert haben (z. B. aus dem Dashboard). */
+    notifySettingsChanged: (guildId: string) => client.notify(SETTINGS_CHANNEL, guildId),
+    /** Ruft onChange mit der Server-ID auf, sobald irgendwo Einstellungen geändert werden. */
+    onSettingsChanged: (onChange: (guildId: string) => void) => client.listen(SETTINGS_CHANNEL, onChange),
+  };
 }
 
 export type Db = ReturnType<typeof createDb>["db"];
-
-/** Spielt alle Migrationen aus packages/db/drizzle ein. Wird beim Bot-Start aufgerufen. */
-export async function runMigrations(url: string) {
-  const { migrate } = await import("drizzle-orm/postgres-js/migrator");
-  const client = postgres(url, { max: 1 });
-  try {
-    await migrate(drizzle(client), {
-      migrationsFolder: fileURLToPath(new URL("../drizzle", import.meta.url)),
-    });
-  } finally {
-    await client.end();
-  }
-}

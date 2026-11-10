@@ -23,5 +23,22 @@ services:
       db:
         condition: service_healthy
 
+  dashboard:
+    build:
+      context: .
+      dockerfile: apps/dashboard/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-libremod}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-libremod}
+    # Nur lokal erreichbar. Davor gehört ein Reverse Proxy mit HTTPS (siehe README).
+    ports:
+      - "127.0.0.1:${DASHBOARD_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      bot:
+        condition: service_started
+
 volumes:
   db-data:

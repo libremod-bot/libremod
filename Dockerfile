@@ -4,11 +4,13 @@ WORKDIR /app
 RUN corepack enable
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json ./
 COPY packages/db/package.json packages/db/
+COPY packages/shared/package.json packages/shared/
 COPY apps/bot/package.json apps/bot/
 RUN pnpm install --frozen-lockfile
 COPY packages/db packages/db
+COPY packages/shared packages/shared
 COPY apps/bot apps/bot
-RUN pnpm --filter @libremod/db build && pnpm --filter @libremod/bot build \
+RUN pnpm --filter @libremod/db --filter @libremod/shared build && pnpm --filter @libremod/bot build \
  && pnpm --filter @libremod/bot deploy --prod --legacy /out
 
 FROM node:22-alpine

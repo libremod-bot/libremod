@@ -10,7 +10,7 @@ import {
   JoinTracker,
   normalizeText,
   SpamTracker,
-} from "./filters.js";
+} from "./automod.js";
 
 test("Einladungslinks werden erkannt", () => {
   assert.ok(checkInvites("komm auf discord.gg/abc123"));

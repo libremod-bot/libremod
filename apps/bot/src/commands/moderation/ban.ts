@@ -1,7 +1,7 @@
 import { InteractionContextType, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import type { Command } from "../types.js";
 import { describeResult, moderate } from "../../services/actions.js";
-import { parseDuration } from "../../lib/duration.js";
+import { parseDuration } from "@libremod/shared";
 import { inGuild, replyPrivate, resolveTarget, REASON_MAX } from "./shared.js";
 
 const DELETE_CHOICES = [

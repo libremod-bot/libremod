@@ -1,16 +1,18 @@
 import { Client, Events, GatewayIntentBits } from "discord.js";
-import { createDb, runMigrations } from "@libremod/db";
+import { createDb } from "@libremod/db";
+import { runMigrations } from "@libremod/db/migrate";
 import { config } from "./config.js";
 import { logger } from "./logger.js";
 import { onInteractionCreate } from "./events/interactionCreate.js";
 import { onGuildCreate } from "./events/guildCreate.js";
 import { startTempBanScheduler } from "./services/tempbans.js";
-import { handleMemberJoin, handleMessage } from "./services/automod.js";
+import { handleMemberJoin, handleMessage, invalidateAutomod } from "./services/automod.js";
 
 await runMigrations(config.DATABASE_URL);
 logger.info("Datenbank ist auf dem neuesten Stand");
 
-const { db, close } = createDb(config.DATABASE_URL);
+const { db, close, onSettingsChanged } = createDb(config.DATABASE_URL);
+await onSettingsChanged(invalidateAutomod);
 const ctx = { db };
 let tempBanTimer: NodeJS.Timeout | undefined;
 

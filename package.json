@@ -8,8 +8,9 @@
   },
   "scripts": {
     "build": "pnpm -r build",
-    "typecheck": "pnpm --filter @libremod/db build && pnpm -r typecheck",
+    "typecheck": "pnpm --filter @libremod/db --filter @libremod/shared build && pnpm -r typecheck",
     "dev:bot": "pnpm --filter @libremod/bot dev",
+    "dev:dashboard": "pnpm --filter @libremod/dashboard dev",
     "deploy-commands": "pnpm --filter @libremod/bot deploy-commands",
     "db:generate": "pnpm --filter @libremod/db generate",
     "db:migrate": "pnpm --filter @libremod/db migrate",

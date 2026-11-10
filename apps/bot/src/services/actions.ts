@@ -1,7 +1,7 @@
 import type { Guild, GuildMember, User } from "discord.js";
 import { and, eq, warnEscalations, type CaseType, type Db, type ModCase } from "@libremod/db";
 import { logger } from "../logger.js";
-import { formatDuration, MAX_TIMEOUT_SECONDS } from "../lib/duration.js";
+import { formatDuration, MAX_TIMEOUT_SECONDS } from "@libremod/shared";
 import { countActiveWarnings, createCase, deactivateBans, getSettings } from "./cases.js";
 import { CASE_LABELS, postModLog } from "./modlog.js";
 

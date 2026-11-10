@@ -25,7 +25,7 @@ import {
   compileWordList,
   JoinTracker,
   SpamTracker,
-} from "../lib/automod/filters.js";
+} from "@libremod/shared";
 import { moderate } from "./actions.js";
 import { getSettings } from "./cases.js";
 

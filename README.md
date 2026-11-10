@@ -33,7 +33,8 @@ Der Bot braucht auf dem Server die Rechte **Mitglieder kicken**, **Mitglieder ba
 | Ordner           | Inhalt                                                |
 | ---------------- | ----------------------------------------------------- |
 | `apps/bot`       | Der Discord-Bot (TypeScript, discord.js)              |
-| `apps/dashboard` | Web-Dashboard mit Discord-Login (folgt)               |
+| `apps/dashboard` | Web-Dashboard mit Discord-Login (Next.js)             |
+| `packages/shared`| Gemeinsame Logik (Dauer-Angaben, Auto-Mod-Filter)     |
 | `packages/db`    | Datenbankschema und Migrationen (PostgreSQL, Drizzle) |
 
 ## Selbst hosten mit Docker
@@ -55,6 +56,36 @@ Slash-Befehle bei Discord registrieren (einmalig und nach jeder Änderung an den
 docker compose run --rm bot node dist/deploy-commands.js
 ```
 
+## Dashboard einrichten
+
+Das Dashboard startet mit `docker compose up -d` automatisch mit und lauscht nur lokal auf Port 3000 (`DASHBOARD_PORT`).
+
+1. Im Discord Developer Portal unter **OAuth2** das **Client Secret** kopieren und unter **Redirects** `https://dashboard.libremod.xyz/api/auth/callback` eintragen (bzw. deine eigene Adresse).
+2. In der `.env` `DISCORD_CLIENT_SECRET`, `DASHBOARD_URL` und `SESSION_SECRET` setzen. Ein passendes Secret erzeugt `openssl rand -hex 32`.
+3. Einen Reverse Proxy mit HTTPS davorschalten, zum Beispiel mit Caddy:
+
+```
+dashboard.libremod.xyz {
+    reverse_proxy 127.0.0.1:3000
+}
+```
+
+oder mit nginx (Zertifikat z. B. über certbot):
+
+```nginx
+server {
+    server_name dashboard.libremod.xyz;
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+```
+
+Änderungen im Dashboard übernimmt der Bot sofort.
+
 ## Entwicklung
 
 Voraussetzungen: Node.js 22 und pnpm.
@@ -68,9 +99,10 @@ docker run -d --name libremod-db -p 127.0.0.1:5432:5432 \
   postgres:17-alpine
 pnpm deploy-commands
 pnpm dev:bot
+pnpm --filter @libremod/dashboard dev   # Dashboard auf http://localhost:3000
 ```
 
-Vor einem Pull Request: `pnpm typecheck && pnpm build`.
+Vor einem Pull Request: `pnpm typecheck && pnpm build && pnpm test`.
 
 ## Lizenz
 

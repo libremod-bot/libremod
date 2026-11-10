@@ -8,7 +8,7 @@ import {
 import { and, eq, guildSettings, warnEscalations, type EscalationAction } from "@libremod/db";
 import type { Command } from "./types.js";
 import { getSettings } from "../services/cases.js";
-import { formatDuration, MAX_TIMEOUT_SECONDS, parseDuration } from "../lib/duration.js";
+import { formatDuration, MAX_TIMEOUT_SECONDS, parseDuration } from "@libremod/shared";
 import { inGuild, replyPrivate } from "./moderation/shared.js";
 
 const ACTION_LABELS: Record<EscalationAction, string> = { timeout: "Timeout", kick: "Kick", ban: "Ban" };

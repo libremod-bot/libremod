@@ -1,0 +1,174 @@
+import "server-only";
+import { env } from "./env";
+
+const API = "https://discord.com/api/v10";
+
+/** Berechtigungen, die zum Verwalten eines Servers im Dashboard reichen. */
+const ADMINISTRATOR = 0x8n;
+const MANAGE_GUILD = 0x20n;
+
+/** Rechte, die der Bot beim Einladen bekommt (siehe README). */
+export const BOT_PERMISSIONS = "1099511720966";
+
+export interface PartialGuild {
+  id: string;
+  name: string;
+  icon: string | null;
+  owner: boolean;
+  permissions: string;
+}
+
+export interface GuildChannel {
+  id: string;
+  name: string;
+  type: number;
+  position: number;
+  parent_id: string | null;
+}
+
+export interface GuildRole {
+  id: string;
+  name: string;
+  position: number;
+  color: number;
+  managed: boolean;
+}
+
+export const CHANNEL_TEXT = 0;
+export const CHANNEL_CATEGORY = 4;
+export const CHANNEL_ANNOUNCEMENT = 5;
+
+// Kleiner Zwischenspeicher, damit wir Discords Rate-Limits nicht reißen.
+const cache = new Map<string, { at: number; value: unknown }>();
+async function cached<T>(key: string, ttlMs: number, load: () => Promise<T>): Promise<T> {
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < ttlMs) return hit.value as T;
+  const value = await load();
+  cache.set(key, { at: Date.now(), value });
+  return value;
+}
+
+export function clearCache(prefix: string) {
+  for (const key of cache.keys()) if (key.startsWith(prefix)) cache.delete(key);
+}
+
+async function discord<T>(path: string, auth: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${API}${path}`, {
+    ...init,
+    headers: { Authorization: auth, ...(init?.headers ?? {}) },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new DiscordError(res.status, `${init?.method ?? "GET"} ${path}: ${res.status}`);
+  return (await res.json()) as T;
+}
+
+export class DiscordError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+// --- OAuth2 ---
+
+export function authorizeUrl(state: string) {
+  const params = new URLSearchParams({
+    client_id: env.clientId,
+    response_type: "code",
+    redirect_uri: `${env.dashboardUrl}/api/auth/callback`,
+    scope: "identify guilds",
+    state,
+    prompt: "none",
+  });
+  return `https://discord.com/oauth2/authorize?${params}`;
+}
+
+export async function exchangeCode(code: string) {
+  const res = await fetch(`${API}/oauth2/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: env.clientId,
+      client_secret: env.clientSecret,
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: `${env.dashboardUrl}/api/auth/callback`,
+    }),
+  });
+  if (!res.ok) throw new DiscordError(res.status, "Token-Austausch fehlgeschlagen");
+  return (await res.json()) as { access_token: string; expires_in: number };
+}
+
+export function getCurrentUser(accessToken: string) {
+  return discord<{ id: string; username: string; global_name: string | null; avatar: string | null }>(
+    "/users/@me",
+    `Bearer ${accessToken}`,
+  );
+}
+
+/** Server, die der Nutzer verwalten darf (Inhaber, Administrator oder „Server verwalten“). */
+export function getManageableGuilds(userId: string, accessToken: string) {
+  return cached(`user-guilds:${userId}`, 60_000, async () => {
+    const guilds = await discord<PartialGuild[]>("/users/@me/guilds", `Bearer ${accessToken}`);
+    return guilds.filter((g) => {
+      const perms = BigInt(g.permissions);
+      return g.owner || (perms & ADMINISTRATOR) !== 0n || (perms & MANAGE_GUILD) !== 0n;
+    });
+  });
+}
+
+// --- Bot-Anfragen ---
+
+const bot = () => `Bot ${env.botToken}`;
+
+/** Prüft, ob der Bot auf dem Server ist. */
+export function botIsInGuild(guildId: string) {
+  return cached(`bot-guild:${guildId}`, 60_000, async () => {
+    try {
+      await discord(`/guilds/${guildId}`, bot());
+      return true;
+    } catch (err) {
+      if (err instanceof DiscordError && (err.status === 403 || err.status === 404)) return false;
+      throw err;
+    }
+  });
+}
+
+export function getGuildChannels(guildId: string) {
+  return cached(`channels:${guildId}`, 30_000, async () => {
+    const channels = await discord<GuildChannel[]>(`/guilds/${guildId}/channels`, bot());
+    return channels.sort((a, b) => a.position - b.position);
+  });
+}
+
+export function getGuildRoles(guildId: string) {
+  return cached(`roles:${guildId}`, 30_000, async () => {
+    const roles = await discord<GuildRole[]>(`/guilds/${guildId}/roles`, bot());
+    return roles.filter((r) => r.id !== guildId && !r.managed).sort((a, b) => b.position - a.position);
+  });
+}
+
+export function inviteUrl(guildId?: string) {
+  const params = new URLSearchParams({
+    client_id: env.clientId,
+    scope: "bot applications.commands",
+    permissions: BOT_PERMISSIONS,
+  });
+  if (guildId) {
+    params.set("guild_id", guildId);
+    params.set("disable_guild_select", "true");
+  }
+  return `https://discord.com/oauth2/authorize?${params}`;
+}
+
+export function guildIconUrl(g: { id: string; icon: string | null }) {
+  return g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=128` : null;
+}
+
+export function avatarUrl(u: { id: string; avatar: string | null }) {
+  return u.avatar
+    ? `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=64`
+    : `https://cdn.discordapp.com/embed/avatars/${Number((BigInt(u.id) >> 22n) % 6n)}.png`;
+}

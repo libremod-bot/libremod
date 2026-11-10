@@ -19,8 +19,8 @@ import {
 import type { Command } from "./types.js";
 import { getSettings } from "../services/cases.js";
 import { FILTER_LABELS, getRule, invalidateAutomod } from "../services/automod.js";
-import { DEFAULT_THRESHOLDS } from "../lib/automod/filters.js";
-import { formatDuration, MAX_TIMEOUT_SECONDS, parseDuration } from "../lib/duration.js";
+import { DEFAULT_THRESHOLDS } from "@libremod/shared";
+import { formatDuration, MAX_TIMEOUT_SECONDS, parseDuration } from "@libremod/shared";
 import { inGuild, replyPrivate } from "./moderation/shared.js";
 
 const ACTION_LABELS: Record<AutomodAction, string> = {
