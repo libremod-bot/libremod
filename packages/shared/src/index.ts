@@ -13,3 +13,4 @@ export * from "./tickets.js";
 export * from "./economy.js";
 export * from "./fun.js";
 export * from "./protection.js";
+export * from "./community2.js";

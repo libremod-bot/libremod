@@ -9,6 +9,7 @@ export const RESERVED_COMMANDS = [
   "warn", "timeout", "untimeout", "kick", "ban", "unban", "purge", "cases", "case", "ticket",
   "balance", "daily", "work", "pay", "shop", "buy", "inventory", "richlist", "coins",
   "giveaway", "poll", "remind", "birthday", "verify", "lockdown", "unlock", "note", "modstats",
+  "suggest", "suggestion", "temprole",
 ];
 
 /** Antworten werden durch eine Zeile mit genau "---" getrennt. */

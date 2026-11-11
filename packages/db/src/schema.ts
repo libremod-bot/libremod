@@ -632,6 +632,8 @@ export const shopItems = pgTable(
     /** Text, den man nach dem Kauf sieht, z. B. wie man den Gewinn einlöst. */
     replyMessage: varchar("reply_message", { length: 500 }).notNull().default(""),
     enabled: boolean("enabled").notNull().default(true),
+    /** Rolle nur für so viele Tage; null = dauerhaft. Erneuter Kauf verlängert. */
+    roleDays: integer("role_days"),
   },
   (t) => [index("shop_items_guild").on(t.guildId)],
 );
@@ -831,3 +833,99 @@ export const memberNotes = pgTable(
 );
 
 export type MemberNote = typeof memberNotes.$inferSelect;
+
+// --- Vorschläge ---
+
+export const suggestionStatus = pgEnum("suggestion_status", ["open", "considered", "accepted", "denied", "implemented"]);
+export type SuggestionStatus = (typeof suggestionStatus.enumValues)[number];
+
+export const suggestionSettings = pgTable("suggestion_settings", {
+  guildId: varchar("guild_id", { length: 32 }).primaryKey(),
+  enabled: boolean("enabled").notNull().default(false),
+  channelId: varchar("channel_id", { length: 32 }),
+  /** Normale Nachrichten im Kanal automatisch in Vorschläge umwandeln. */
+  autoConvert: boolean("auto_convert").notNull().default(true),
+  /** Pro Vorschlag einen Thread zum Diskutieren öffnen. */
+  threads: boolean("threads").notNull().default(false),
+  anonymous: boolean("anonymous").notNull().default(false),
+  /** Verfasser per Direktnachricht über Statusänderungen informieren. */
+  dmAuthor: boolean("dm_author").notNull().default(true),
+  counter: integer("counter").notNull().default(0),
+});
+
+export type SuggestionSettings = typeof suggestionSettings.$inferSelect;
+
+export const suggestions = pgTable(
+  "suggestions",
+  {
+    id: serial("id").primaryKey(),
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    number: integer("number").notNull(),
+    channelId: varchar("channel_id", { length: 32 }).notNull(),
+    messageId: varchar("message_id", { length: 32 }),
+    authorId: varchar("author_id", { length: 32 }).notNull(),
+    text: varchar("text", { length: 2000 }).notNull(),
+    status: suggestionStatus("status").notNull().default("open"),
+    statusReason: varchar("status_reason", { length: 500 }),
+    statusBy: varchar("status_by", { length: 32 }),
+    up: integer("up").notNull().default(0),
+    down: integer("down").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("suggestions_guild_number").on(t.guildId, t.number), index("suggestions_guild_status").on(t.guildId, t.status)],
+);
+
+export type Suggestion = typeof suggestions.$inferSelect;
+
+export const suggestionVotes = pgTable(
+  "suggestion_votes",
+  {
+    suggestionId: integer("suggestion_id").notNull(),
+    userId: varchar("user_id", { length: 32 }).notNull(),
+    /** 1 = dafür, -1 = dagegen */
+    vote: integer("vote").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.suggestionId, t.userId] })],
+);
+
+// --- Rollen mit Ablaufdatum ---
+
+export const tempRoles = pgTable(
+  "temp_roles",
+  {
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    userId: varchar("user_id", { length: 32 }).notNull(),
+    roleId: varchar("role_id", { length: 32 }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    addedBy: varchar("added_by", { length: 32 }),
+    /** Woher die Rolle stammt, z. B. "Shop: VIP". */
+    source: varchar("source", { length: 100 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.userId, t.roleId] }), index("temp_roles_expires").on(t.expiresAt)],
+);
+
+export type TempRole = typeof tempRoles.$inferSelect;
+
+// --- Zähl-Kanal ---
+
+export const countingChannels = pgTable(
+  "counting_channels",
+  {
+    channelId: varchar("channel_id", { length: 32 }).primaryKey(),
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    current: integer("current").notNull().default(0),
+    lastUserId: varchar("last_user_id", { length: 32 }),
+    record: integer("record").notNull().default(0),
+    /** Dieselbe Person darf zweimal hintereinander zählen. */
+    allowSameUser: boolean("allow_same_user").notNull().default(false),
+    /** Bei einem Fehler wieder bei 1 anfangen. Sonst wird nur die falsche Nachricht entfernt. */
+    resetOnFail: boolean("reset_on_fail").notNull().default(true),
+    /** Nachrichten ohne Zahl löschen. */
+    onlyNumbers: boolean("only_numbers").notNull().default(true),
+    fails: integer("fails").notNull().default(0),
+  },
+  (t) => [index("counting_guild").on(t.guildId)],
+);
+
+export type CountingChannel = typeof countingChannels.$inferSelect;

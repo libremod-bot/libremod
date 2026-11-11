@@ -8,7 +8,7 @@ const ADMINISTRATOR = 0x8n;
 const MANAGE_GUILD = 0x20n;
 
 /** Rechte, die der Bot beim Einladen bekommt (siehe README). */
-export const BOT_PERMISSIONS = "564410527771670";
+export const BOT_PERMISSIONS = "564444887510102";
 
 export interface PartialGuild {
   id: string;

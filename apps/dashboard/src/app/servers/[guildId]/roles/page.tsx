@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { autoRoles, desc, eq, rolePanels } from "@libremod/db";
+import { asc, autoRoles, desc, eq, rolePanels, tempRoles } from "@libremod/db";
 import { Icon } from "@/components/Icon";
 import { Notice } from "@/components/Notice";
 import { PageHeader } from "@/components/PageHeader";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
-import { CHANNEL_ANNOUNCEMENT, CHANNEL_TEXT, getBotTopPosition, getGuildChannels, getGuildRoles } from "@/lib/discord";
-import { createPanel, deletePanel, saveAutoRoles } from "../actions";
+import { CHANNEL_ANNOUNCEMENT, CHANNEL_TEXT, getBotTopPosition, getGuildChannels, getGuildRoles, getMembers } from "@/lib/discord";
+import { createPanel, deletePanel, endTempRole, saveAutoRoles } from "../actions";
 import { PanelForm } from "./PanelForm";
 
 export const metadata = { title: "Rollen · Libremod" };
@@ -23,13 +23,17 @@ export default async function RolesPage({
   const { gespeichert, fehler } = await searchParams;
 
   const { db } = database();
-  const [auto, panels, channels, roles, botTop] = await Promise.all([
+  const [auto, panels, channels, roles, botTop, temps] = await Promise.all([
     db.select().from(autoRoles).where(eq(autoRoles.guildId, guildId)),
     db.select().from(rolePanels).where(eq(rolePanels.guildId, guildId)).orderBy(desc(rolePanels.id)),
     getGuildChannels(guildId),
     getGuildRoles(guildId),
     getBotTopPosition(guildId),
+    db.select().from(tempRoles).where(eq(tempRoles.guildId, guildId)).orderBy(asc(tempRoles.expiresAt)).limit(50),
   ]);
+  const tempPeople = await getMembers(guildId, [...new Set(temps.map((t) => t.userId))]);
+  const personName = (id: string) => tempPeople.find((p) => p.id === id)?.name ?? id;
+  const when = new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Berlin" });
   const textChannels = channels.filter((c) => c.type === CHANNEL_TEXT || c.type === CHANNEL_ANNOUNCEMENT);
   const roleName = (id: string) => roles.find((r) => r.id === id)?.name ?? "gelöschte Rolle";
   const channelName = (id: string) => channels.find((c) => c.id === id)?.name ?? "gelöschter Kanal";
@@ -144,6 +148,44 @@ export default async function RolesPage({
           </div>
           <PanelForm action={createPanel.bind(null, guildId)} channels={textChannels} roles={roles} botTop={botTop} submitLabel="Panel posten" />
         </div>
+      </section>
+
+      <section className="card">
+        <div className="card-title">
+          <Icon name="clock" />
+          <h2>Rollen auf Zeit</h2>
+        </div>
+        {temps.length === 0 ? (
+          <p className="empty" style={{ paddingTop: 0 }}>
+            Gerade läuft keine Rolle auf Zeit. Vergeben geht mit <code>/temprole add</code> oder als Shop-Artikel mit Tagen.
+          </p>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <tbody>
+                {temps.map((t) => (
+                  <tr key={`${t.userId}-${t.roleId}`}>
+                    <td>
+                      {personName(t.userId)}
+                      {t.source && <div className="small muted">{t.source}</div>}
+                    </td>
+                    <td>@{roleName(t.roleId)}</td>
+                    <td className="small" style={{ whiteSpace: "nowrap" }}>
+                      {t.expiresAt <= new Date() ? "läuft ab …" : `bis ${when.format(t.expiresAt)}`}
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      <form action={endTempRole.bind(null, guildId, t.userId, t.roleId)}>
+                        <button className="secondary small" type="submit">
+                          Jetzt beenden
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </>
   );

@@ -37,6 +37,12 @@ import {
   verificationSettings,
   channelLocks,
   memberNotes,
+  suggestionSettings,
+  suggestions,
+  suggestionVotes,
+  tempRoles,
+  countingChannels,
+  type SuggestionStatus,
   type TicketQuestion,
   count,
   warnEscalations,
@@ -84,6 +90,8 @@ import {
   MIN_GIVEAWAY_SECONDS,
   buildVerificationMessage,
   parseAnswers,
+  buildSuggestionMessage,
+  SUGGESTION_STATUS,
 } from "@libremod/shared";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
@@ -101,6 +109,7 @@ import {
   getBotTopPosition,
   getGuildChannels,
   getGuildRoles,
+  getMembers,
   sendBotMessage,
 } from "@/lib/discord";
 
@@ -1209,7 +1218,10 @@ async function readShopItem(guildId: string, form: FormData, path: string) {
   }
   const replyMessage = text(form, "replyMessage");
   if (replyMessage.length > 500) back(path, "Der Text nach dem Kauf ist zu lang.");
-  return { name, description, price, stock, roleId, replyMessage, enabled: form.get("enabled") !== "off" };
+  const roleDays = int(form, "roleDays", 1, 366);
+  if (Number.isNaN(roleDays)) back(path, "Die Tage für die Rolle müssen zwischen 1 und 366 liegen.");
+  if (roleDays && !roleId) back(path, "Tage gelten nur für Artikel mit Rolle.");
+  return { name, description, price, stock, roleId, roleDays, replyMessage, enabled: form.get("enabled") !== "off" };
 }
 
 export async function createShopItem(guildId: string, form: FormData) {
@@ -1453,4 +1465,133 @@ export async function deleteMemberNote(guildId: string, noteId: number) {
   const { db } = database();
   const [gone] = await db.delete(memberNotes).where(and(eq(memberNotes.guildId, guildId), eq(memberNotes.id, noteId))).returning();
   redirect(`/servers/${guildId}/cases?${gone ? `nutzer=${gone.userId}&` : ""}gespeichert=1`);
+}
+
+// --- Vorschläge ---
+
+const SUGGESTIONS = (guildId: string) => `/servers/${guildId}/suggestions`;
+
+export async function saveSuggestions(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = SUGGESTIONS(guildId);
+  const { db, notifySettingsChanged } = database();
+  const [old] = await db.select().from(suggestionSettings).where(eq(suggestionSettings.guildId, guildId));
+  const channelId = text(form, "channelId") || null;
+  if (channelId && channelId !== old?.channelId && !(await textChannelIds(guildId)).text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  const enabled = form.get("enabled") === "on";
+  if (enabled && !channelId) back(path, "Bitte einen Kanal für Vorschläge wählen.");
+  const values = {
+    enabled,
+    channelId,
+    autoConvert: form.get("autoConvert") === "on",
+    threads: form.get("threads") === "on",
+    anonymous: form.get("anonymous") === "on",
+    dmAuthor: form.get("dmAuthor") === "on",
+  };
+  await db.insert(suggestionSettings).values({ guildId, ...values }).onConflictDoUpdate({ target: suggestionSettings.guildId, set: values });
+  await notifySettingsChanged(guildId);
+  back(path);
+}
+
+export async function setSuggestionStatusFromDashboard(guildId: string, suggestionId: number, form: FormData) {
+  const { user } = await requireGuildAccess(guildId);
+  const path = SUGGESTIONS(guildId);
+  const status = text(form, "status") as SuggestionStatus;
+  if (!(status in SUGGESTION_STATUS)) back(path, "Unbekannter Status.");
+  const reason = text(form, "reason") || null;
+  if (reason && reason.length > 500) back(path, "Die Begründung darf höchstens 500 Zeichen lang sein.");
+  const { db } = database();
+  const [row] = await db
+    .update(suggestions)
+    .set({ status, statusReason: reason, statusBy: user.id })
+    .where(and(eq(suggestions.id, suggestionId), eq(suggestions.guildId, guildId)))
+    .returning();
+  if (!row) back(path, "Diesen Vorschlag gibt es nicht mehr.");
+  const [settings] = await db.select().from(suggestionSettings).where(eq(suggestionSettings.guildId, guildId));
+  let error: string | undefined;
+  if (row.messageId) {
+    const [author] = await getMembers(guildId, [row.authorId]);
+    const body = buildSuggestionMessage(
+      { ...row, authorName: author && author.name !== row.authorId ? author.name : undefined, authorAvatar: author?.avatar || undefined },
+      settings?.anonymous ?? false,
+    );
+    try {
+      await editBotMessage(row.channelId, row.messageId, body);
+    } catch (err) {
+      if (!(err instanceof DiscordError && err.status === 404)) error = "Gespeichert, aber die Nachricht im Kanal konnte nicht aktualisiert werden.";
+    }
+  }
+  back(path, error);
+}
+
+export async function deleteSuggestion(guildId: string, suggestionId: number) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  const [gone] = await db.delete(suggestions).where(and(eq(suggestions.id, suggestionId), eq(suggestions.guildId, guildId))).returning();
+  if (gone) {
+    await db.delete(suggestionVotes).where(eq(suggestionVotes.suggestionId, gone.id));
+    if (gone.messageId) await deleteBotMessage(gone.channelId, gone.messageId).catch(() => {});
+  }
+  back(SUGGESTIONS(guildId));
+}
+
+// --- Rollen auf Zeit ---
+
+/** Setzt das Ende auf jetzt. Der Bot nimmt die Rolle innerhalb einer Minute weg. */
+export async function endTempRole(guildId: string, userId: string, roleId: string) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  await db
+    .update(tempRoles)
+    .set({ expiresAt: new Date() })
+    .where(and(eq(tempRoles.guildId, guildId), eq(tempRoles.userId, userId), eq(tempRoles.roleId, roleId)));
+  back(`/servers/${guildId}/roles`);
+}
+
+// --- Zähl-Kanal ---
+
+const COUNTING = (guildId: string) => `/servers/${guildId}/counting`;
+
+function countingOptions(form: FormData) {
+  return {
+    allowSameUser: form.get("allowSameUser") === "on",
+    resetOnFail: form.get("resetOnFail") === "on",
+    onlyNumbers: form.get("onlyNumbers") === "on",
+  };
+}
+
+export async function addCountingChannel(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = COUNTING(guildId);
+  const channelId = text(form, "channelId");
+  if (!(await textChannelIds(guildId)).text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  const { db, notifySettingsChanged } = database();
+  const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(countingChannels).where(eq(countingChannels.guildId, guildId));
+  if (n >= 5) back(path, "Ein Server kann höchstens 5 Zähl-Kanäle haben.");
+  const added = await db.insert(countingChannels).values({ guildId, channelId, ...countingOptions(form) }).onConflictDoNothing().returning();
+  if (!added.length) back(path, "Dieser Kanal ist schon ein Zähl-Kanal.");
+  await notifySettingsChanged(guildId);
+  back(path);
+}
+
+export async function updateCountingChannel(guildId: string, channelId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  await db.update(countingChannels).set(countingOptions(form)).where(and(eq(countingChannels.guildId, guildId), eq(countingChannels.channelId, channelId)));
+  back(COUNTING(guildId));
+}
+
+export async function resetCountingChannel(guildId: string, channelId: string) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  await db.update(countingChannels).set({ current: 0, lastUserId: null }).where(and(eq(countingChannels.guildId, guildId), eq(countingChannels.channelId, channelId)));
+  back(COUNTING(guildId));
+}
+
+export async function deleteCountingChannel(guildId: string, channelId: string) {
+  await requireGuildAccess(guildId);
+  const { db, notifySettingsChanged } = database();
+  await db.delete(countingChannels).where(and(eq(countingChannels.guildId, guildId), eq(countingChannels.channelId, channelId)));
+  await notifySettingsChanged(guildId);
+  back(COUNTING(guildId));
 }

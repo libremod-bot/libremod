@@ -118,7 +118,7 @@ export const shop: Command = {
         items.slice(0, 25).map((i) => ({
           name: `${i.name} · ${money(s, i.price)}`,
           value:
-            [i.description, i.roleId ? `Rolle: <@&${i.roleId}>` : "", i.stock !== null ? (i.stock > 0 ? `Noch ${i.stock} übrig` : "Ausverkauft") : ""]
+            [i.description, i.roleId ? `Rolle: <@&${i.roleId}>${i.roleDays ? ` für ${i.roleDays} ${i.roleDays === 1 ? "Tag" : "Tage"}` : ""}` : "", i.stock !== null ? (i.stock > 0 ? `Noch ${i.stock} übrig` : "Ausverkauft") : ""]
               .filter(Boolean)
               .join("\n") || "​",
         })),
@@ -172,7 +172,7 @@ export const buy: Command = {
     }
     const lines = [
       `🛍️ Du hast **${r.item.name}** für ${money(s, r.item.price)} gekauft.`,
-      r.roleGiven ? `Du hast jetzt die Rolle <@&${r.item.roleId}>.` : "",
+      r.roleGiven ? (r.item.roleDays ? `Du hast die Rolle <@&${r.item.roleId}> für ${r.item.roleDays} ${r.item.roleDays === 1 ? "Tag" : "Tage"}. Ein erneuter Kauf verlängert sie.` : `Du hast jetzt die Rolle <@&${r.item.roleId}>.`) : "",
       r.item.replyMessage,
       `Guthaben: ${money(s, r.balance)}`,
     ].filter(Boolean);

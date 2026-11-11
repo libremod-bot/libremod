@@ -36,6 +36,13 @@ export function ItemFields({ item, roles, botTop }: { item?: ShopItem; roles: Gu
           </select>
         </div>
       </div>
+      <div className="grid-2">
+        <div className="field">
+          <label htmlFor="roleDays">Rolle für Tage (leer = dauerhaft)</label>
+          <input id="roleDays" name="roleDays" type="number" min={1} max={366} defaultValue={item?.roleDays ?? ""} placeholder="z. B. 30" />
+          <div className="hint">Mit Tagen läuft die Rolle danach ab. Ein erneuter Kauf verlängert sie.</div>
+        </div>
+      </div>
       <div className="field">
         <label htmlFor="replyMessage">Text nach dem Kauf (optional)</label>
         <input

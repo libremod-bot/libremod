@@ -5,6 +5,7 @@ import { logger } from "../logger.js";
 import { handlePanelInteraction, isPanelInteraction } from "../services/rolepanels.js";
 import { handleCustomCommand } from "../services/customcommands.js";
 import { handleTicketInteraction, isTicketInteraction } from "../services/tickets.js";
+import { handleSuggestionVote, isSuggestionInteraction } from "../services/community2.js";
 import { handleVerifyInteraction, isVerifyInteraction } from "../services/protection.js";
 import { handleGiveawayButton, isGiveawayInteraction } from "../services/fun.js";
 
@@ -30,6 +31,13 @@ export async function onInteractionCreate(interaction: Interaction, ctx: Command
       logger.error({ err }, "Verifizierung fehlgeschlagen");
       const content = "Da ist leider etwas schiefgelaufen. Sag bitte dem Team Bescheid.";
       if (!interaction.replied) await interaction.reply({ content, flags: MessageFlags.Ephemeral }).catch(() => {});
+    });
+    return;
+  }
+  if (interaction.isButton() && isSuggestionInteraction(interaction.customId)) {
+    await handleSuggestionVote(interaction, ctx.db).catch(async (err) => {
+      logger.error({ err }, "Abstimmung fehlgeschlagen");
+      if (!interaction.replied) await interaction.reply({ content: "Da ist leider etwas schiefgelaufen.", flags: MessageFlags.Ephemeral }).catch(() => {});
     });
     return;
   }

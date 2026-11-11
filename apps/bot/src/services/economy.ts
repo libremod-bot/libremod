@@ -14,6 +14,7 @@ import {
 } from "@libremod/db";
 import { dailyReward, MAX_BALANCE, randomBetween, workReady } from "@libremod/shared";
 import { logger } from "../logger.js";
+import { addTempRole } from "./community2.js";
 
 const CACHE_TTL_MS = 60_000;
 const cache = new Map<string, { settings: EconomySettings | null; loadedAt: number }>();
@@ -132,7 +133,8 @@ export async function buyItem(db: Db, s: EconomySettings, member: GuildMember, i
     const role = member.guild.roles.cache.get(item.roleId);
     const me = member.guild.members.me;
     if (!role || role.managed || !me || role.position >= me.roles.highest.position) return { ok: false, reason: "role", item };
-    if (member.roles.cache.has(item.roleId)) return { ok: false, reason: "owned", item };
+    // Rollen auf Zeit dürfen nachgekauft werden, das verlängert sie.
+    if (member.roles.cache.has(item.roleId) && !item.roleDays) return { ok: false, reason: "owned", item };
   }
 
   const result = await db.transaction(async (tx) => {
@@ -161,7 +163,8 @@ export async function buyItem(db: Db, s: EconomySettings, member: GuildMember, i
 
   if (item.roleId) {
     try {
-      await member.roles.add(item.roleId, `Libremod: im Shop gekauft (${item.name})`);
+      if (item.roleDays) await addTempRole(member, db, item.roleId, item.roleDays * 86_400, null, `Shop: ${item.name}`.slice(0, 100));
+      else await member.roles.add(item.roleId, `Libremod: im Shop gekauft (${item.name})`);
     } catch (err) {
       logger.warn({ err, guildId: s.guildId, item: item.id }, "Shop: Rolle konnte nicht vergeben werden, Geld zurück");
       await addBalance(db, s.guildId, member.id, item.price, `Erstattung: ${item.name}`);

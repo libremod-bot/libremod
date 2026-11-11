@@ -23,6 +23,8 @@ Website: [libremod.dev](https://libremod.dev) · Geplante Funktionen: [ROADMAP.m
 | `/lockdown channel/server`, `/unlock channel/server` | Kanäle oder den ganzen Server sperren, auf Wunsch befristet |
 | `/note add/list/delete`               | Team-Notizen zu Mitgliedern, nur für das Team sichtbar       |
 | `/modstats`                           | Wer im Team wie viele Fälle bearbeitet hat                   |
+| `/suggest`, `/suggestion status/delete` | Vorschläge einreichen, abstimmen, als Team entscheiden    |
+| `/temprole add/remove/list`           | Rollen auf Zeit, z. B. 30 Tage VIP                           |
 | `/verify`                             | Mitglied von Hand verifizieren (Verifizierung im Dashboard einrichten) |
 | `/config modlog/dm/escalation/show`   | Mod-Log-Kanal, Direktnachrichten, Verwarnungsstufen          |
 | `/automod status/toggle/filter`       | Auto-Moderation: Spam, Einladungen, Links, Wortfilter, Großbuchstaben, Massen-Erwähnungen |
@@ -40,11 +42,11 @@ Website: [libremod.dev](https://libremod.dev) · Geplante Funktionen: [ROADMAP.m
 | `/birthday set/remove/show/list`      | Geburtstag eintragen und die nächsten Geburtstage ansehen    |
 | `/logging status/set/off/ignore`      | Logs für Nachrichten, Beitritte, Mitglieder, Server und Sprachkanäle, je Art ein eigener Kanal |
 
-Dazu kommen eigene Befehle, die du im Dashboard anlegst. Geplante Nachrichten, Zähler-Kanäle, temporäre Sprachkanäle, Benachrichtigungen (YouTube, Twitch, Kick, Reddit, RSS), die Server-Währung mit Shop, die Verifizierung neuer Mitglieder (Knopf, Code oder Frage), Gewinnspiele, Geburtstage (Glückwunsch-Kanal, Uhrzeit, Geburtstagsrolle), das Ticket-System (Ticket-Arten mit Formularfragen, Panels, Team-Rollen, Transkripte, Bewertungen), den Highlight-Kanal, automatisches Kanal-Leeren und den automatischen Langsam-Modus richtest du ebenfalls dort ein.
+Dazu kommen eigene Befehle, die du im Dashboard anlegst. Geplante Nachrichten, Zähler-Kanäle, temporäre Sprachkanäle, Benachrichtigungen (YouTube, Twitch, Kick, Reddit, RSS), die Server-Währung mit Shop, die Verifizierung neuer Mitglieder (Knopf, Code oder Frage), Gewinnspiele, Vorschläge, Zähl-Kanäle, Geburtstage (Glückwunsch-Kanal, Uhrzeit, Geburtstagsrolle), das Ticket-System (Ticket-Arten mit Formularfragen, Panels, Team-Rollen, Transkripte, Bewertungen), den Highlight-Kanal, automatisches Kanal-Leeren und den automatischen Langsam-Modus richtest du ebenfalls dort ein.
 
 Im Discord Developer Portal müssen unter **Bot → Privileged Gateway Intents** die Optionen **Server Members Intent** und **Message Content Intent** eingeschaltet sein (für Auto-Moderation, Raid-Schutz und Logging).
 
-Der Bot braucht auf dem Server die Rechte **Mitglieder kicken**, **Mitglieder bannen**, **Mitglieder im Timeout**, **Nachrichten verwalten**, **Rollen verwalten** (für Auto-Rollen und Rollen-Panels), **Kanäle verwalten** und **Mitglieder verschieben** (für Zähler-Kanäle, temporäre Sprachkanäle und den Langsam-Modus), **Nachrichtenverlauf lesen** (für Highlights und Kanal-Leeren), **@everyone erwähnen** (nur falls Benachrichtigungen das sollen), **Threads verwalten**, **Private Threads erstellen** und **Nachrichten in Threads senden** (für Tickets als private Threads), **Umfragen erstellen** (für `/poll`) und **Nachrichten senden**, **Links einbetten** und **Dateien anhängen** im Mod-Log- und in den Log-Kanälen. Seine Rolle muss über den Rollen der Mitglieder stehen, die er moderieren soll.
+Der Bot braucht auf dem Server die Rechte **Mitglieder kicken**, **Mitglieder bannen**, **Mitglieder im Timeout**, **Nachrichten verwalten**, **Rollen verwalten** (für Auto-Rollen und Rollen-Panels), **Kanäle verwalten** und **Mitglieder verschieben** (für Zähler-Kanäle, temporäre Sprachkanäle und den Langsam-Modus), **Nachrichtenverlauf lesen** (für Highlights und Kanal-Leeren), **@everyone erwähnen** (nur falls Benachrichtigungen das sollen), **Threads verwalten**, **Private Threads erstellen** und **Nachrichten in Threads senden** (für Tickets als private Threads), **Umfragen erstellen** (für `/poll`), **Öffentliche Threads erstellen** (für Diskussionen zu Vorschlägen), **Reaktionen hinzufügen** (für den Zähl-Kanal) und **Nachrichten senden**, **Links einbetten** und **Dateien anhängen** im Mod-Log- und in den Log-Kanälen. Seine Rolle muss über den Rollen der Mitglieder stehen, die er moderieren soll.
 
 ## Aufbau
 

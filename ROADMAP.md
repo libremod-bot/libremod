@@ -76,6 +76,12 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 - Team-Notizen zu Mitgliedern, im Chat und in der Fallakte
 - Team-Statistik: wer wie viele Fälle bearbeitet hat
 
+## 0.11 Mitmachen
+
+- Vorschläge-Kanal mit Abstimmung per Knopf, Status (offen, wird überlegt, angenommen, abgelehnt, umgesetzt), Begründung und Nachricht an den Verfasser
+- Rollen mit Ablaufdatum, von Hand oder als Shop-Artikel, erneuter Kauf verlängert
+- Zähl-Kanal mit Rekord, Neustart bei Fehlern und Schutz gegen doppeltes Zählen
+
 ## Später
 
 ### Moderation und Sicherheit
@@ -87,11 +93,9 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 
 ### Community
 
-- Vorschläge-Kanal mit Abstimmung und Status (angenommen, abgelehnt)
 - Event-Planer mit Zu- und Absagen und Erinnerung vor Beginn
 - Zitate speichern und zufällig wieder hervorholen
-- Rollen mit Ablaufdatum, z. B. 30 Tage VIP
-- Zähl-Spiel und Wortketten-Kanal
+- Wortketten-Kanal
 - Begrüßungsbild mit Avatar (aus 0.4, noch offen)
 - Sprachkanal-Rolle (aus 0.4, noch offen)
 

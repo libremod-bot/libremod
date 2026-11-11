@@ -29,6 +29,9 @@ import {
   birthdays,
   birthdaySettings,
   verificationSettings,
+  suggestionSettings,
+  suggestions,
+  countingChannels,
   channelLocks,
   sql,
   warnEscalations,
@@ -67,7 +70,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
 
   const { db } = database();
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const [[settings], rules, escalations, [weekStats], recent, channels, logs, [welcome], autoRoleRows, panels, [levels], [cmdCount], [schedCount], [counterCount], [hubCount], [feedCount], [hl], [purgeCount], [slowCount], [openTickets], [panelCount], [eco], [itemCount], [gwCount], [bday], [bdayCount], [verify], [lockCount]] = await Promise.all([
+  const [[settings], rules, escalations, [weekStats], recent, channels, logs, [welcome], autoRoleRows, panels, [levels], [cmdCount], [schedCount], [counterCount], [hubCount], [feedCount], [hl], [purgeCount], [slowCount], [openTickets], [panelCount], [eco], [itemCount], [gwCount], [bday], [bdayCount], [verify], [lockCount], [sugg], [openSugg], [countRow]] = await Promise.all([
     db.select().from(guildSettings).where(eq(guildSettings.guildId, guildId)),
     db.select().from(automodRules).where(and(eq(automodRules.guildId, guildId), eq(automodRules.enabled, true))),
     db.select({ n: count() }).from(warnEscalations).where(eq(warnEscalations.guildId, guildId)),
@@ -102,6 +105,9 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
     db.select({ n: count() }).from(birthdays).where(eq(birthdays.guildId, guildId)),
     db.select({ enabled: verificationSettings.enabled }).from(verificationSettings).where(eq(verificationSettings.guildId, guildId)),
     db.select({ n: count() }).from(channelLocks).where(eq(channelLocks.guildId, guildId)),
+    db.select({ enabled: suggestionSettings.enabled }).from(suggestionSettings).where(eq(suggestionSettings.guildId, guildId)),
+    db.select({ n: count() }).from(suggestions).where(and(eq(suggestions.guildId, guildId), eq(suggestions.status, "open"))),
+    db.select({ current: countingChannels.current, record: countingChannels.record }).from(countingChannels).where(eq(countingChannels.guildId, guildId)).limit(1),
   ]);
   const countBadge = (n: number | undefined, one: string, many: string) =>
     n ? <span className="badge on">{n === 1 ? one : `${n} ${many}`}</span> : <span className="badge">Keine</span>;
@@ -253,6 +259,20 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
       ) : (
         <span className="badge">Aus</span>
       ),
+    },
+    {
+      icon: "bulb",
+      title: "Vorschläge",
+      text: "Ideen sammeln, mit 👍 und 👎 abstimmen lassen und als Team entscheiden.",
+      href: `${base}/suggestions`,
+      status: sugg?.enabled ? <span className="badge on">{openSugg?.n ? `${openSugg.n} offen` : "Aktiv"}</span> : <span className="badge">Aus</span>,
+    },
+    {
+      icon: "hash",
+      title: "Zähl-Kanal",
+      text: "Gemeinsam hochzählen, mit Rekord und Neustart bei Fehlern.",
+      href: `${base}/counting`,
+      status: countRow ? <span className="badge on">Bei {countRow.current} · Rekord {countRow.record}</span> : <span className="badge">Aus</span>,
     },
     {
       icon: "sparkle",
