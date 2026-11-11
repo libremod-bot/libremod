@@ -1145,3 +1145,63 @@ fieldset.field legend {
 .card-title .button {
   flex: none;
 }
+fieldset.radio-cards {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+fieldset.radio-cards legend {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+  padding: 0;
+}
+.radio-card {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  cursor: pointer;
+  font-weight: 400;
+  margin: 0;
+}
+.radio-card:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.radio-card input {
+  margin-top: 0.2rem;
+  width: auto;
+  accent-color: var(--accent);
+}
+.radio-card > span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+ul.notes {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+ul.notes li {
+  position: relative;
+  padding: 0.75rem 3rem 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  overflow-wrap: anywhere;
+}
+ul.notes li form {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+}

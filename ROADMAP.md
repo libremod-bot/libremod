@@ -69,16 +69,19 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 - Erinnerungen mit `/remind`, im Kanal oder per Direktnachricht
 - Geburtstage mit Glückwunsch, Altersanzeige und Geburtstagsrolle für einen Tag
 
+## 0.10 Mehr Schutz
+
+- Verifizierung neuer Mitglieder per Knopf, abgetipptem Code oder eigener Frage, mit Mindestalter für Konten und Rauswurf nach Frist
+- Lockdown für einzelne Kanäle oder den ganzen Server, auf Wunsch befristet, alte Rechte werden wiederhergestellt
+- Team-Notizen zu Mitgliedern, im Chat und in der Fallakte
+- Team-Statistik: wer wie viele Fälle bearbeitet hat
+
 ## Später
 
 ### Moderation und Sicherheit
 
-- Notizen zu Mitgliedern, die nur das Team sieht
-- Mod-Statistik: wer im Team wie viele Fälle bearbeitet hat
 - Massenaktionen: mehrere Mitglieder auf einmal bannen oder stummschalten
-- Verifizierung neuer Mitglieder per Button, optional mit Captcha im Dashboard
 - Schutz vor Konten mit verdächtigen Namen (z. B. Nachahmung von Teammitgliedern)
-- Sperre („Lockdown“) für einzelne oder alle Kanäle mit einem Befehl
 - Anti-Phishing: bekannte Betrugslinks automatisch entfernen
 - Einspruch gegen Bans über ein Formular im Dashboard
 

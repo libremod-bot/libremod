@@ -5,6 +5,7 @@ import {
   SlashCommandBuilder,
   time,
 } from "discord.js";
+import { and, count, eq, memberNotes } from "@libremod/db";
 import type { Command } from "../types.js";
 import {
   countActiveWarnings,
@@ -27,15 +28,16 @@ export const cases: Command = {
   async execute(interaction, { db }) {
     if (!inGuild(interaction)) return;
     const user = interaction.options.getUser("person", true);
-    const [list, warnings] = await Promise.all([
+    const [list, warnings, [notes]] = await Promise.all([
       listCases(db, interaction.guildId, user.id),
       countActiveWarnings(db, interaction.guildId, user.id),
+      db.select({ n: count() }).from(memberNotes).where(and(eq(memberNotes.guildId, interaction.guildId), eq(memberNotes.userId, user.id))),
     ]);
 
     const embed = new EmbedBuilder()
       .setColor(0x5865f2)
       .setAuthor({ name: `Fallakte von ${user.tag}`, iconURL: user.displayAvatarURL() })
-      .setFooter({ text: `Aktive Verwarnungen: ${warnings}` });
+      .setFooter({ text: `Aktive Verwarnungen: ${warnings}${notes?.n ? ` · Team-Notizen: ${notes.n} (/note list)` : ""}` });
 
     embed.setDescription(
       list.length

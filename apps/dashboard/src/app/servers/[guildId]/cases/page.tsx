@@ -1,9 +1,11 @@
-import { and, desc, eq, modCases, type CaseType } from "@libremod/db";
+import { and, count, desc, eq, gte, memberNotes, modCases, sql, type CaseType } from "@libremod/db";
+import { Icon } from "@/components/Icon";
+import { getMembers } from "@/lib/discord";
 import { Notice } from "@/components/Notice";
 import { PageHeader } from "@/components/PageHeader";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
-import { revokeWarning } from "../actions";
+import { addMemberNote, deleteMemberNote, revokeWarning } from "../actions";
 
 export const metadata = { title: "Fallakte · Libremod" };
 
@@ -37,6 +39,30 @@ export default async function CasesPage({
     .where(userFilter ? and(eq(modCases.guildId, guildId), eq(modCases.targetId, userFilter)) : eq(modCases.guildId, guildId))
     .orderBy(desc(modCases.caseNumber))
     .limit(100);
+  const since = new Date(Date.now() - 30 * 86_400_000);
+  const [stats, notes] = await Promise.all([
+    userFilter
+      ? []
+      : db
+          .select({
+            moderatorId: modCases.moderatorId,
+            total: count(),
+            warns: sql<number>`count(*) filter (where ${modCases.type} = 'warn')`.mapWith(Number),
+            timeouts: sql<number>`count(*) filter (where ${modCases.type} = 'timeout')`.mapWith(Number),
+            kicks: sql<number>`count(*) filter (where ${modCases.type} = 'kick')`.mapWith(Number),
+            bans: sql<number>`count(*) filter (where ${modCases.type} = 'ban')`.mapWith(Number),
+          })
+          .from(modCases)
+          .where(and(eq(modCases.guildId, guildId), eq(modCases.automatic, false), gte(modCases.createdAt, since)))
+          .groupBy(modCases.moderatorId)
+          .orderBy(desc(count()))
+          .limit(10),
+    userFilter
+      ? db.select().from(memberNotes).where(and(eq(memberNotes.guildId, guildId), eq(memberNotes.userId, userFilter))).orderBy(desc(memberNotes.createdAt)).limit(50)
+      : [],
+  ]);
+  const people = await getMembers(guildId, [...new Set([...stats.map((s) => s.moderatorId), ...notes.map((n) => n.authorId), ...(userFilter ? [userFilter] : [])])]);
+  const name = (id: string) => people.find((p) => p.id === id)?.name ?? id;
 
   return (
     <>
@@ -56,6 +82,81 @@ export default async function CasesPage({
           {userFilter && <a href="?">Filter entfernen</a>}
         </div>
       </form>
+
+      {stats.length > 0 && (
+        <section className="card">
+          <div className="card-title">
+            <Icon name="users" />
+            <h2>Team in den letzten 30 Tagen</h2>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Moderator</th>
+                  <th>Fälle</th>
+                  <th>Verwarnungen</th>
+                  <th>Timeouts</th>
+                  <th>Kicks</th>
+                  <th>Bans</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.map((r) => (
+                  <tr key={r.moderatorId}>
+                    <td>{name(r.moderatorId)}</td>
+                    <td>
+                      <strong>{r.total}</strong>
+                    </td>
+                    <td>{r.warns}</td>
+                    <td>{r.timeouts}</td>
+                    <td>{r.kicks}</td>
+                    <td>{r.bans}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="hint">Automatische Fälle durch Auto-Mod und Verwarnungsstufen zählen hier nicht mit. Im Chat: <code>/modstats</code>.</div>
+        </section>
+      )}
+
+      {userFilter && (
+        <section className="card">
+          <div className="card-title">
+            <Icon name="note" />
+            <h2>Team-Notizen zu {name(userFilter)}</h2>
+          </div>
+          {notes.length === 0 ? (
+            <p className="empty" style={{ paddingTop: 0 }}>
+              Noch keine Notizen. Nur das Team sieht sie, die Person selbst nicht.
+            </p>
+          ) : (
+            <ul className="notes">
+              {notes.map((n) => (
+                <li key={n.id}>
+                  <div className="small muted">
+                    #{n.id} · {dateFormat.format(n.createdAt)} · {name(n.authorId)}
+                  </div>
+                  <div style={{ whiteSpace: "pre-wrap" }}>{n.text}</div>
+                  <form action={deleteMemberNote.bind(null, guildId, n.id)}>
+                    <button className="danger small" type="submit" aria-label={`Notiz ${n.id} löschen`}>
+                      <Icon name="trash" size={15} />
+                    </button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          )}
+          <form action={addMemberNote.bind(null, guildId, userFilter)}>
+            <label htmlFor="note">Neue Notiz</label>
+            <textarea id="note" name="note" rows={2} maxLength={1000} required placeholder="z. B. Hat sich im Ticket entschuldigt, beim nächsten Mal direkt Timeout." />
+            <button type="submit" className="secondary" style={{ marginTop: ".75rem" }}>
+              <Icon name="plus" size={16} /> Notiz speichern
+            </button>
+          </form>
+        </section>
+      )}
 
       <div className="card table-wrap">
         {cases.length === 0 ? (

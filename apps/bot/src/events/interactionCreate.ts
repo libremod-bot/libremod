@@ -5,6 +5,7 @@ import { logger } from "../logger.js";
 import { handlePanelInteraction, isPanelInteraction } from "../services/rolepanels.js";
 import { handleCustomCommand } from "../services/customcommands.js";
 import { handleTicketInteraction, isTicketInteraction } from "../services/tickets.js";
+import { handleVerifyInteraction, isVerifyInteraction } from "../services/protection.js";
 import { handleGiveawayButton, isGiveawayInteraction } from "../services/fun.js";
 
 export async function onInteractionCreate(interaction: Interaction, ctx: CommandContext) {
@@ -21,6 +22,14 @@ export async function onInteractionCreate(interaction: Interaction, ctx: Command
       const content = "Da ist leider etwas schiefgelaufen.";
       if (interaction.deferred || interaction.replied) await interaction.editReply({ content, components: [] }).catch(() => {});
       else await interaction.reply({ content, flags: MessageFlags.Ephemeral }).catch(() => {});
+    });
+    return;
+  }
+  if ((interaction.isButton() || interaction.isModalSubmit()) && isVerifyInteraction(interaction.customId)) {
+    await handleVerifyInteraction(interaction, ctx.db).catch(async (err) => {
+      logger.error({ err }, "Verifizierung fehlgeschlagen");
+      const content = "Da ist leider etwas schiefgelaufen. Sag bitte dem Team Bescheid.";
+      if (!interaction.replied) await interaction.reply({ content, flags: MessageFlags.Ephemeral }).catch(() => {});
     });
     return;
   }

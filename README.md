@@ -20,6 +20,10 @@ Website: [libremod.dev](https://libremod.dev) · Geplante Funktionen: [ROADMAP.m
 | `/ban`, `/unban`                      | Bannen, auf Wunsch befristet (`dauer: 7d`), läuft selbst aus |
 | `/purge`                              | Bis zu 100 Nachrichten aufräumen, optional nur von einer Person |
 | `/cases`, `/case show/reason/revoke`  | Fallakte ansehen, Gründe ändern, Verwarnungen zurücknehmen   |
+| `/lockdown channel/server`, `/unlock channel/server` | Kanäle oder den ganzen Server sperren, auf Wunsch befristet |
+| `/note add/list/delete`               | Team-Notizen zu Mitgliedern, nur für das Team sichtbar       |
+| `/modstats`                           | Wer im Team wie viele Fälle bearbeitet hat                   |
+| `/verify`                             | Mitglied von Hand verifizieren (Verifizierung im Dashboard einrichten) |
 | `/config modlog/dm/escalation/show`   | Mod-Log-Kanal, Direktnachrichten, Verwarnungsstufen          |
 | `/automod status/toggle/filter`       | Auto-Moderation: Spam, Einladungen, Links, Wortfilter, Großbuchstaben, Massen-Erwähnungen |
 | `/automod words/links/exempt/raid`    | Wortliste, erlaubte Domains, Ausnahmen, Raid-Schutz          |
@@ -36,7 +40,7 @@ Website: [libremod.dev](https://libremod.dev) · Geplante Funktionen: [ROADMAP.m
 | `/birthday set/remove/show/list`      | Geburtstag eintragen und die nächsten Geburtstage ansehen    |
 | `/logging status/set/off/ignore`      | Logs für Nachrichten, Beitritte, Mitglieder, Server und Sprachkanäle, je Art ein eigener Kanal |
 
-Dazu kommen eigene Befehle, die du im Dashboard anlegst. Geplante Nachrichten, Zähler-Kanäle, temporäre Sprachkanäle, Benachrichtigungen (YouTube, Twitch, Kick, Reddit, RSS), die Server-Währung mit Shop, Gewinnspiele, Geburtstage (Glückwunsch-Kanal, Uhrzeit, Geburtstagsrolle), das Ticket-System (Ticket-Arten mit Formularfragen, Panels, Team-Rollen, Transkripte, Bewertungen), den Highlight-Kanal, automatisches Kanal-Leeren und den automatischen Langsam-Modus richtest du ebenfalls dort ein.
+Dazu kommen eigene Befehle, die du im Dashboard anlegst. Geplante Nachrichten, Zähler-Kanäle, temporäre Sprachkanäle, Benachrichtigungen (YouTube, Twitch, Kick, Reddit, RSS), die Server-Währung mit Shop, die Verifizierung neuer Mitglieder (Knopf, Code oder Frage), Gewinnspiele, Geburtstage (Glückwunsch-Kanal, Uhrzeit, Geburtstagsrolle), das Ticket-System (Ticket-Arten mit Formularfragen, Panels, Team-Rollen, Transkripte, Bewertungen), den Highlight-Kanal, automatisches Kanal-Leeren und den automatischen Langsam-Modus richtest du ebenfalls dort ein.
 
 Im Discord Developer Portal müssen unter **Bot → Privileged Gateway Intents** die Optionen **Server Members Intent** und **Message Content Intent** eingeschaltet sein (für Auto-Moderation, Raid-Schutz und Logging).
 

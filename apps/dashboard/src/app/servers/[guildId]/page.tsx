@@ -28,6 +28,8 @@ import {
   giveaways,
   birthdays,
   birthdaySettings,
+  verificationSettings,
+  channelLocks,
   sql,
   warnEscalations,
   type CaseType,
@@ -65,7 +67,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
 
   const { db } = database();
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const [[settings], rules, escalations, [weekStats], recent, channels, logs, [welcome], autoRoleRows, panels, [levels], [cmdCount], [schedCount], [counterCount], [hubCount], [feedCount], [hl], [purgeCount], [slowCount], [openTickets], [panelCount], [eco], [itemCount], [gwCount], [bday], [bdayCount]] = await Promise.all([
+  const [[settings], rules, escalations, [weekStats], recent, channels, logs, [welcome], autoRoleRows, panels, [levels], [cmdCount], [schedCount], [counterCount], [hubCount], [feedCount], [hl], [purgeCount], [slowCount], [openTickets], [panelCount], [eco], [itemCount], [gwCount], [bday], [bdayCount], [verify], [lockCount]] = await Promise.all([
     db.select().from(guildSettings).where(eq(guildSettings.guildId, guildId)),
     db.select().from(automodRules).where(and(eq(automodRules.guildId, guildId), eq(automodRules.enabled, true))),
     db.select({ n: count() }).from(warnEscalations).where(eq(warnEscalations.guildId, guildId)),
@@ -98,6 +100,8 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
     db.select({ n: count() }).from(giveaways).where(and(eq(giveaways.guildId, guildId), eq(giveaways.ended, false))),
     db.select({ enabled: birthdaySettings.enabled }).from(birthdaySettings).where(eq(birthdaySettings.guildId, guildId)),
     db.select({ n: count() }).from(birthdays).where(eq(birthdays.guildId, guildId)),
+    db.select({ enabled: verificationSettings.enabled }).from(verificationSettings).where(eq(verificationSettings.guildId, guildId)),
+    db.select({ n: count() }).from(channelLocks).where(eq(channelLocks.guildId, guildId)),
   ]);
   const countBadge = (n: number | undefined, one: string, many: string) =>
     n ? <span className="badge on">{n === 1 ? one : `${n} ${many}`}</span> : <span className="badge">Keine</span>;
@@ -129,6 +133,20 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
       ) : (
         <span className="badge">Aus</span>
       ),
+    },
+    {
+      icon: "usercheck",
+      title: "Verifizierung",
+      text: "Neue Mitglieder bestätigen per Knopf, Code oder Frage. Mit Mindestalter für Konten und Rauswurf nach Frist.",
+      href: `${base}/verification`,
+      status: verify?.enabled ? <span className="badge on">Aktiv</span> : <span className="badge">Aus</span>,
+    },
+    {
+      icon: "lock",
+      title: "Lockdown",
+      text: "Im Notfall einzelne Kanäle oder den ganzen Server sperren, auf Wunsch befristet. Mit /lockdown und /unlock.",
+      href: `${base}/moderation#lockdown`,
+      status: lockCount?.n ? <span className="badge danger">{lockCount.n === 1 ? "1 Kanal gesperrt" : `${lockCount.n} Kanäle gesperrt`}</span> : <span className="badge">Nichts gesperrt</span>,
     },
     {
       icon: "gavel",

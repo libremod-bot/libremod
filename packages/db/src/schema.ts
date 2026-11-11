@@ -754,3 +754,80 @@ export const birthdays = pgTable(
 );
 
 export type Birthday = typeof birthdays.$inferSelect;
+
+// --- Verifizierung ---
+
+export const verificationMode = pgEnum("verification_mode", ["button", "code", "question"]);
+export type VerificationMode = (typeof verificationMode.enumValues)[number];
+
+export const verificationSettings = pgTable("verification_settings", {
+  guildId: varchar("guild_id", { length: 32 }).primaryKey(),
+  enabled: boolean("enabled").notNull().default(false),
+  mode: verificationMode("mode").notNull().default("button"),
+  /** Rolle, die nach erfolgreicher Verifizierung vergeben wird. */
+  roleId: varchar("role_id", { length: 32 }),
+  /** Optionale Rolle für noch nicht Verifizierte, wird beim Beitritt vergeben und danach entfernt. */
+  unverifiedRoleId: varchar("unverified_role_id", { length: 32 }),
+  channelId: varchar("channel_id", { length: 32 }),
+  messageId: varchar("message_id", { length: 32 }),
+  title: varchar("title", { length: 256 }).notNull().default("Willkommen! Bitte kurz bestätigen"),
+  description: text("description").notNull().default(""),
+  question: varchar("question", { length: 45 }).notNull().default(""),
+  /** Erlaubte Antworten, Groß-/Kleinschreibung egal. */
+  answers: jsonb("answers").$type<string[]>().notNull().default([]),
+  /** Konten, die jünger sind, können sich nicht verifizieren. 0 = aus. */
+  minAccountAgeDays: integer("min_account_age_days").notNull().default(0),
+  /** Wer nach so vielen Stunden nicht verifiziert ist, wird gekickt. 0 = aus. */
+  kickAfterHours: integer("kick_after_hours").notNull().default(0),
+  logChannelId: varchar("log_channel_id", { length: 32 }),
+});
+
+export type VerificationSettings = typeof verificationSettings.$inferSelect;
+
+export const verificationPending = pgTable(
+  "verification_pending",
+  {
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    userId: varchar("user_id", { length: 32 }).notNull(),
+    joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.userId] }), index("verification_pending_joined").on(t.joinedAt)],
+);
+
+// --- Lockdown ---
+
+export const channelLocks = pgTable(
+  "channel_locks",
+  {
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    channelId: varchar("channel_id", { length: 32 }).notNull(),
+    /** Zustand der gesperrten Rechte für @everyone vorher: "allow", "deny" oder "neutral" je Recht. */
+    previous: jsonb("previous").$type<Record<string, "allow" | "deny" | "neutral">>().notNull(),
+    lockedBy: varchar("locked_by", { length: 32 }).notNull(),
+    reason: varchar("reason", { length: 500 }),
+    /** Teil eines Server-Lockdowns? */
+    serverWide: boolean("server_wide").notNull().default(false),
+    until: timestamp("until", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.channelId] }), index("channel_locks_until").on(t.until)],
+);
+
+export type ChannelLock = typeof channelLocks.$inferSelect;
+
+// --- Team-Notizen ---
+
+export const memberNotes = pgTable(
+  "member_notes",
+  {
+    id: serial("id").primaryKey(),
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    userId: varchar("user_id", { length: 32 }).notNull(),
+    authorId: varchar("author_id", { length: 32 }).notNull(),
+    text: varchar("text", { length: 1000 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("member_notes_user").on(t.guildId, t.userId)],
+);
+
+export type MemberNote = typeof memberNotes.$inferSelect;

@@ -34,6 +34,9 @@ import {
   giveaways,
   giveawayEntries,
   birthdaySettings,
+  verificationSettings,
+  channelLocks,
+  memberNotes,
   type TicketQuestion,
   count,
   warnEscalations,
@@ -79,6 +82,8 @@ import {
   MAX_GIVEAWAY_SECONDS,
   MAX_GIVEAWAY_WINNERS,
   MIN_GIVEAWAY_SECONDS,
+  buildVerificationMessage,
+  parseAnswers,
 } from "@libremod/shared";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
@@ -1334,4 +1339,118 @@ export async function saveBirthdays(guildId: string, form: FormData) {
   const values = { enabled, channelId, roleId, message, hour: hour! };
   await db.insert(birthdaySettings).values({ guildId, ...values }).onConflictDoUpdate({ target: birthdaySettings.guildId, set: values });
   back(path);
+}
+
+// --- Verifizierung ---
+
+const VERIFY_MODES = ["button", "code", "question"] as const;
+
+export async function saveVerification(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/verification`;
+  const { db, notifySettingsChanged } = database();
+  const [old] = await db.select().from(verificationSettings).where(eq(verificationSettings.guildId, guildId));
+
+  const enabled = form.get("enabled") === "on";
+  const mode = text(form, "mode") as (typeof VERIFY_MODES)[number];
+  if (!VERIFY_MODES.includes(mode)) back(path, "Bitte eine Art der Verifizierung wählen.");
+  const known = await textChannelIds(guildId);
+  const channelId = text(form, "channelId") || null;
+  if (channelId && channelId !== old?.channelId && !known.text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  const logChannelId = text(form, "logChannelId") || null;
+  if (logChannelId && logChannelId !== old?.logChannelId && !known.text.has(logChannelId)) back(path, "Bitte einen Textkanal dieses Servers als Log wählen.");
+
+  const roleId = text(form, "roleId") || null;
+  const unverifiedRoleId = text(form, "unverifiedRoleId") || null;
+  if (roleId && roleId === unverifiedRoleId) back(path, "Die beiden Rollen müssen verschieden sein.");
+  for (const key of ["roleId", "unverifiedRoleId"] as const) {
+    const id = key === "roleId" ? roleId : unverifiedRoleId;
+    if (id && id !== old?.[key] && (await assignableRoles(guildId, form, key)).invalid.length) {
+      back(path, "Mindestens eine Rolle kann Libremod nicht vergeben. Sie muss unter der Rolle von Libremod stehen.");
+    }
+  }
+  if (enabled && (!roleId || !channelId)) back(path, "Zum Einschalten braucht es einen Kanal und eine Rolle für Verifizierte.");
+
+  const title = text(form, "title") || "Willkommen! Bitte kurz bestätigen";
+  if (title.length > 256) back(path, "Der Titel darf höchstens 256 Zeichen lang sein.");
+  const description = text(form, "description");
+  if (description.length > 2000) back(path, "Der Text darf höchstens 2000 Zeichen lang sein.");
+  const question = text(form, "question");
+  if (question.length > 45) back(path, "Die Frage darf höchstens 45 Zeichen lang sein (eine Grenze von Discord).");
+  const answers = parseAnswers(text(form, "answers"));
+  if (mode === "question" && (!question || !answers.length)) back(path, "Bitte eine Frage und mindestens eine richtige Antwort angeben.");
+  const minAccountAgeDays = int(form, "minAccountAgeDays", 0, 365);
+  const kickAfterHours = int(form, "kickAfterHours", 0, 24 * 30);
+  if (Number.isNaN(minAccountAgeDays) || Number.isNaN(kickAfterHours)) back(path, "Bitte nur ganze Zahlen im erlaubten Bereich.");
+
+  const values = {
+    enabled, mode, roleId, unverifiedRoleId, channelId, logChannelId, title, description, question, answers,
+    minAccountAgeDays: minAccountAgeDays ?? 0, kickAfterHours: kickAfterHours ?? 0,
+  };
+  await db.insert(verificationSettings).values({ guildId, ...values }).onConflictDoUpdate({ target: verificationSettings.guildId, set: values });
+  await notifySettingsChanged(guildId);
+
+  // Nachricht mit dem Knopf posten oder aktualisieren.
+  let error: string | undefined;
+  if (channelId) {
+    const body = buildVerificationMessage(values);
+    let messageId = old?.messageId ?? null;
+    try {
+      if (messageId && old?.channelId === channelId) {
+        try {
+          await editBotMessage(channelId, messageId, body);
+        } catch (err) {
+          if (!(err instanceof DiscordError && err.status === 404)) throw err;
+          messageId = null;
+        }
+      } else if (messageId && old?.channelId) {
+        await deleteBotMessage(old.channelId, messageId).catch(() => {});
+        messageId = null;
+      }
+      if (!messageId) messageId = (await sendBotMessage(channelId, body)).id;
+    } catch (err) {
+      error = postError(err);
+    }
+    await db.update(verificationSettings).set({ messageId }).where(eq(verificationSettings.guildId, guildId));
+  } else if (old?.messageId && old.channelId) {
+    await deleteBotMessage(old.channelId, old.messageId).catch(() => {});
+    await db.update(verificationSettings).set({ messageId: null }).where(eq(verificationSettings.guildId, guildId));
+  }
+  back(path, error);
+}
+
+// --- Lockdown ---
+
+/** Setzt das Ende auf jetzt. Der Bot öffnet den Kanal innerhalb weniger Sekunden. */
+export async function unlockFromDashboard(guildId: string, channelId: string | null) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  await db
+    .update(channelLocks)
+    .set({ until: new Date() })
+    .where(channelId ? and(eq(channelLocks.guildId, guildId), eq(channelLocks.channelId, channelId)) : eq(channelLocks.guildId, guildId));
+  back(`/servers/${guildId}/moderation`);
+}
+
+// --- Team-Notizen ---
+
+export async function addMemberNote(guildId: string, userId: string, form: FormData) {
+  const { user } = await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/cases`;
+  if (!SNOWFLAKE.test(userId)) back(path, "Ungültige Nutzer-ID.");
+  const back2 = (e?: string) => redirect(`${path}?nutzer=${userId}&${e ? `fehler=${encodeURIComponent(e)}` : "gespeichert=1"}`);
+  const note = text(form, "note");
+  if (!note || note.length > 1000) back2("Bitte eine Notiz mit höchstens 1000 Zeichen schreiben.");
+  const { db } = database();
+  const [n] = await db.select({ n: count() }).from(memberNotes).where(and(eq(memberNotes.guildId, guildId), eq(memberNotes.userId, userId)));
+  if ((n?.n ?? 0) >= 50) back2("Zu dieser Person gibt es schon 50 Notizen. Lösche erst alte.");
+  await db.insert(memberNotes).values({ guildId, userId, authorId: user.id, text: note });
+  back2();
+}
+
+export async function deleteMemberNote(guildId: string, noteId: number) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  const [gone] = await db.delete(memberNotes).where(and(eq(memberNotes.guildId, guildId), eq(memberNotes.id, noteId))).returning();
+  redirect(`/servers/${guildId}/cases?${gone ? `nutzer=${gone.userId}&` : ""}gespeichert=1`);
 }

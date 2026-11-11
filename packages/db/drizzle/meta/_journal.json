@@ -85,6 +85,13 @@
       "when": 1794411415528,
       "tag": "0011_fun",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794414164781,
+      "tag": "0012_protection",
+      "breakpoints": true
     }
   ]
 }

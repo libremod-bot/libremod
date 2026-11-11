@@ -17,6 +17,7 @@ import { handleMessageCoins, invalidateEconomy } from "./services/economy.js";
 import { onTicketChannelDeleted, startTicketJobs, trackTicketMessage } from "./services/tickets.js";
 import { invalidateHighlights, onHighlightReaction, startChannelTools, trackSlowmodeMessage } from "./services/channeltools.js";
 import { startFunJobs } from "./services/fun.js";
+import { invalidateVerification, onVerifyJoin, onVerifyLeave, onLockedChannelDeleted, startProtectionJobs } from "./services/protection.js";
 import { invalidateTempVoice, loadTempChannels, onTempVoiceState } from "./services/tempvoice.js";
 import { invalidateWelcome, onWelcomeJoin, onWelcomeLeave, onWelcomeMemberUpdate } from "./services/welcome.js";
 
@@ -32,6 +33,7 @@ await onSettingsChanged((guildId) => {
   invalidateTempVoice(guildId);
   invalidateHighlights(guildId);
   invalidateEconomy(guildId);
+  invalidateVerification(guildId);
   scheduleCommandSync(client, db, guildId);
 });
 const ctx = { db };
@@ -43,6 +45,7 @@ let notifyTimer: NodeJS.Timeout | undefined;
 let ticketTimer: NodeJS.Timeout | undefined;
 let channelToolTimers: NodeJS.Timeout[] = [];
 let funTimers: NodeJS.Timeout[] = [];
+let protectionTimers: NodeJS.Timeout[] = [];
 
 const client = new Client({
   intents: [
@@ -69,6 +72,7 @@ client.once(Events.ClientReady, (c) => {
   ticketTimer ??= startTicketJobs(c, db);
   if (!channelToolTimers.length) channelToolTimers = startChannelTools(c, db);
   if (!funTimers.length) funTimers = startFunJobs(c, db);
+  if (!protectionTimers.length) protectionTimers = startProtectionJobs(c, db);
   void loadTempChannels(c, db).catch(logError("Temporäre Kanäle"));
   void syncAllCommands(c, db).catch(logError("Eigene Befehle"));
 });
@@ -95,10 +99,12 @@ client.on(Events.GuildMemberAdd, (m) => {
   void handleMemberJoin(m, db).catch(logError("Raid-Schutz"));
   void log.onMemberJoin(m, db).catch(logError("Logging"));
   void onWelcomeJoin(m, db).catch(logError("Begrüßung"));
+  void onVerifyJoin(m, db).catch(logError("Verifizierung"));
 });
 client.on(Events.MessageReactionAdd, (r, u) => void onHighlightReaction(r, u, db).catch(logError("Highlights")));
 client.on(Events.MessageReactionRemove, (r, u) => void onHighlightReaction(r, u, db).catch(logError("Highlights")));
 client.on(Events.GuildMemberRemove, (m) => void onWelcomeLeave(m, db).catch(logError("Abschied")));
+client.on(Events.GuildMemberRemove, (m) => void onVerifyLeave(m, db).catch(logError("Verifizierung")));
 client.on(Events.GuildMemberUpdate, (a, b) => void onWelcomeMemberUpdate(a, b, db).catch(logError("Auto-Rollen")));
 
 // Logging
@@ -114,6 +120,7 @@ client.on(Events.UserUpdate, (before, after) => void log.onUserUpdate(before, af
 client.on(Events.ChannelCreate, logged(log.onChannelCreate));
 client.on(Events.ChannelDelete, logged(log.onChannelDelete));
 client.on(Events.ChannelDelete, (c) => void onTicketChannelDeleted(c.id, db).catch(logError("Tickets")));
+client.on(Events.ChannelDelete, (c) => void onLockedChannelDeleted(c.id, db).catch(logError("Lockdown")));
 client.on(Events.ThreadDelete, (t) => void onTicketChannelDeleted(t.id, db).catch(logError("Tickets")));
 client.on(Events.ChannelUpdate, logged(log.onChannelUpdate));
 client.on(Events.GuildRoleCreate, logged(log.onRoleCreate));
@@ -137,6 +144,7 @@ async function shutdown(signal: string) {
   clearInterval(ticketTimer);
   channelToolTimers.forEach(clearInterval);
   funTimers.forEach(clearInterval);
+  protectionTimers.forEach(clearInterval);
   await client.destroy();
   await close();
   process.exit(0);

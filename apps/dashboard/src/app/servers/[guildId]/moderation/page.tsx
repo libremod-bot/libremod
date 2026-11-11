@@ -1,4 +1,4 @@
-import { eq, guildSettings, warnEscalations } from "@libremod/db";
+import { channelLocks, eq, guildSettings, warnEscalations } from "@libremod/db";
 import { formatDuration } from "@libremod/shared";
 import { Icon } from "@/components/Icon";
 import { Notice } from "@/components/Notice";
@@ -7,9 +7,11 @@ import { Switch } from "@/components/Switch";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
 import { CHANNEL_ANNOUNCEMENT, CHANNEL_TEXT, getGuildChannels } from "@/lib/discord";
-import { addEscalation, removeEscalation, saveModeration } from "../actions";
+import { addEscalation, removeEscalation, saveModeration, unlockFromDashboard } from "../actions";
 
 export const metadata = { title: "Moderation · Libremod" };
+
+const when = new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Berlin" });
 
 const ACTION_LABELS = { timeout: "Timeout", kick: "Kick", ban: "Ban" } as const;
 
@@ -25,10 +27,11 @@ export default async function ModerationPage({
   const { gespeichert, fehler } = await searchParams;
 
   const { db } = database();
-  const [[settings], rules, channels] = await Promise.all([
+  const [[settings], rules, channels, locks] = await Promise.all([
     db.select().from(guildSettings).where(eq(guildSettings.guildId, guildId)),
     db.select().from(warnEscalations).where(eq(warnEscalations.guildId, guildId)).orderBy(warnEscalations.warnCount),
     getGuildChannels(guildId),
+    db.select().from(channelLocks).where(eq(channelLocks.guildId, guildId)).orderBy(channelLocks.createdAt),
   ]);
   const textChannels = channels.filter((c) => c.type === CHANNEL_TEXT || c.type === CHANNEL_ANNOUNCEMENT);
 
@@ -145,6 +148,56 @@ export default async function ModerationPage({
             </button>
           </div>
         </form>
+      </section>
+
+      <section className="card" id="lockdown">
+        <div className="card-title">
+          <Icon name="lock" />
+          <h2>Gesperrte Kanäle</h2>
+          {locks.length > 1 && (
+            <form action={unlockFromDashboard.bind(null, guildId, null)} style={{ marginLeft: "auto" }}>
+              <button className="secondary small" type="submit">
+                Alle öffnen
+              </button>
+            </form>
+          )}
+        </div>
+        {locks.length === 0 ? (
+          <p className="empty" style={{ paddingTop: 0 }}>
+            Gerade ist kein Kanal gesperrt. Im Notfall sperrst du mit <code>/lockdown channel</code> einen Kanal oder mit{" "}
+            <code>/lockdown server</code> alle offenen Kanäle auf einmal, auf Wunsch befristet.
+          </p>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <tbody>
+                {locks.map((l) => (
+                  <tr key={l.channelId}>
+                    <td>
+                      <strong>#{channels.find((c) => c.id === l.channelId)?.name ?? "gelöschter Kanal"}</strong>
+                      {l.serverWide && <span className="badge warn" style={{ marginLeft: 6 }}>Server-Lockdown</span>}
+                      {l.reason && <div className="small muted">{l.reason}</div>}
+                    </td>
+                    <td className="small" style={{ whiteSpace: "nowrap" }}>
+                      {l.until ? (l.until <= new Date() ? "wird geöffnet …" : `bis ${when.format(l.until)}`) : "unbefristet"}
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      <form action={unlockFromDashboard.bind(null, guildId, l.channelId)}>
+                        <button className="secondary small" type="submit">
+                          Öffnen
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="hint">
+          Eine Sperre nimmt @everyone das Schreiben, Reagieren und Threads-Erstellen. Wer im Team trotzdem schreiben soll, braucht eine
+          eigene Kanal-Freigabe für seine Rolle oder Administrator-Rechte. Beim Öffnen stellt Libremod die alten Rechte wieder her.
+        </div>
       </section>
     </>
   );
