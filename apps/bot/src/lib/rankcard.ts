@@ -1,16 +1,6 @@
-import { fileURLToPath } from "node:url";
-import { createCanvas, GlobalFonts, loadImage, type SKRSContext2D } from "@napi-rs/canvas";
+import { createCanvas } from "@napi-rs/canvas";
 import { compactNumber } from "@libremod/shared";
-
-// Inter (SIL Open Font License, siehe assets/fonts/OFL.txt) liegt dem Bot bei, weil das Docker-Image keine Schriften hat.
-let fontsReady = false;
-function ensureFonts() {
-  if (fontsReady) return;
-  for (const file of ["Inter_400Regular.ttf", "Inter_700Bold.ttf"]) {
-    GlobalFonts.registerFromPath(fileURLToPath(new URL(`../../assets/fonts/${file}`, import.meta.url)), "Inter");
-  }
-  fontsReady = true;
-}
+import { clean, drawAvatar, drawBackground, ensureFonts, fit, hex, roundRect } from "./canvas.js";
 
 export interface RankCardData {
   name: string;
@@ -27,28 +17,6 @@ export interface RankCardData {
 
 const W = 934;
 const H = 282;
-const hex = (n: number) => `#${n.toString(16).padStart(6, "0")}`;
-
-function roundRect(ctx: SKRSContext2D, x: number, y: number, w: number, h: number, r: number) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
-/** Emojis kann die beigelegte Schrift nicht darstellen, sie würden als Kästchen erscheinen. */
-const clean = (s: string) => s.replace(/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{FE0F}\u{200D}]/gu, "").replace(/\s+/g, " ").trim();
-
-/** Text so weit kürzen, dass er in die Breite passt. */
-function fit(ctx: SKRSContext2D, text: string, maxWidth: number) {
-  if (ctx.measureText(text).width <= maxWidth) return text;
-  let t = text;
-  while (t.length > 1 && ctx.measureText(`${t}…`).width > maxWidth) t = t.slice(0, -1);
-  return `${t}…`;
-}
 
 export async function renderRankCard(d: RankCardData): Promise<Buffer> {
   ensureFonts();
@@ -56,49 +24,8 @@ export async function renderRankCard(d: RankCardData): Promise<Buffer> {
   const ctx = canvas.getContext("2d");
   const accent = hex(d.color);
 
-  // Hintergrund
-  roundRect(ctx, 0, 0, W, H, 28);
-  ctx.save();
-  ctx.clip();
-  const bg = ctx.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, "#151a24");
-  bg.addColorStop(1, "#0d1017");
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
-  const glow = ctx.createRadialGradient(W - 120, 40, 10, W - 120, 40, 360);
-  glow.addColorStop(0, `${accent}55`);
-  glow.addColorStop(1, `${accent}00`);
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, W, H);
-  ctx.restore();
-
-  // Avatar
-  const ax = 48;
-  const ay = 51;
-  const as = 180;
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(ax + as / 2, ay + as / 2, as / 2, 0, Math.PI * 2);
-  ctx.closePath();
-  ctx.clip();
-  const avatar = d.avatarUrl ? await loadImage(d.avatarUrl).catch(() => null) : null;
-  if (avatar) {
-    ctx.drawImage(avatar, ax, ay, as, as);
-  } else {
-    ctx.fillStyle = accent;
-    ctx.fillRect(ax, ay, as, as);
-    ctx.fillStyle = "#0d1017";
-    ctx.font = "bold 84px Inter";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText((d.name.trim()[0] ?? "?").toUpperCase(), ax + as / 2, ay + as / 2 + 4);
-  }
-  ctx.restore();
-  ctx.lineWidth = 6;
-  ctx.strokeStyle = accent;
-  ctx.beginPath();
-  ctx.arc(ax + as / 2, ay + as / 2, as / 2 + 3, 0, Math.PI * 2);
-  ctx.stroke();
+  drawBackground(ctx, W, H, accent, W - 120, 40);
+  await drawAvatar(ctx, d.avatarUrl, d.name, 48 + 90, 51 + 90, 180, accent);
 
   const left = 270;
   const right = W - 48;

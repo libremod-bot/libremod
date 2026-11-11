@@ -1,12 +1,13 @@
 import Link from "next/link";
-import { asc, autoRoles, desc, eq, rolePanels, tempRoles } from "@libremod/db";
+import { asc, autoRoles, desc, eq, rolePanels, tempRoles, voiceRoles } from "@libremod/db";
+import { ANY_VOICE_CHANNEL } from "@libremod/shared";
 import { Icon } from "@/components/Icon";
 import { Notice } from "@/components/Notice";
 import { PageHeader } from "@/components/PageHeader";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
-import { CHANNEL_ANNOUNCEMENT, CHANNEL_TEXT, getBotTopPosition, getGuildChannels, getGuildRoles, getMembers } from "@/lib/discord";
-import { createPanel, deletePanel, endTempRole, saveAutoRoles } from "../actions";
+import { CHANNEL_ANNOUNCEMENT, CHANNEL_STAGE, CHANNEL_TEXT, CHANNEL_VOICE, getBotTopPosition, getGuildChannels, getGuildRoles, getMembers } from "@/lib/discord";
+import { addVoiceRole, createPanel, deletePanel, endTempRole, removeVoiceRole, saveAutoRoles } from "../actions";
 import { PanelForm } from "./PanelForm";
 
 export const metadata = { title: "Rollen · Libremod" };
@@ -23,14 +24,16 @@ export default async function RolesPage({
   const { gespeichert, fehler } = await searchParams;
 
   const { db } = database();
-  const [auto, panels, channels, roles, botTop, temps] = await Promise.all([
+  const [auto, panels, channels, roles, botTop, temps, vRoles] = await Promise.all([
     db.select().from(autoRoles).where(eq(autoRoles.guildId, guildId)),
     db.select().from(rolePanels).where(eq(rolePanels.guildId, guildId)).orderBy(desc(rolePanels.id)),
     getGuildChannels(guildId),
     getGuildRoles(guildId),
     getBotTopPosition(guildId),
     db.select().from(tempRoles).where(eq(tempRoles.guildId, guildId)).orderBy(asc(tempRoles.expiresAt)).limit(50),
+    db.select().from(voiceRoles).where(eq(voiceRoles.guildId, guildId)),
   ]);
+  const voiceChannels = channels.filter((c) => c.type === CHANNEL_VOICE || c.type === CHANNEL_STAGE);
   const tempPeople = await getMembers(guildId, [...new Set(temps.map((t) => t.userId))]);
   const personName = (id: string) => tempPeople.find((p) => p.id === id)?.name ?? id;
   const when = new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Berlin" });
@@ -186,6 +189,68 @@ export default async function RolesPage({
             </table>
           </div>
         )}
+      </section>
+
+      <section className="card" id="sprachrollen">
+        <div className="card-title">
+          <Icon name="mic" />
+          <h2>Rolle im Sprachkanal</h2>
+        </div>
+        <p className="card-sub">
+          Solange jemand in einem Sprachkanal ist, hat er diese Rolle. Praktisch für einen Text-Kanal, den nur sieht, wer gerade mitredet.
+        </p>
+        {vRoles.length > 0 && (
+          <div className="table-wrap" style={{ marginBottom: "1.25rem" }}>
+            <table>
+              <tbody>
+                {vRoles.map((v) => (
+                  <tr key={`${v.channelId}-${v.roleId}`}>
+                    <td>{v.channelId === ANY_VOICE_CHANNEL ? "Jeder Sprachkanal" : `🔊 ${channelName(v.channelId)}`}</td>
+                    <td>
+                      <span className="badge info">@{roleName(v.roleId)}</span>
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      <form action={removeVoiceRole.bind(null, guildId, v.channelId, v.roleId)}>
+                        <button className="danger small" type="submit">
+                          Entfernen
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <form action={addVoiceRole.bind(null, guildId)}>
+          <div className="grid-2">
+            <div>
+              <label htmlFor="voiceChannelId">Sprachkanal</label>
+              <select id="voiceChannelId" name="voiceChannelId" defaultValue={ANY_VOICE_CHANNEL}>
+                <option value={ANY_VOICE_CHANNEL}>Jeder Sprachkanal</option>
+                {voiceChannels.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    🔊 {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="voiceRoleId">Rolle</label>
+              <select id="voiceRoleId" name="voiceRoleId" required defaultValue="">
+                <option value="" disabled>
+                  Rolle wählen …
+                </option>
+                {roleOptions}
+              </select>
+            </div>
+          </div>
+          <div style={{ marginTop: "1rem" }}>
+            <button type="submit" className="secondary">
+              <Icon name="plus" size={16} /> Hinzufügen
+            </button>
+          </div>
+        </form>
       </section>
     </>
   );

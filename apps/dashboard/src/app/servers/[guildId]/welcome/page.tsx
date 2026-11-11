@@ -101,6 +101,21 @@ export default async function WelcomePage({
             <label htmlFor="welcomeMessage">Text</label>
             <textarea id="welcomeMessage" name="welcomeMessage" maxLength={1500} defaultValue={s?.welcomeMessage ?? DEFAULTS.welcomeMessage} />
           </div>
+          <label className="check-inline" style={{ marginTop: ".5rem" }}>
+            <input type="checkbox" name="welcomeImage" defaultChecked={s?.welcomeImage ?? false} />
+            Begrüßungsbild mit Profilbild, Name und Mitgliedsnummer anhängen
+          </label>
+          <div className="grid-2" style={{ marginTop: ".75rem" }}>
+            <div className="field">
+              <label htmlFor="welcomeImageTitle">Überschrift im Bild</label>
+              <input id="welcomeImageTitle" name="welcomeImageTitle" type="text" maxLength={40} defaultValue={s?.welcomeImageTitle ?? "Willkommen!"} />
+            </div>
+            <div className="field">
+              <label htmlFor="welcomeImageColor">Farbe</label>
+              <input id="welcomeImageColor" name="welcomeImageColor" type="color" defaultValue={`#${(s?.welcomeImageColor ?? 0x4cb4ff).toString(16).padStart(6, "0")}`} />
+            </div>
+          </div>
+          <div className="hint">Im Bild gehen {"{server}"} und {"{membercount}"}, aber keine Emojis. Zum Ausprobieren: /welcome test.</div>
         </section>
 
         <section className="card">

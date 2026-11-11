@@ -1,7 +1,8 @@
-import { EmbedBuilder, type Guild, type MessageCreateOptions, type GuildMember, type PartialGuildMember, type User } from "discord.js";
+import { AttachmentBuilder, EmbedBuilder, type Guild, type MessageCreateOptions, type GuildMember, type PartialGuildMember, type User } from "discord.js";
 import { autoRoles, eq, welcomeSettings, type Db, type WelcomeSettings } from "@libremod/db";
 import { renderTemplate } from "@libremod/shared";
 import { logger } from "../logger.js";
+import { renderWelcomeCard } from "../lib/welcomecard.js";
 
 interface GuildWelcome {
   settings: WelcomeSettings | null;
@@ -53,6 +54,27 @@ export function welcomePayload(template: string, asEmbed: boolean, user: User, g
   };
 }
 
+/** Begrüßung samt Bild, falls eingeschaltet. Klappt das Bild nicht, kommt die Nachricht ohne. */
+export async function fullWelcomePayload(s: WelcomeSettings, user: User, guild: Guild, displayName?: string): Promise<MessageCreateOptions> {
+  const payload = welcomePayload(s.welcomeMessage, s.welcomeEmbed, user, guild, s.welcomeImageColor);
+  if (!s.welcomeImage) return payload;
+  try {
+    const png = await renderWelcomeCard({
+      title: renderTemplate(s.welcomeImageTitle, vars(user, guild)).replace(/<@\d+>/g, displayName ?? user.globalName ?? user.username),
+      name: displayName ?? user.globalName ?? user.username,
+      avatarUrl: user.displayAvatarURL({ extension: "png", size: 256 }),
+      memberCount: guild.memberCount,
+      color: s.welcomeImageColor,
+    });
+    const files = [new AttachmentBuilder(png, { name: "willkommen.png" })];
+    const embeds = payload.embeds?.map((e) => EmbedBuilder.from(e).setThumbnail(null).setImage("attachment://willkommen.png"));
+    return { ...payload, ...(embeds ? { embeds } : {}), files };
+  } catch (err) {
+    logger.warn({ err, guildId: guild.id }, "Begrüßungsbild konnte nicht gezeichnet werden");
+    return payload;
+  }
+}
+
 async function sendTo(guild: Guild, channelId: string | null, payload: MessageCreateOptions) {
   if (!channelId) return;
   try {
@@ -87,7 +109,7 @@ export async function onWelcomeJoin(member: GuildMember, db: Db) {
   if (!member.pending) await giveAutoRoles(member, db);
   const s = cfg.settings;
   if (!s || member.user.bot) return;
-  if (s.welcomeEnabled) await sendTo(member.guild, s.welcomeChannelId, welcomePayload(s.welcomeMessage, s.welcomeEmbed, member.user, member.guild));
+  if (s.welcomeEnabled) await sendTo(member.guild, s.welcomeChannelId, await fullWelcomePayload(s, member.user, member.guild, member.displayName));
   if (s.dmEnabled) {
     const text = renderTemplate(s.dmMessage, vars(member.user, member.guild)).slice(0, 2000);
     await member.send({ content: text, allowedMentions: { parse: [] } }).catch(() => {}); // DMs können geschlossen sein

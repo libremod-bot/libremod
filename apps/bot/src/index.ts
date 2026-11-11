@@ -20,6 +20,7 @@ import { startFunJobs } from "./services/fun.js";
 import { handleCountMessage, handleSuggestionMessage, invalidateCounting, invalidateSuggestions, onTempRoleMemberLeave, startCommunityJobs } from "./services/community2.js";
 import { invalidateVerification, onVerifyJoin, onVerifyLeave, onLockedChannelDeleted, startProtectionJobs } from "./services/protection.js";
 import { invalidateTempVoice, loadTempChannels, onTempVoiceState } from "./services/tempvoice.js";
+import { handleWordChainMessage, invalidateVoiceRoles, invalidateWordChains, onVoiceRoleState } from "./services/extras.js";
 import { invalidateWelcome, onWelcomeJoin, onWelcomeLeave, onWelcomeMemberUpdate } from "./services/welcome.js";
 
 await runMigrations(config.DATABASE_URL);
@@ -37,6 +38,8 @@ await onSettingsChanged((guildId) => {
   invalidateVerification(guildId);
   invalidateSuggestions(guildId);
   invalidateCounting();
+  invalidateWordChains();
+  invalidateVoiceRoles(guildId);
   scheduleCommandSync(client, db, guildId);
 });
 const ctx = { db };
@@ -89,6 +92,7 @@ client.on(Events.MessageCreate, (m) => {
   trackSlowmodeMessage(m);
   void trackTicketMessage(m, db).catch(logError("Tickets"));
   void handleCountMessage(m, db);
+  void handleWordChainMessage(m, db);
   void handleSuggestionMessage(m, db).catch(logError("Vorschläge"));
 });
 client.on(Events.MessageCreate, (m) =>
@@ -139,6 +143,7 @@ client.on(Events.GuildRoleUpdate, logged(log.onRoleUpdate));
 client.on(Events.GuildUpdate, logged(log.onGuildUpdate));
 client.on(Events.VoiceStateUpdate, logged(log.onVoiceStateUpdate));
 client.on(Events.VoiceStateUpdate, (a, b) => void onTempVoiceState(a, b, db).catch(logError("Temporäre Kanäle")));
+client.on(Events.VoiceStateUpdate, (a, b) => void onVoiceRoleState(a, b, db).catch(logError("Sprachkanal-Rollen")));
 client.on(Events.GuildCreate, (g) => void syncGuildCommands(client, db, g.id).catch(logError("Eigene Befehle")));
 client.on(Events.GuildCreate, (g) =>
   void onGuildCreate(g, ctx).catch((err) => logger.error({ err }, "guildCreate fehlgeschlagen")),

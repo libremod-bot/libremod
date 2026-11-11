@@ -89,6 +89,13 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 - Münzen für jeden Level-Aufstieg, Platzhalter `{coins}` in der Ansage
 - Saisons: monatlich oder vierteljährlich neu starten, die besten 10 kommen in die Ruhmeshalle, `/leaderboard saison:`
 
+## 0.13 Kleine Extras
+
+- Begrüßungsbild mit Profilbild, Name und Mitgliedsnummer, Überschrift und Farbe frei wählbar
+- Rolle im Sprachkanal: solange jemand mitredet, für einen bestimmten oder jeden Sprachkanal
+- Wortketten-Kanal mit Rekord, ohne doppelte Wörter
+- Zitate speichern per Rechtsklick oder `/quote add`, zufällig wieder hervorholen, im Dashboard durchsuchen
+
 ## Später
 
 ### Moderation und Sicherheit
@@ -101,10 +108,6 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 ### Community
 
 - Event-Planer mit Zu- und Absagen und Erinnerung vor Beginn
-- Zitate speichern und zufällig wieder hervorholen
-- Wortketten-Kanal
-- Begrüßungsbild mit Avatar (aus 0.4, noch offen)
-- Sprachkanal-Rolle (aus 0.4, noch offen)
 
 ### Dashboard und Bedienung
 

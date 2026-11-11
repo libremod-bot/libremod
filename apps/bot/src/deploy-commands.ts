@@ -1,9 +1,9 @@
 import { REST, Routes } from "discord.js";
 import { config } from "./config.js";
-import { commands } from "./commands/index.js";
+import { commandBodies } from "./commands/index.js";
 
 const rest = new REST().setToken(config.DISCORD_TOKEN);
-const body = commands.map((c) => c.data.toJSON());
+const body = commandBodies();
 
 const route = config.DISCORD_DEV_GUILD_ID
   ? Routes.applicationGuildCommands(config.DISCORD_CLIENT_ID, config.DISCORD_DEV_GUILD_ID)

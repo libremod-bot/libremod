@@ -52,6 +52,10 @@ import {
   type LogCategory,
   endLevelSeason,
   levelMultipliers,
+  voiceRoles,
+  wordChainChannels,
+  wordChainWords,
+  quotes,
 } from "@libremod/db";
 import {
   buildPanelMessage,
@@ -97,6 +101,7 @@ import {
   MAX_XP_PERCENT,
   SEASON_MODES,
   seasonEndMessage,
+  ANY_VOICE_CHANNEL,
 } from "@libremod/shared";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
@@ -105,6 +110,7 @@ import {
   CHANNEL_TEXT,
   CHANNEL_CATEGORY,
   CHANNEL_VOICE,
+  CHANNEL_STAGE,
   createGuildChannel,
   deleteGuildChannel,
   getGuildCounts,
@@ -124,7 +130,10 @@ const ESCALATION_ACTIONS: EscalationAction[] = ["timeout", "kick", "ban"];
 const RAID_ACTIONS = ["alert", "timeout", "kick", "ban"];
 
 function back(path: string, error?: string): never {
-  redirect(error ? `${path}?fehler=${encodeURIComponent(error)}` : `${path}?gespeichert=1`);
+  // Ein Sprungziel wie #sprachrollen muss hinter die Parameter.
+  const [base, anchor] = path.split("#");
+  const query = error ? `?fehler=${encodeURIComponent(error)}` : "?gespeichert=1";
+  redirect(`${base}${query}${anchor ? `#${anchor}` : ""}`);
 }
 
 function text(form: FormData, key: string) {
@@ -359,6 +368,9 @@ export async function saveWelcome(guildId: string, form: FormData) {
     goodbyeChannelId: text(form, "goodbyeChannelId") || null,
     goodbyeMessage: text(form, "goodbyeMessage"),
     goodbyeEmbed: form.get("goodbyeEmbed") === "on",
+    welcomeImage: form.get("welcomeImage") === "on",
+    welcomeImageTitle: text(form, "welcomeImageTitle").slice(0, 40) || "Willkommen!",
+    welcomeImageColor: /^#[0-9a-f]{6}$/i.test(text(form, "welcomeImageColor")) ? parseInt(text(form, "welcomeImageColor").slice(1), 16) : 0x4cb4ff,
   };
   for (const id of [values.welcomeChannelId, values.goodbyeChannelId]) {
     if (id && !known.text.has(id)) back(path, "Bitte nur Textkanäle dieses Servers wählen.");
@@ -1626,6 +1638,8 @@ export async function addCountingChannel(guildId: string, form: FormData) {
   const { db, notifySettingsChanged } = database();
   const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(countingChannels).where(eq(countingChannels.guildId, guildId));
   if (n >= 5) back(path, "Ein Server kann höchstens 5 Zähl-Kanäle haben.");
+  const [chain] = await db.select().from(wordChainChannels).where(eq(wordChainChannels.channelId, channelId));
+  if (chain) back(path, "Dieser Kanal ist schon eine Wortkette.");
   const added = await db.insert(countingChannels).values({ guildId, channelId, ...countingOptions(form) }).onConflictDoNothing().returning();
   if (!added.length) back(path, "Dieser Kanal ist schon ein Zähl-Kanal.");
   await notifySettingsChanged(guildId);
@@ -1652,4 +1666,99 @@ export async function deleteCountingChannel(guildId: string, channelId: string) 
   await db.delete(countingChannels).where(and(eq(countingChannels.guildId, guildId), eq(countingChannels.channelId, channelId)));
   await notifySettingsChanged(guildId);
   back(COUNTING(guildId));
+}
+
+// --- Sprachkanal-Rollen ---
+
+export async function addVoiceRole(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/roles`;
+  const channelId = text(form, "voiceChannelId");
+  const channels = await getGuildChannels(guildId);
+  if (channelId !== ANY_VOICE_CHANNEL && !channels.some((c) => c.id === channelId && (c.type === CHANNEL_VOICE || c.type === CHANNEL_STAGE))) {
+    back(path, "Bitte einen Sprachkanal dieses Servers wählen.");
+  }
+  const { valid } = await assignableRoles(guildId, form, "voiceRoleId");
+  if (valid.length !== 1) back(path, "Diese Rolle kann Libremod nicht vergeben.");
+  const { db, notifySettingsChanged } = database();
+  const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(voiceRoles).where(eq(voiceRoles.guildId, guildId));
+  if (n >= 25) back(path, "Mehr als 25 Sprachkanal-Rollen gehen nicht.");
+  await db.insert(voiceRoles).values({ guildId, channelId, roleId: valid[0]! }).onConflictDoNothing();
+  await notifySettingsChanged(guildId);
+  back(path);
+}
+
+export async function removeVoiceRole(guildId: string, channelId: string, roleId: string) {
+  await requireGuildAccess(guildId);
+  const { db, notifySettingsChanged } = database();
+  await db.delete(voiceRoles).where(and(eq(voiceRoles.guildId, guildId), eq(voiceRoles.channelId, channelId), eq(voiceRoles.roleId, roleId)));
+  await notifySettingsChanged(guildId);
+  back(`/servers/${guildId}/roles`);
+}
+
+// --- Wortkette ---
+
+const WORDCHAIN = (g: string) => `/servers/${g}/wordchain`;
+
+export async function addWordChain(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = WORDCHAIN(guildId);
+  const channelId = text(form, "channelId");
+  if (!(await textChannelIds(guildId)).text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  const { db, notifySettingsChanged } = database();
+  const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(wordChainChannels).where(eq(wordChainChannels.guildId, guildId));
+  if (n >= 5) back(path, "Ein Server kann höchstens 5 Wortketten haben.");
+  const [counting] = await db.select().from(countingChannels).where(eq(countingChannels.channelId, channelId));
+  if (counting) back(path, "Dieser Kanal ist schon ein Zähl-Kanal.");
+  const added = await db
+    .insert(wordChainChannels)
+    .values({ guildId, channelId, allowSameUser: form.get("allowSameUser") === "on" })
+    .onConflictDoNothing()
+    .returning();
+  if (!added.length) back(path, "Dieser Kanal ist schon eine Wortkette.");
+  await db.delete(wordChainWords).where(eq(wordChainWords.channelId, channelId));
+  await notifySettingsChanged(guildId);
+  back(path);
+}
+
+export async function updateWordChain(guildId: string, channelId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  await db
+    .update(wordChainChannels)
+    .set({ allowSameUser: form.get("allowSameUser") === "on" })
+    .where(and(eq(wordChainChannels.guildId, guildId), eq(wordChainChannels.channelId, channelId)));
+  back(WORDCHAIN(guildId));
+}
+
+export async function resetWordChain(guildId: string, channelId: string) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  await db.transaction(async (tx) => {
+    const done = await tx
+      .update(wordChainChannels)
+      .set({ lastWord: null, lastUserId: null, length: 0 })
+      .where(and(eq(wordChainChannels.guildId, guildId), eq(wordChainChannels.channelId, channelId)))
+      .returning();
+    if (done.length) await tx.delete(wordChainWords).where(eq(wordChainWords.channelId, channelId));
+  });
+  back(WORDCHAIN(guildId));
+}
+
+export async function deleteWordChain(guildId: string, channelId: string) {
+  await requireGuildAccess(guildId);
+  const { db, notifySettingsChanged } = database();
+  const gone = await db.delete(wordChainChannels).where(and(eq(wordChainChannels.guildId, guildId), eq(wordChainChannels.channelId, channelId))).returning();
+  if (gone.length) await db.delete(wordChainWords).where(eq(wordChainWords.channelId, channelId));
+  await notifySettingsChanged(guildId);
+  back(WORDCHAIN(guildId));
+}
+
+// --- Zitate ---
+
+export async function deleteQuote(guildId: string, id: number) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  await db.delete(quotes).where(and(eq(quotes.guildId, guildId), eq(quotes.id, id)));
+  back(`/servers/${guildId}/quotes`);
 }

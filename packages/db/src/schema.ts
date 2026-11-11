@@ -180,6 +180,10 @@ export const welcomeSettings = pgTable("welcome_settings", {
   goodbyeChannelId: varchar("goodbye_channel_id", { length: 32 }),
   goodbyeMessage: text("goodbye_message").notNull().default("**{username}** hat den Server verlassen."),
   goodbyeEmbed: boolean("goodbye_embed").notNull().default(false),
+  /** Begrüßungsbild mit Avatar unter der Nachricht. */
+  welcomeImage: boolean("welcome_image").notNull().default(false),
+  welcomeImageTitle: varchar("welcome_image_title", { length: 40 }).notNull().default("Willkommen!"),
+  welcomeImageColor: integer("welcome_image_color").notNull().default(0x4cb4ff),
 });
 
 export type WelcomeSettings = typeof welcomeSettings.$inferSelect;
@@ -968,3 +972,63 @@ export const levelSeasons = pgTable(
 );
 
 export type LevelSeason = typeof levelSeasons.$inferSelect;
+
+// =============== 0.13: Sprachkanal-Rollen, Wortkette, Zitate ===============
+
+/** Rolle, solange jemand in einem Sprachkanal ist. channelId "*" = jeder Sprachkanal. */
+export const voiceRoles = pgTable(
+  "voice_roles",
+  {
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    channelId: varchar("channel_id", { length: 32 }).notNull(),
+    roleId: varchar("role_id", { length: 32 }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.channelId, t.roleId] })],
+);
+
+export type VoiceRole = typeof voiceRoles.$inferSelect;
+
+/** Wortkette: Jedes Wort beginnt mit dem letzten Buchstaben des vorigen. */
+export const wordChainChannels = pgTable("word_chain_channels", {
+  channelId: varchar("channel_id", { length: 32 }).primaryKey(),
+  guildId: varchar("guild_id", { length: 32 }).notNull(),
+  lastWord: varchar("last_word", { length: 40 }),
+  lastUserId: varchar("last_user_id", { length: 32 }),
+  length: integer("length").notNull().default(0),
+  record: integer("record").notNull().default(0),
+  allowSameUser: boolean("allow_same_user").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type WordChainChannel = typeof wordChainChannels.$inferSelect;
+
+/** Schon benutzte Wörter der laufenden Kette. */
+export const wordChainWords = pgTable(
+  "word_chain_words",
+  {
+    channelId: varchar("channel_id", { length: 32 }).notNull(),
+    word: varchar("word", { length: 40 }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.channelId, t.word] })],
+);
+
+export const quotes = pgTable(
+  "quotes",
+  {
+    id: serial("id").primaryKey(),
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    number: integer("number").notNull(),
+    text: varchar("text", { length: 1000 }).notNull(),
+    /** Wer es gesagt hat: ein Mitglied … */
+    authorId: varchar("author_id", { length: 32 }),
+    /** … oder ein freier Name. */
+    authorName: varchar("author_name", { length: 80 }),
+    savedBy: varchar("saved_by", { length: 32 }).notNull(),
+    channelId: varchar("channel_id", { length: 32 }),
+    messageId: varchar("message_id", { length: 32 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("quotes_guild_number").on(t.guildId, t.number), uniqueIndex("quotes_guild_message").on(t.guildId, t.messageId)],
+);
+
+export type Quote = typeof quotes.$inferSelect;

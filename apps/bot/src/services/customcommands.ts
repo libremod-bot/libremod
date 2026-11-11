@@ -10,7 +10,7 @@ import {
 import { and, customCommands, eq, sql, type Db } from "@libremod/db";
 import { pickResponse, renderTemplate } from "@libremod/shared";
 import { config } from "../config.js";
-import { commands as builtIn } from "../commands/index.js";
+import { commandBodies } from "../commands/index.js";
 import { logger } from "../logger.js";
 
 /** Was zuletzt pro Server bei Discord registriert wurde, damit nur Änderungen übertragen werden. */
@@ -30,7 +30,7 @@ export async function syncGuildCommands(client: Client, db: Db, guildId: string,
     type: ApplicationCommandType.ChatInput,
     contexts: [InteractionContextType.Guild],
   }));
-  const body = guildId === config.DISCORD_DEV_GUILD_ID ? [...builtIn.map((c) => c.data.toJSON()), ...custom] : custom;
+  const body = guildId === config.DISCORD_DEV_GUILD_ID ? [...commandBodies(), ...custom] : custom;
   const hash = createHash("sha1").update(JSON.stringify(body)).digest("hex");
   // Noch nie synchronisiert und nichts zu tun: Discord nicht unnötig fragen.
   if (!force && (synced.get(guildId) ?? (custom.length ? "" : hash)) === hash) return;

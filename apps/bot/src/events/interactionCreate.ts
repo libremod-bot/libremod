@@ -1,5 +1,5 @@
 import { DiscordAPIError, MessageFlags, RESTJSONErrorCodes, type Interaction } from "discord.js";
-import { commands } from "../commands/index.js";
+import { commands, contextMenus } from "../commands/index.js";
 import type { CommandContext } from "../commands/types.js";
 import { logger } from "../logger.js";
 import { handlePanelInteraction, isPanelInteraction } from "../services/rolepanels.js";
@@ -53,6 +53,16 @@ export async function onInteractionCreate(interaction: Interaction, ctx: Command
       .get(interaction.commandName)
       ?.autocomplete?.(interaction, ctx)
       .catch((err) => logger.warn({ err, command: interaction.commandName }, "Autovervollständigung fehlgeschlagen"));
+    return;
+  }
+  if (interaction.isMessageContextMenuCommand()) {
+    await contextMenus
+      .get(interaction.commandName)
+      ?.execute(interaction, ctx)
+      .catch(async (err) => {
+        logger.error({ err, command: interaction.commandName }, "Kontextmenü fehlgeschlagen");
+        if (!interaction.replied) await interaction.reply({ content: "Da ist leider etwas schiefgelaufen.", flags: MessageFlags.Ephemeral }).catch(() => {});
+      });
     return;
   }
   if (!interaction.isChatInputCommand()) return;

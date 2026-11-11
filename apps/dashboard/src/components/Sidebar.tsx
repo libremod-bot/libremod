@@ -33,6 +33,8 @@ export function SidebarLinks({ guildId }: { guildId: string }) {
         { href: `${base}/birthdays`, label: "Geburtstage", icon: "cake" },
         { href: `${base}/suggestions`, label: "Vorschläge", icon: "bulb" },
         { href: `${base}/counting`, label: "Zähl-Kanal", icon: "hash" },
+        { href: `${base}/wordchain`, label: "Wortkette", icon: "link" },
+        { href: `${base}/quotes`, label: "Zitate", icon: "note" },
         { href: `${base}/commands`, label: "Eigene Befehle", icon: "slash" },
         { href: `${base}/schedule`, label: "Geplante Nachrichten", icon: "clock" },
         { href: `${base}/channels`, label: "Sprachkanäle & Zähler", icon: "mic" },

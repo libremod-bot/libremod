@@ -38,6 +38,7 @@ export const CHANNEL_TEXT = 0;
 export const CHANNEL_CATEGORY = 4;
 export const CHANNEL_ANNOUNCEMENT = 5;
 export const CHANNEL_VOICE = 2;
+export const CHANNEL_STAGE = 13;
 
 // Kleiner Zwischenspeicher, damit wir Discords Rate-Limits nicht reißen.
 const cache = new Map<string, { at: number; value: unknown }>();

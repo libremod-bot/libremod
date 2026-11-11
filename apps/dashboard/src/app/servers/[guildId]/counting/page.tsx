@@ -1,4 +1,4 @@
-import { countingChannels, eq } from "@libremod/db";
+import { countingChannels, eq, wordChainChannels } from "@libremod/db";
 import { Icon } from "@/components/Icon";
 import { Notice } from "@/components/Notice";
 import { PageHeader } from "@/components/PageHeader";
@@ -38,11 +38,13 @@ export default async function CountingPage({
   await requireGuildAccess(guildId);
   const { gespeichert, fehler } = await searchParams;
   const { db } = database();
-  const [rows, channels] = await Promise.all([
+  const [rows, chains, channels] = await Promise.all([
     db.select().from(countingChannels).where(eq(countingChannels.guildId, guildId)),
+    db.select({ id: wordChainChannels.channelId }).from(wordChainChannels).where(eq(wordChainChannels.guildId, guildId)),
     getGuildChannels(guildId),
   ]);
-  const textChannels = channels.filter((c) => (c.type === CHANNEL_TEXT || c.type === CHANNEL_ANNOUNCEMENT) && !rows.some((r) => r.channelId === c.id));
+  const taken = new Set([...rows.map((r) => r.channelId), ...chains.map((c) => c.id)]);
+  const textChannels = channels.filter((c) => (c.type === CHANNEL_TEXT || c.type === CHANNEL_ANNOUNCEMENT) && !taken.has(c.id));
   const channelName = (id: string) => channels.find((c) => c.id === id)?.name ?? "gelöschter Kanal";
 
   return (
