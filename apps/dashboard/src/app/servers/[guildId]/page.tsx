@@ -13,6 +13,10 @@ import {
   rolePanels,
   welcomeSettings,
   levelSettings,
+  customCommands,
+  scheduledMessages,
+  counterChannels,
+  tempVoiceHubs,
   sql,
   warnEscalations,
   type CaseType,
@@ -50,7 +54,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
 
   const { db } = database();
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const [[settings], rules, escalations, [weekStats], recent, channels, logs, [welcome], autoRoleRows, panels, [levels]] = await Promise.all([
+  const [[settings], rules, escalations, [weekStats], recent, channels, logs, [welcome], autoRoleRows, panels, [levels], [cmdCount], [schedCount], [counterCount], [hubCount]] = await Promise.all([
     db.select().from(guildSettings).where(eq(guildSettings.guildId, guildId)),
     db.select().from(automodRules).where(and(eq(automodRules.guildId, guildId), eq(automodRules.enabled, true))),
     db.select({ n: count() }).from(warnEscalations).where(eq(warnEscalations.guildId, guildId)),
@@ -68,7 +72,13 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
     db.select({ n: count() }).from(autoRoles).where(eq(autoRoles.guildId, guildId)),
     db.select({ n: count() }).from(rolePanels).where(eq(rolePanels.guildId, guildId)),
     db.select({ enabled: levelSettings.enabled }).from(levelSettings).where(eq(levelSettings.guildId, guildId)),
+    db.select({ n: count() }).from(customCommands).where(eq(customCommands.guildId, guildId)),
+    db.select({ n: count() }).from(scheduledMessages).where(and(eq(scheduledMessages.guildId, guildId), eq(scheduledMessages.enabled, true))),
+    db.select({ n: count() }).from(counterChannels).where(eq(counterChannels.guildId, guildId)),
+    db.select({ n: count() }).from(tempVoiceHubs).where(eq(tempVoiceHubs.guildId, guildId)),
   ]);
+  const countBadge = (n: number | undefined, one: string, many: string) =>
+    n ? <span className="badge on">{n === 1 ? one : `${n} ${many}`}</span> : <span className="badge">Keine</span>;
   const welcomeOn = !!(welcome?.welcomeEnabled || welcome?.goodbyeEnabled || welcome?.dmEnabled);
   const roleFeatures = (autoRoleRows[0]?.n ?? 0) + (panels[0]?.n ?? 0);
 
@@ -135,6 +145,27 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
       text: "XP für Nachrichten und Sprachkanäle, Rollenbelohnungen und Rangliste.",
       href: `${base}/levels`,
       status: levels?.enabled ? <span className="badge on">Aktiv</span> : <span className="badge">Aus</span>,
+    },
+    {
+      icon: "slash",
+      title: "Eigene Befehle",
+      text: "Slash-Befehle wie /regeln mit eigenem Text oder Embed, auf Wunsch mit Zufallsantworten.",
+      href: `${base}/commands`,
+      status: countBadge(cmdCount?.n, "1 Befehl", "Befehle"),
+    },
+    {
+      icon: "clock",
+      title: "Geplante Nachrichten",
+      text: "Erinnerungen und Hinweise, die Libremod täglich, wöchentlich oder in festen Abständen postet.",
+      href: `${base}/schedule`,
+      status: countBadge(schedCount?.n, "1 aktiv", "aktiv"),
+    },
+    {
+      icon: "mic",
+      title: "Sprachkanäle & Zähler",
+      text: "Sprachkanäle, die sich selbst erstellen und löschen, und Kanäle mit Mitgliederzahl.",
+      href: `${base}/channels`,
+      status: countBadge((counterCount?.n ?? 0) + (hubCount?.n ?? 0), "1 eingerichtet", "eingerichtet"),
     },
   ];
 

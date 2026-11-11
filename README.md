@@ -28,9 +28,11 @@ Website: [libremod.dev](https://libremod.dev) · Geplante Funktionen: [ROADMAP.m
 | `/xp add/remove/set/reset`            | XP von Mitgliedern verwalten                                 |
 | `/logging status/set/off/ignore`      | Logs für Nachrichten, Beitritte, Mitglieder, Server und Sprachkanäle, je Art ein eigener Kanal |
 
+Dazu kommen eigene Befehle, die du im Dashboard anlegst. Geplante Nachrichten, Zähler-Kanäle und temporäre Sprachkanäle richtest du ebenfalls dort ein.
+
 Im Discord Developer Portal müssen unter **Bot → Privileged Gateway Intents** die Optionen **Server Members Intent** und **Message Content Intent** eingeschaltet sein (für Auto-Moderation, Raid-Schutz und Logging).
 
-Der Bot braucht auf dem Server die Rechte **Mitglieder kicken**, **Mitglieder bannen**, **Mitglieder im Timeout**, **Nachrichten verwalten**, **Rollen verwalten** (für Auto-Rollen und Rollen-Panels) und **Nachrichten senden**, **Links einbetten** und **Dateien anhängen** im Mod-Log- und in den Log-Kanälen. Seine Rolle muss über den Rollen der Mitglieder stehen, die er moderieren soll.
+Der Bot braucht auf dem Server die Rechte **Mitglieder kicken**, **Mitglieder bannen**, **Mitglieder im Timeout**, **Nachrichten verwalten**, **Rollen verwalten** (für Auto-Rollen und Rollen-Panels), **Kanäle verwalten** und **Mitglieder verschieben** (für Zähler-Kanäle und temporäre Sprachkanäle) und **Nachrichten senden**, **Links einbetten** und **Dateien anhängen** im Mod-Log- und in den Log-Kanälen. Seine Rolle muss über den Rollen der Mitglieder stehen, die er moderieren soll.
 
 ## Aufbau
 

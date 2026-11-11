@@ -43,6 +43,13 @@
       "when": 1794396275694,
       "tag": "0005_levels",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794396880430,
+      "tag": "0006_community",
+      "breakpoints": true
     }
   ]
 }

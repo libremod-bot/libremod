@@ -3,6 +3,7 @@ import { commands } from "../commands/index.js";
 import type { CommandContext } from "../commands/types.js";
 import { logger } from "../logger.js";
 import { handlePanelInteraction, isPanelInteraction } from "../services/rolepanels.js";
+import { handleCustomCommand } from "../services/customcommands.js";
 
 export async function onInteractionCreate(interaction: Interaction, ctx: CommandContext) {
   if ((interaction.isButton() || interaction.isStringSelectMenu()) && isPanelInteraction(interaction.customId)) {
@@ -14,7 +15,10 @@ export async function onInteractionCreate(interaction: Interaction, ctx: Command
   }
   if (!interaction.isChatInputCommand()) return;
   const command = commands.get(interaction.commandName);
-  if (!command) return;
+  if (!command) {
+    await handleCustomCommand(interaction, ctx.db).catch((err) => logger.error({ err, command: interaction.commandName }, "Eigener Befehl fehlgeschlagen"));
+    return;
+  }
 
   try {
     await command.execute(interaction, ctx);

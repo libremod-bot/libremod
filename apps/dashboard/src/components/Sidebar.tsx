@@ -4,29 +4,50 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon, type IconName } from "./Icon";
 
+type NavLink = { href: string; label: string; icon: IconName };
+
 export function SidebarLinks({ guildId }: { guildId: string }) {
   const pathname = usePathname();
   const base = `/servers/${guildId}`;
-  const links: { href: string; label: string; icon: IconName }[] = [
-    { href: base, label: "Übersicht", icon: "home" },
-    { href: `${base}/moderation`, label: "Moderation", icon: "gavel" },
-    { href: `${base}/automod`, label: "Auto-Mod", icon: "shield" },
-    { href: `${base}/logging`, label: "Logging", icon: "log" },
-    { href: `${base}/welcome`, label: "Begrüßung", icon: "wave" },
-    { href: `${base}/roles`, label: "Rollen", icon: "tag" },
-    { href: `${base}/levels`, label: "Level", icon: "steps" },
-    { href: `${base}/cases`, label: "Fallakte", icon: "list" },
+  const groups: { title?: string; links: NavLink[] }[] = [
+    { links: [{ href: base, label: "Übersicht", icon: "home" }] },
+    {
+      title: "Schutz",
+      links: [
+        { href: `${base}/moderation`, label: "Moderation", icon: "gavel" },
+        { href: `${base}/automod`, label: "Auto-Mod", icon: "shield" },
+        { href: `${base}/logging`, label: "Logging", icon: "log" },
+        { href: `${base}/cases`, label: "Fallakte", icon: "list" },
+      ],
+    },
+    {
+      title: "Community",
+      links: [
+        { href: `${base}/welcome`, label: "Begrüßung", icon: "wave" },
+        { href: `${base}/roles`, label: "Rollen", icon: "tag" },
+        { href: `${base}/levels`, label: "Level", icon: "steps" },
+        { href: `${base}/commands`, label: "Eigene Befehle", icon: "slash" },
+        { href: `${base}/schedule`, label: "Geplante Nachrichten", icon: "clock" },
+        { href: `${base}/channels`, label: "Sprachkanäle & Zähler", icon: "mic" },
+      ],
+    },
   ];
+  const active = (href: string) => pathname === href || (href !== base && pathname.startsWith(`${href}/`));
   return (
     <>
-      <div className="nav-group">
-        {links.map((l) => (
-          <Link key={l.href} href={l.href} className="nav-link" aria-current={pathname === l.href || (l.href !== base && pathname.startsWith(`${l.href}/`)) ? "page" : undefined}>
-            <Icon name={l.icon} />
-            {l.label}
-          </Link>
-        ))}
-      </div>
+      <nav className="nav">
+      {groups.map((g, i) => (
+        <div className="nav-group" key={g.title ?? i}>
+          {g.title && <div className="nav-title">{g.title}</div>}
+          {g.links.map((l) => (
+            <Link key={l.href} href={l.href} className="nav-link" aria-current={active(l.href) ? "page" : undefined}>
+              <Icon name={l.icon} />
+              {l.label}
+            </Link>
+          ))}
+        </div>
+      ))}
+      </nav>
       <Link href="/servers" className="nav-link nav-back">
         <Icon name="back" />
         Alle Server

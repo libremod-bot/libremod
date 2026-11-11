@@ -18,18 +18,43 @@ import {
   levelNoXp,
   levelRewards,
   levelSettings,
+  customCommands,
+  scheduledMessages,
+  counterChannels,
+  tempVoiceHubs,
+  count,
   warnEscalations,
   type AutomodAction,
   type AutomodFilter,
   type EscalationAction,
   type LogCategory,
 } from "@libremod/db";
-import { buildPanelMessage, MAX_PANEL_ROLES, MAX_TEMPLATE_LENGTH, MAX_TIMEOUT_SECONDS, parseDuration } from "@libremod/shared";
+import {
+  buildPanelMessage,
+  COMMAND_NAME,
+  MAX_CUSTOM_COMMANDS,
+  MAX_PANEL_ROLES,
+  MAX_TEMPLATE_LENGTH,
+  MAX_TIMEOUT_SECONDS,
+  MIN_INTERVAL_MINUTES,
+  nextRun,
+  parseDuration,
+  parseTimeOfDay,
+  renderCounter,
+  RESERVED_COMMANDS,
+  splitResponses,
+  toSchedule,
+} from "@libremod/shared";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
 import {
   CHANNEL_ANNOUNCEMENT,
   CHANNEL_TEXT,
+  CHANNEL_CATEGORY,
+  CHANNEL_VOICE,
+  createGuildChannel,
+  deleteGuildChannel,
+  getGuildCounts,
   deleteBotMessage,
   DiscordError,
   editBotMessage,
@@ -487,6 +512,252 @@ export async function removeLevelReward(guildId: string, level: number) {
   await db.delete(levelRewards).where(and(eq(levelRewards.guildId, guildId), eq(levelRewards.level, level)));
   await notifySettingsChanged(guildId);
   back(`/servers/${guildId}/levels`);
+}
+
+// --- Eigene Befehle ---
+
+function readCommandForm(form: FormData, path: string) {
+  const name = text(form, "name").toLowerCase();
+  const description = text(form, "description");
+  const responses = splitResponses(text(form, "responses"));
+  const embed = form.get("embed") === "on";
+  const embedTitle = text(form, "embedTitle") || null;
+  const color = /^#[0-9a-f]{6}$/i.exec(text(form, "embedColor"));
+  if (!COMMAND_NAME.test(name)) back(path, "Der Name darf nur Kleinbuchstaben, Zahlen, - und _ enthalten (höchstens 32 Zeichen).");
+  if (RESERVED_COMMANDS.includes(name)) back(path, `/${name} ist ein eingebauter Befehl von Libremod. Bitte einen anderen Namen wählen.`);
+  if (!description || description.length > 100) back(path, "Bitte eine Beschreibung mit höchstens 100 Zeichen angeben.");
+  if (!responses.length) back(path, "Bitte mindestens eine Antwort eingeben.");
+  if (responses.length > 20) back(path, "Höchstens 20 Antworten pro Befehl.");
+  const max = embed ? 4000 : 2000;
+  if (responses.some((r) => r.length > max)) back(path, `Eine Antwort ist zu lang (höchstens ${max} Zeichen).`);
+  if (embedTitle && embedTitle.length > 256) back(path, "Die Embed-Überschrift darf höchstens 256 Zeichen lang sein.");
+  return {
+    name,
+    description,
+    responses,
+    embed,
+    embedTitle,
+    embedColor: color ? parseInt(color[0].slice(1), 16) : null,
+    ephemeral: form.get("ephemeral") === "on",
+  };
+}
+
+const isUniqueViolation = (err: unknown) =>
+  typeof err === "object" && err !== null && ("code" in err ? err.code : (err as { cause?: { code?: string } }).cause?.code) === "23505";
+
+export async function createCommand(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/commands`;
+  const values = readCommandForm(form, path);
+  const { db, notifySettingsChanged } = database();
+  const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(customCommands).where(eq(customCommands.guildId, guildId));
+  if (n >= MAX_CUSTOM_COMMANDS) back(path, `Ein Server kann höchstens ${MAX_CUSTOM_COMMANDS} eigene Befehle haben.`);
+  try {
+    await db.insert(customCommands).values({ guildId, ...values });
+  } catch (err) {
+    if (isUniqueViolation(err)) back(path, `Den Befehl /${values.name} gibt es schon.`);
+    throw err;
+  }
+  await notifySettingsChanged(guildId);
+  back(path);
+}
+
+export async function updateCommand(guildId: string, id: number, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/commands/${id}`;
+  const values = readCommandForm(form, path);
+  const { db, notifySettingsChanged } = database();
+  try {
+    await db.update(customCommands).set(values).where(and(eq(customCommands.id, id), eq(customCommands.guildId, guildId)));
+  } catch (err) {
+    if (isUniqueViolation(err)) back(path, `Den Befehl /${values.name} gibt es schon.`);
+    throw err;
+  }
+  await notifySettingsChanged(guildId);
+  back(path);
+}
+
+export async function deleteCommand(guildId: string, id: number) {
+  await requireGuildAccess(guildId);
+  const { db, notifySettingsChanged } = database();
+  await db.delete(customCommands).where(and(eq(customCommands.id, id), eq(customCommands.guildId, guildId)));
+  await notifySettingsChanged(guildId);
+  back(`/servers/${guildId}/commands`);
+}
+
+// --- Geplante Nachrichten ---
+
+const UNIT_MINUTES = { minutes: 1, hours: 60, days: 1440 } as const;
+
+export async function createScheduled(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/schedule`;
+  const channelId = text(form, "channelId");
+  const content = text(form, "content");
+  const embed = form.get("embed") === "on";
+  const embedTitle = text(form, "embedTitle") || null;
+  const kind = text(form, "kind");
+  const known = await textChannelIds(guildId);
+  if (!known.text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  if (!content) back(path, "Die Nachricht ist leer.");
+  if (content.length > (embed ? 4000 : 2000)) back(path, "Die Nachricht ist zu lang.");
+
+  let row: { kind: "interval" | "daily" | "weekly"; intervalMinutes: number | null; timeOfDay: string | null; weekday: number | null };
+  if (kind === "interval") {
+    const value = int(form, "intervalValue", 1, 1000);
+    const unit = text(form, "intervalUnit") as keyof typeof UNIT_MINUTES;
+    if (!value || !(unit in UNIT_MINUTES)) back(path, "Bitte einen gültigen Abstand angeben.");
+    const minutes = value * UNIT_MINUTES[unit];
+    if (minutes < MIN_INTERVAL_MINUTES) back(path, `Der Abstand muss mindestens ${MIN_INTERVAL_MINUTES} Minuten betragen.`);
+    if (minutes > 60 * 24 * 90) back(path, "Der Abstand darf höchstens 90 Tage betragen.");
+    row = { kind: "interval", intervalMinutes: minutes, timeOfDay: null, weekday: null };
+  } else if (kind === "daily" || kind === "weekly") {
+    const time = parseTimeOfDay(text(form, "timeOfDay"));
+    if (!time) back(path, "Bitte eine Uhrzeit wie 18:00 angeben.");
+    const timeOfDay = `${String(time.hour).padStart(2, "0")}:${String(time.minute).padStart(2, "0")}`;
+    const weekday = kind === "weekly" ? int(form, "weekday", 1, 7) : null;
+    if (kind === "weekly" && !weekday) back(path, "Bitte einen Wochentag wählen.");
+    row = { kind, intervalMinutes: null, timeOfDay, weekday };
+  } else {
+    back(path, "Unbekannte Art des Zeitplans.");
+  }
+
+  const { db } = database();
+  const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(scheduledMessages).where(eq(scheduledMessages.guildId, guildId));
+  if (n >= 25) back(path, "Ein Server kann höchstens 25 geplante Nachrichten haben.");
+  await db.insert(scheduledMessages).values({
+    guildId,
+    channelId,
+    content,
+    embed,
+    embedTitle,
+    ...row,
+    nextRunAt: nextRun(toSchedule(row), new Date()),
+  });
+  back(path);
+}
+
+export async function toggleScheduled(guildId: string, id: number) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  const [m] = await db.select().from(scheduledMessages).where(and(eq(scheduledMessages.id, id), eq(scheduledMessages.guildId, guildId)));
+  if (m) {
+    // Beim Fortsetzen ab jetzt neu planen, damit nicht sofort nachgeholt wird.
+    const enabled = !m.enabled;
+    await db
+      .update(scheduledMessages)
+      .set({ enabled, ...(enabled ? { nextRunAt: nextRun(toSchedule(m), new Date()) } : {}) })
+      .where(eq(scheduledMessages.id, id));
+  }
+  back(`/servers/${guildId}/schedule`);
+}
+
+export async function deleteScheduled(guildId: string, id: number) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  await db.delete(scheduledMessages).where(and(eq(scheduledMessages.id, id), eq(scheduledMessages.guildId, guildId)));
+  back(`/servers/${guildId}/schedule`);
+}
+
+// --- Temporäre Sprachkanäle und Zähler ---
+
+const CONNECT = String(1 << 20);
+
+async function categoryOrNull(guildId: string, form: FormData, path: string) {
+  const parentId = text(form, "parentId");
+  if (!parentId) return null;
+  const channels = await getGuildChannels(guildId);
+  if (!channels.some((c) => c.id === parentId && c.type === CHANNEL_CATEGORY)) back(path, "Unbekannte Kategorie.");
+  return parentId;
+}
+
+const channelError = (err: unknown) =>
+  err instanceof DiscordError && err.status === 403
+    ? "Libremod fehlt das Recht „Kanäle verwalten“. Bitte in den Servereinstellungen bei der Libremod-Rolle einschalten."
+    : "Der Kanal konnte nicht erstellt werden. Bitte später nochmal versuchen.";
+
+function readHubSettings(form: FormData, path: string) {
+  const nameTemplate = text(form, "nameTemplate") || "Kanal von {username}";
+  const userLimit = int(form, "userLimit", 0, 99) ?? 0;
+  if (nameTemplate.length > 100) back(path, "Der Name darf höchstens 100 Zeichen lang sein.");
+  if (Number.isNaN(userLimit)) back(path, "Max. Personen muss zwischen 0 und 99 liegen.");
+  return { nameTemplate, userLimit };
+}
+
+export async function createTempHub(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/channels`;
+  const hubName = text(form, "hubName") || "➕ Kanal erstellen";
+  if (hubName.length > 100) back(path, "Der Kanalname darf höchstens 100 Zeichen lang sein.");
+  const settings = readHubSettings(form, path);
+  const parentId = await categoryOrNull(guildId, form, path);
+  const { db, notifySettingsChanged } = database();
+  let channelId: string;
+  try {
+    channelId = (await createGuildChannel(guildId, { name: hubName, type: CHANNEL_VOICE, parent_id: parentId })).id;
+  } catch (err) {
+    back(path, channelError(err));
+  }
+  await db.insert(tempVoiceHubs).values({ channelId, guildId, ...settings });
+  await notifySettingsChanged(guildId);
+  back(path);
+}
+
+export async function updateTempHub(guildId: string, channelId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/channels`;
+  const settings = readHubSettings(form, path);
+  const { db, notifySettingsChanged } = database();
+  await db.update(tempVoiceHubs).set(settings).where(and(eq(tempVoiceHubs.channelId, channelId), eq(tempVoiceHubs.guildId, guildId)));
+  await notifySettingsChanged(guildId);
+  back(path);
+}
+
+export async function deleteTempHub(guildId: string, channelId: string) {
+  await requireGuildAccess(guildId);
+  const { db, notifySettingsChanged } = database();
+  const [hub] = await db.delete(tempVoiceHubs).where(and(eq(tempVoiceHubs.channelId, channelId), eq(tempVoiceHubs.guildId, guildId))).returning();
+  if (hub) await deleteGuildChannel(guildId, channelId).catch(() => {});
+  await notifySettingsChanged(guildId);
+  back(`/servers/${guildId}/channels`);
+}
+
+export async function createCounter(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/channels`;
+  const template = text(form, "template");
+  if (!template || template.length > 90) back(path, "Bitte einen Namen mit höchstens 90 Zeichen angeben.");
+  if (!/\{(members|boosts|channels|roles)\}/i.test(template)) back(path, "Der Name braucht einen Platzhalter, z. B. {members}.");
+  const parentId = await categoryOrNull(guildId, form, path);
+  const { db } = database();
+  const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(counterChannels).where(eq(counterChannels.guildId, guildId));
+  if (n >= 10) back(path, "Ein Server kann höchstens 10 Zähler haben.");
+
+  let channelId: string;
+  try {
+    const name = renderCounter(template, await getGuildCounts(guildId));
+    channelId = (
+      await createGuildChannel(guildId, {
+        name,
+        type: CHANNEL_VOICE,
+        parent_id: parentId,
+        // Niemand kann beitreten, der Kanal dient nur der Anzeige.
+        permission_overwrites: [{ id: guildId, type: 0, deny: CONNECT }],
+      })
+    ).id;
+  } catch (err) {
+    back(path, channelError(err));
+  }
+  await db.insert(counterChannels).values({ channelId, guildId, template });
+  back(path);
+}
+
+export async function deleteCounter(guildId: string, channelId: string) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  const [row] = await db.delete(counterChannels).where(and(eq(counterChannels.channelId, channelId), eq(counterChannels.guildId, guildId))).returning();
+  if (row) await deleteGuildChannel(guildId, channelId).catch(() => {});
+  back(`/servers/${guildId}/channels`);
 }
 
 // --- Fallakte ---

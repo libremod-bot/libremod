@@ -8,7 +8,7 @@ const ADMINISTRATOR = 0x8n;
 const MANAGE_GUILD = 0x20n;
 
 /** Rechte, die der Bot beim Einladen bekommt (siehe README). */
-export const BOT_PERMISSIONS = "1099780189190";
+export const BOT_PERMISSIONS = "1099796966422";
 
 export interface PartialGuild {
   id: string;
@@ -37,6 +37,7 @@ export interface GuildRole {
 export const CHANNEL_TEXT = 0;
 export const CHANNEL_CATEGORY = 4;
 export const CHANNEL_ANNOUNCEMENT = 5;
+export const CHANNEL_VOICE = 2;
 
 // Kleiner Zwischenspeicher, damit wir Discords Rate-Limits nicht reißen.
 const cache = new Map<string, { at: number; value: unknown }>();
@@ -189,6 +190,38 @@ export async function getMembers(guildId: string, ids: string[]): Promise<Member
       }),
     ),
   );
+}
+
+/** Zahlen für Zähler-Kanäle. */
+export async function getGuildCounts(guildId: string) {
+  const [g, channels, roles] = await Promise.all([
+    discord<{ approximate_member_count?: number; premium_subscription_count?: number }>(`/guilds/${guildId}?with_counts=true`, bot()),
+    getGuildChannels(guildId),
+    getAllRoles(guildId),
+  ]);
+  return {
+    members: g.approximate_member_count ?? 0,
+    boosts: g.premium_subscription_count ?? 0,
+    channels: channels.length,
+    roles: Math.max(0, roles.length - 1),
+  };
+}
+
+// --- Kanäle anlegen und löschen (Zähler, temporäre Sprachkanäle) ---
+
+export async function createGuildChannel(guildId: string, body: Record<string, unknown>) {
+  const channel = await discord<{ id: string; name: string }>(`/guilds/${guildId}/channels`, bot(), jsonInit("POST", body));
+  clearCache(`channels:${guildId}`);
+  return channel;
+}
+
+export async function deleteGuildChannel(guildId: string, channelId: string) {
+  try {
+    await discord(`/channels/${channelId}`, bot(), { method: "DELETE" });
+  } catch (err) {
+    if (!(err instanceof DiscordError && err.status === 404)) throw err;
+  }
+  clearCache(`channels:${guildId}`);
 }
 
 // --- Nachrichten des Bots (Rollen-Panels) ---

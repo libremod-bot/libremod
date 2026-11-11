@@ -288,3 +288,85 @@ export const memberXp = pgTable(
 );
 
 export type MemberXp = typeof memberXp.$inferSelect;
+
+
+/** Eigene Slash-Befehle eines Servers, z. B. /regeln. */
+export const customCommands = pgTable(
+  "custom_commands",
+  {
+    id: serial("id").primaryKey(),
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    name: varchar("name", { length: 32 }).notNull(),
+    description: varchar("description", { length: 100 }).notNull(),
+    responses: jsonb("responses").$type<string[]>().notNull().default([]),
+    /** Antwort als Embed statt als normaler Text. */
+    embed: boolean("embed").notNull().default(false),
+    embedTitle: varchar("embed_title", { length: 256 }),
+    embedColor: integer("embed_color"),
+    /** Antwort nur für die aufrufende Person sichtbar. */
+    ephemeral: boolean("ephemeral").notNull().default(false),
+    uses: integer("uses").notNull().default(0),
+  },
+  (t) => [uniqueIndex("custom_commands_guild_name").on(t.guildId, t.name)],
+);
+
+export type CustomCommand = typeof customCommands.$inferSelect;
+
+export const scheduleKind = pgEnum("schedule_kind", ["interval", "daily", "weekly"]);
+export type ScheduleKind = (typeof scheduleKind.enumValues)[number];
+
+/** Nachrichten, die Libremod regelmäßig in einen Kanal postet. */
+export const scheduledMessages = pgTable(
+  "scheduled_messages",
+  {
+    id: serial("id").primaryKey(),
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    channelId: varchar("channel_id", { length: 32 }).notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    content: text("content").notNull(),
+    embed: boolean("embed").notNull().default(false),
+    embedTitle: varchar("embed_title", { length: 256 }),
+    kind: scheduleKind("kind").notNull(),
+    /** interval: Minuten zwischen zwei Nachrichten. */
+    intervalMinutes: integer("interval_minutes"),
+    /** daily/weekly: Uhrzeit als "HH:MM" (Europe/Berlin). */
+    timeOfDay: varchar("time_of_day", { length: 5 }),
+    /** weekly: 1 = Montag … 7 = Sonntag. */
+    weekday: integer("weekday"),
+    nextRunAt: timestamp("next_run_at", { withTimezone: true }).notNull(),
+    lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+  },
+  (t) => [index("scheduled_due").on(t.enabled, t.nextRunAt), index("scheduled_guild").on(t.guildId)],
+);
+
+export type ScheduledMessage = typeof scheduledMessages.$inferSelect;
+
+/** Sprachkanäle, deren Name einen Zähler zeigt, z. B. „Mitglieder: 1.234“. */
+export const counterChannels = pgTable("counter_channels", {
+  channelId: varchar("channel_id", { length: 32 }).primaryKey(),
+  guildId: varchar("guild_id", { length: 32 }).notNull(),
+  /** Name mit Platzhaltern wie {members}. */
+  template: varchar("template", { length: 100 }).notNull(),
+});
+
+export type CounterChannel = typeof counterChannels.$inferSelect;
+
+/** „Beitreten zum Erstellen“: Wer diesem Kanal beitritt, bekommt einen eigenen Sprachkanal. */
+export const tempVoiceHubs = pgTable("temp_voice_hubs", {
+  channelId: varchar("channel_id", { length: 32 }).primaryKey(),
+  guildId: varchar("guild_id", { length: 32 }).notNull(),
+  /** Name des neuen Kanals mit Platzhaltern wie {username}. */
+  nameTemplate: varchar("name_template", { length: 100 }).notNull().default("Kanal von {username}"),
+  /** 0 = unbegrenzt */
+  userLimit: integer("user_limit").notNull().default(0),
+});
+
+export type TempVoiceHub = typeof tempVoiceHubs.$inferSelect;
+
+/** Von Libremod erstellte temporäre Kanäle, damit sie auch nach einem Neustart aufgeräumt werden. */
+export const tempVoiceChannels = pgTable("temp_voice_channels", {
+  channelId: varchar("channel_id", { length: 32 }).primaryKey(),
+  guildId: varchar("guild_id", { length: 32 }).notNull(),
+  ownerId: varchar("owner_id", { length: 32 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

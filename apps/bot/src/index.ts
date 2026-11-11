@@ -9,6 +9,10 @@ import { startTempBanScheduler } from "./services/tempbans.js";
 import { handleMemberJoin, handleMessage, invalidateAutomod } from "./services/automod.js";
 import * as log from "./services/logging.js";
 import { handleMessageXp, invalidateLevels, startVoiceXp } from "./services/levels.js";
+import { scheduleCommandSync, syncAllCommands, syncGuildCommands } from "./services/customcommands.js";
+import { startScheduler } from "./services/scheduler.js";
+import { startCounters } from "./services/counters.js";
+import { invalidateTempVoice, loadTempChannels, onTempVoiceState } from "./services/tempvoice.js";
 import { invalidateWelcome, onWelcomeJoin, onWelcomeLeave, onWelcomeMemberUpdate } from "./services/welcome.js";
 
 await runMigrations(config.DATABASE_URL);
@@ -20,10 +24,14 @@ await onSettingsChanged((guildId) => {
   log.invalidateLogging(guildId);
   invalidateWelcome(guildId);
   invalidateLevels(guildId);
+  invalidateTempVoice(guildId);
+  scheduleCommandSync(client, db, guildId);
 });
 const ctx = { db };
 let tempBanTimer: NodeJS.Timeout | undefined;
 let voiceXpTimer: NodeJS.Timeout | undefined;
+let schedulerTimer: NodeJS.Timeout | undefined;
+let counterTimer: NodeJS.Timeout | undefined;
 
 const client = new Client({
   intents: [
@@ -43,6 +51,10 @@ client.once(Events.ClientReady, (c) => {
   logger.info({ user: c.user.tag, guilds: c.guilds.cache.size }, "Libremod ist online");
   tempBanTimer ??= startTempBanScheduler(c, db);
   voiceXpTimer ??= startVoiceXp(c, db);
+  schedulerTimer ??= startScheduler(c, db);
+  counterTimer ??= startCounters(c, db);
+  void loadTempChannels(c, db).catch(logError("Temporäre Kanäle"));
+  void syncAllCommands(c, db).catch(logError("Eigene Befehle"));
 });
 client.on(Events.InteractionCreate, (i) => void onInteractionCreate(i, ctx));
 const logError = (what: string) => (err: unknown) => logger.error({ err }, `${what} fehlgeschlagen`);
@@ -85,6 +97,8 @@ client.on(Events.GuildRoleDelete, logged(log.onRoleDelete));
 client.on(Events.GuildRoleUpdate, logged(log.onRoleUpdate));
 client.on(Events.GuildUpdate, logged(log.onGuildUpdate));
 client.on(Events.VoiceStateUpdate, logged(log.onVoiceStateUpdate));
+client.on(Events.VoiceStateUpdate, (a, b) => void onTempVoiceState(a, b, db).catch(logError("Temporäre Kanäle")));
+client.on(Events.GuildCreate, (g) => void syncGuildCommands(client, db, g.id).catch(logError("Eigene Befehle")));
 client.on(Events.GuildCreate, (g) =>
   void onGuildCreate(g, ctx).catch((err) => logger.error({ err }, "guildCreate fehlgeschlagen")),
 );
@@ -93,6 +107,8 @@ async function shutdown(signal: string) {
   logger.info({ signal }, "Fahre herunter");
   clearInterval(tempBanTimer);
   clearInterval(voiceXpTimer);
+  clearInterval(schedulerTimer);
+  clearInterval(counterTimer);
   await client.destroy();
   await close();
   process.exit(0);
