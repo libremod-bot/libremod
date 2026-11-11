@@ -8,7 +8,7 @@ const ADMINISTRATOR = 0x8n;
 const MANAGE_GUILD = 0x20n;
 
 /** Rechte, die der Bot beim Einladen bekommt (siehe README). */
-export const BOT_PERMISSIONS = "1099511753734";
+export const BOT_PERMISSIONS = "1099780189190";
 
 export interface PartialGuild {
   id: string;
@@ -59,6 +59,7 @@ async function discord<T>(path: string, auth: string, init?: RequestInit): Promi
     cache: "no-store",
   });
   if (!res.ok) throw new DiscordError(res.status, `${init?.method ?? "GET"} ${path}: ${res.status}`);
+  if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
 
@@ -143,11 +144,50 @@ export function getGuildChannels(guildId: string) {
   });
 }
 
-export function getGuildRoles(guildId: string) {
-  return cached(`roles:${guildId}`, 30_000, async () => {
-    const roles = await discord<GuildRole[]>(`/guilds/${guildId}/roles`, bot());
-    return roles.filter((r) => r.id !== guildId && !r.managed).sort((a, b) => b.position - a.position);
+function getAllRoles(guildId: string) {
+  return cached(`roles:${guildId}`, 30_000, () => discord<GuildRole[]>(`/guilds/${guildId}/roles`, bot()));
+}
+
+/** Rollen ohne @everyone und ohne Rollen, die von Integrationen verwaltet werden, höchste zuerst. */
+export async function getGuildRoles(guildId: string) {
+  const roles = await getAllRoles(guildId);
+  return roles.filter((r) => r.id !== guildId && !r.managed).sort((a, b) => b.position - a.position);
+}
+
+/** Position der höchsten Rolle des Bots. Nur Rollen darunter kann er vergeben. */
+export function getBotTopPosition(guildId: string) {
+  return cached(`bot-top:${guildId}`, 30_000, async () => {
+    const [member, roles] = await Promise.all([
+      discord<{ roles: string[] }>(`/guilds/${guildId}/members/${env.clientId}`, bot()),
+      getAllRoles(guildId),
+    ]);
+    const mine = new Set(member.roles);
+    return Math.max(0, ...roles.filter((r) => mine.has(r.id)).map((r) => r.position));
   });
+}
+
+// --- Nachrichten des Bots (Rollen-Panels) ---
+
+const jsonInit = (method: string, body?: unknown): RequestInit => ({
+  method,
+  headers: { "Content-Type": "application/json" },
+  body: body === undefined ? undefined : JSON.stringify(body),
+});
+
+export function sendBotMessage(channelId: string, body: unknown) {
+  return discord<{ id: string }>(`/channels/${channelId}/messages`, bot(), jsonInit("POST", body));
+}
+
+export function editBotMessage(channelId: string, messageId: string, body: unknown) {
+  return discord<{ id: string }>(`/channels/${channelId}/messages/${messageId}`, bot(), jsonInit("PATCH", body));
+}
+
+export async function deleteBotMessage(channelId: string, messageId: string) {
+  try {
+    await discord(`/channels/${channelId}/messages/${messageId}`, bot(), { method: "DELETE" });
+  } catch (err) {
+    if (!(err instanceof DiscordError && err.status === 404)) throw err; // schon weg ist auch gut
+  }
 }
 
 export function inviteUrl(guildId?: string) {

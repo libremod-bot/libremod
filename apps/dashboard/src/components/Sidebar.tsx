@@ -12,13 +12,15 @@ export function SidebarLinks({ guildId }: { guildId: string }) {
     { href: `${base}/moderation`, label: "Moderation", icon: "gavel" },
     { href: `${base}/automod`, label: "Auto-Mod", icon: "shield" },
     { href: `${base}/logging`, label: "Logging", icon: "log" },
+    { href: `${base}/welcome`, label: "Begrüßung", icon: "wave" },
+    { href: `${base}/roles`, label: "Rollen", icon: "tag" },
     { href: `${base}/cases`, label: "Fallakte", icon: "list" },
   ];
   return (
     <>
       <div className="nav-group">
         {links.map((l) => (
-          <Link key={l.href} href={l.href} className="nav-link" aria-current={pathname === l.href ? "page" : undefined}>
+          <Link key={l.href} href={l.href} className="nav-link" aria-current={pathname === l.href || (l.href !== base && pathname.startsWith(`${l.href}/`)) ? "page" : undefined}>
             <Icon name={l.icon} />
             {l.label}
           </Link>

@@ -12,16 +12,29 @@ import {
   logChannels,
   logIgnoredChannels,
   modCases,
+  autoRoles,
+  rolePanels,
+  welcomeSettings,
   warnEscalations,
   type AutomodAction,
   type AutomodFilter,
   type EscalationAction,
   type LogCategory,
 } from "@libremod/db";
-import { MAX_TIMEOUT_SECONDS, parseDuration } from "@libremod/shared";
+import { buildPanelMessage, MAX_PANEL_ROLES, MAX_TEMPLATE_LENGTH, MAX_TIMEOUT_SECONDS, parseDuration } from "@libremod/shared";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
-import { CHANNEL_ANNOUNCEMENT, CHANNEL_TEXT, getGuildChannels } from "@/lib/discord";
+import {
+  CHANNEL_ANNOUNCEMENT,
+  CHANNEL_TEXT,
+  deleteBotMessage,
+  DiscordError,
+  editBotMessage,
+  getBotTopPosition,
+  getGuildChannels,
+  getGuildRoles,
+  sendBotMessage,
+} from "@/lib/discord";
 
 const SNOWFLAKE = /^\d{17,20}$/;
 const AUTOMOD_ACTIONS: AutomodAction[] = ["delete", "warn", "timeout", "kick", "ban"];
@@ -128,6 +141,9 @@ export async function saveAutomod(guildId: string, form: FormData) {
 
     const config: Record<string, unknown> = {};
     if (threshold) config.threshold = threshold;
+    const notice = text(form, `${filter}.notice`);
+    if (notice.length > 500) back(path, "Der Hinweistext darf höchstens 500 Zeichen lang sein.");
+    if (notice) config.notice = notice;
     if (filter === "words") {
       const words = list(form, "words.list");
       if (words.length > 1000) back(path, "Die Wortliste kann höchstens 1000 Einträge haben.");
@@ -241,6 +257,157 @@ export async function quickLogging(guildId: string, form: FormData) {
     .onConflictDoUpdate({ target: [logChannels.guildId, logChannels.category], set: { channelId } });
   await notifySettingsChanged(guildId);
   back(path);
+}
+
+// --- Begrüßung ---
+
+export async function saveWelcome(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/welcome`;
+  const known = await textChannelIds(guildId);
+
+  const values = {
+    welcomeEnabled: form.get("welcomeEnabled") === "on",
+    welcomeChannelId: text(form, "welcomeChannelId") || null,
+    welcomeMessage: text(form, "welcomeMessage"),
+    welcomeEmbed: form.get("welcomeEmbed") === "on",
+    dmEnabled: form.get("dmEnabled") === "on",
+    dmMessage: text(form, "dmMessage"),
+    goodbyeEnabled: form.get("goodbyeEnabled") === "on",
+    goodbyeChannelId: text(form, "goodbyeChannelId") || null,
+    goodbyeMessage: text(form, "goodbyeMessage"),
+    goodbyeEmbed: form.get("goodbyeEmbed") === "on",
+  };
+  for (const id of [values.welcomeChannelId, values.goodbyeChannelId]) {
+    if (id && !known.text.has(id)) back(path, "Bitte nur Textkanäle dieses Servers wählen.");
+  }
+  if (values.welcomeEnabled && !values.welcomeChannelId) back(path, "Für die Willkommensnachricht fehlt noch der Kanal.");
+  if (values.goodbyeEnabled && !values.goodbyeChannelId) back(path, "Für die Abschiedsnachricht fehlt noch der Kanal.");
+  for (const [key, label] of [
+    ["welcomeMessage", "Willkommensnachricht"],
+    ["dmMessage", "Direktnachricht"],
+    ["goodbyeMessage", "Abschiedsnachricht"],
+  ] as const) {
+    if (!values[key]) back(path, `Der Text der ${label} ist leer.`);
+    if (values[key].length > MAX_TEMPLATE_LENGTH) back(path, `Der Text der ${label} ist zu lang (höchstens ${MAX_TEMPLATE_LENGTH} Zeichen).`);
+  }
+
+  const { db, notifySettingsChanged } = database();
+  await db.insert(welcomeSettings).values({ guildId, ...values }).onConflictDoUpdate({ target: welcomeSettings.guildId, set: values });
+  await notifySettingsChanged(guildId);
+  back(path);
+}
+
+// --- Rollen ---
+
+/** Rollen-IDs aus dem Formular, die es gibt und die der Bot vergeben kann. */
+async function assignableRoles(guildId: string, form: FormData, key: string) {
+  const [roles, botTop] = await Promise.all([getGuildRoles(guildId), getBotTopPosition(guildId)]);
+  const ok = new Map(roles.filter((r) => r.position < botTop).map((r) => [r.id, r]));
+  const picked = [...new Set(form.getAll(key).filter((v): v is string => typeof v === "string"))];
+  return { valid: picked.filter((id) => ok.has(id)), invalid: picked.filter((id) => !ok.has(id)), roles: ok };
+}
+
+export async function saveAutoRoles(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/roles`;
+  const humans = await assignableRoles(guildId, form, "humanRoles");
+  const bots = await assignableRoles(guildId, form, "botRoles");
+  if (humans.invalid.length || bots.invalid.length) back(path, "Mindestens eine Rolle kann Libremod nicht vergeben.");
+
+  const { db, notifySettingsChanged } = database();
+  await db.transaction(async (tx) => {
+    await tx.delete(autoRoles).where(eq(autoRoles.guildId, guildId));
+    const rows = [
+      ...humans.valid.map((roleId) => ({ guildId, roleId, target: "humans" as const })),
+      ...bots.valid.map((roleId) => ({ guildId, roleId, target: "bots" as const })),
+    ];
+    if (rows.length) await tx.insert(autoRoles).values(rows);
+  });
+  await notifySettingsChanged(guildId);
+  back(path);
+}
+
+async function readPanelForm(guildId: string, form: FormData, path: string) {
+  const title = text(form, "title");
+  const description = text(form, "description");
+  const channelId = text(form, "channelId");
+  const style = text(form, "style") === "select" ? ("select" as const) : ("buttons" as const);
+  const single = form.get("single") === "on";
+  const known = await textChannelIds(guildId);
+  const { valid, invalid, roles } = await assignableRoles(guildId, form, "roleIds");
+
+  if (!title || title.length > 256) back(path, "Bitte eine Überschrift mit höchstens 256 Zeichen angeben.");
+  if (description.length > 2000) back(path, "Die Beschreibung darf höchstens 2000 Zeichen lang sein.");
+  if (!known.text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  if (invalid.length) back(path, "Mindestens eine Rolle kann Libremod nicht vergeben.");
+  if (!valid.length) back(path, "Bitte mindestens eine Rolle auswählen.");
+  if (valid.length > MAX_PANEL_ROLES) back(path, `Ein Panel kann höchstens ${MAX_PANEL_ROLES} Rollen haben.`);
+
+  // In der Reihenfolge der Rollenliste des Servers, höchste zuerst.
+  const roleIds = [...roles.keys()].filter((id) => valid.includes(id));
+  return { title, description, channelId, style, single, roleIds, roleNames: roleIds.map((id) => ({ id, name: roles.get(id)!.name })) };
+}
+
+const postError = (err: unknown) =>
+  err instanceof DiscordError && (err.status === 403 || err.status === 404)
+    ? "Gespeichert, aber Libremod konnte im Kanal nicht posten. Prüfe dort die Rechte „Nachrichten senden“ und „Links einbetten“."
+    : "Gespeichert, aber die Nachricht konnte nicht gepostet werden. Bitte später nochmal speichern.";
+
+export async function createPanel(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/roles`;
+  const { roleNames, ...values } = await readPanelForm(guildId, form, path);
+  const { db } = database();
+  const [panel] = await db.insert(rolePanels).values({ guildId, ...values }).returning();
+
+  let error: string | undefined;
+  try {
+    const msg = await sendBotMessage(values.channelId, buildPanelMessage({ ...values, id: panel!.id, roles: roleNames }));
+    await db.update(rolePanels).set({ messageId: msg.id }).where(eq(rolePanels.id, panel!.id));
+  } catch (err) {
+    error = postError(err);
+  }
+  back(path, error);
+}
+
+export async function updatePanel(guildId: string, panelId: number, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/roles/${panelId}`;
+  const { db } = database();
+  const [old] = await db.select().from(rolePanels).where(and(eq(rolePanels.id, panelId), eq(rolePanels.guildId, guildId)));
+  if (!old) back(`/servers/${guildId}/roles`, "Dieses Panel gibt es nicht mehr.");
+  const { roleNames, ...values } = await readPanelForm(guildId, form, path);
+  const body = buildPanelMessage({ ...values, id: panelId, roles: roleNames });
+
+  let messageId = old.messageId;
+  let error: string | undefined;
+  try {
+    if (messageId && old.channelId === values.channelId) {
+      try {
+        await editBotMessage(values.channelId, messageId, body);
+      } catch (err) {
+        if (!(err instanceof DiscordError && err.status === 404)) throw err;
+        messageId = null; // Nachricht wurde in Discord gelöscht: neu posten
+      }
+    } else if (messageId) {
+      await deleteBotMessage(old.channelId, messageId).catch(() => {});
+      messageId = null;
+    }
+    if (!messageId) messageId = (await sendBotMessage(values.channelId, body)).id;
+  } catch (err) {
+    error = postError(err);
+  }
+  await db.update(rolePanels).set({ ...values, messageId }).where(eq(rolePanels.id, panelId));
+  back(path, error);
+}
+
+export async function deletePanel(guildId: string, panelId: number) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  const [panel] = await db.delete(rolePanels).where(and(eq(rolePanels.id, panelId), eq(rolePanels.guildId, guildId))).returning();
+  if (panel?.messageId) await deleteBotMessage(panel.channelId, panel.messageId).catch(() => {});
+  back(`/servers/${guildId}/roles`);
 }
 
 // --- Fallakte ---

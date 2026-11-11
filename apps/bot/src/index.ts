@@ -8,6 +8,7 @@ import { onGuildCreate } from "./events/guildCreate.js";
 import { startTempBanScheduler } from "./services/tempbans.js";
 import { handleMemberJoin, handleMessage, invalidateAutomod } from "./services/automod.js";
 import * as log from "./services/logging.js";
+import { invalidateWelcome, onWelcomeJoin, onWelcomeLeave, onWelcomeMemberUpdate } from "./services/welcome.js";
 
 await runMigrations(config.DATABASE_URL);
 logger.info("Datenbank ist auf dem neuesten Stand");
@@ -16,6 +17,7 @@ const { db, close, onSettingsChanged } = createDb(config.DATABASE_URL);
 await onSettingsChanged((guildId) => {
   invalidateAutomod(guildId);
   log.invalidateLogging(guildId);
+  invalidateWelcome(guildId);
 });
 const ctx = { db };
 let tempBanTimer: NodeJS.Timeout | undefined;
@@ -50,7 +52,10 @@ client.on(Events.MessageUpdate, (oldMessage, newMessage) => {
 client.on(Events.GuildMemberAdd, (m) => {
   void handleMemberJoin(m, db).catch(logError("Raid-Schutz"));
   void log.onMemberJoin(m, db).catch(logError("Logging"));
+  void onWelcomeJoin(m, db).catch(logError("Begrüßung"));
 });
+client.on(Events.GuildMemberRemove, (m) => void onWelcomeLeave(m, db).catch(logError("Abschied")));
+client.on(Events.GuildMemberUpdate, (a, b) => void onWelcomeMemberUpdate(a, b, db).catch(logError("Auto-Rollen")));
 
 // Logging
 const logged =

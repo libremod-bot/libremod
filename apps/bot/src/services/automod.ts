@@ -24,6 +24,7 @@ import {
   checkWords,
   compileWordList,
   JoinTracker,
+  renderTemplate,
   SpamTracker,
 } from "@libremod/shared";
 import { moderate } from "./actions.js";
@@ -139,9 +140,25 @@ export async function handleMessage(message: Message | PartialMessage, db: Db, {
 
     markAutomodDeleted(message.id);
     await message.delete().catch(() => {});
+    if (rule.config.notice) void sendNotice(message, rule.config.notice);
     await punish(message, rule, `Auto-Mod (${FILTER_LABELS[filter]}): ${violation}`, db);
     return;
   }
+}
+
+const NOTICE_LIFETIME_MS = 10_000;
+
+/** Kurzer Hinweis im Kanal, der sich nach 10 Sekunden selbst löscht. */
+async function sendNotice(message: Message<true>, template: string) {
+  if (!message.channel.isSendable()) return;
+  const text = renderTemplate(template, {
+    user: userMention(message.author.id),
+    username: message.author.globalName ?? message.author.username,
+    server: message.guild.name,
+    membercount: message.guild.memberCount,
+  }).slice(0, 2000);
+  const sent = await message.channel.send({ content: text, allowedMentions: { users: [message.author.id] } }).catch(() => null);
+  if (sent) setTimeout(() => void sent.delete().catch(() => {}), NOTICE_LIFETIME_MS).unref();
 }
 
 async function punish(message: Message<true>, rule: AutomodRule, reason: string, db: Db) {

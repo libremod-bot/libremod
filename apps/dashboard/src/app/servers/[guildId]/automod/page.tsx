@@ -149,6 +149,7 @@ export default async function AutomodPage({
                       Erweitert
                       {rule?.durationSeconds ? ` · ${ACTION_SHORT[action]} ${formatDuration(rule.durationSeconds)}` : ""}
                       {rule?.config.threshold ? ` · Schwelle ${rule.config.threshold}` : ""}
+                      {rule?.config.notice ? " · mit Hinweis" : ""}
                     </summary>
                     <div className="grid-3">
                       <div>
@@ -179,6 +180,18 @@ export default async function AutomodPage({
                           </div>
                         </div>
                       )}
+                    </div>
+                    <div className="field" style={{ marginTop: "0.9rem", marginBottom: 0 }}>
+                      <label htmlFor={`${f}.notice`}>Hinweis an die Person</label>
+                      <input
+                        id={`${f}.notice`}
+                        name={`${f}.notice`}
+                        type="text"
+                        maxLength={500}
+                        placeholder="z. B. {user}, bitte keine Einladungslinks hier."
+                        defaultValue={rule?.config.notice ?? ""}
+                      />
+                      <div className="hint">Erscheint nach dem Löschen im Kanal und verschwindet nach 10 Sekunden. Leer = kein Hinweis.</div>
                     </div>
                   </details>
                 </div>

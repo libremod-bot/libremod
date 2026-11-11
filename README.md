@@ -23,11 +23,12 @@ Website: [libremod.dev](https://libremod.dev) · Geplante Funktionen: [ROADMAP.m
 | `/config modlog/dm/escalation/show`   | Mod-Log-Kanal, Direktnachrichten, Verwarnungsstufen          |
 | `/automod status/toggle/filter`       | Auto-Moderation: Spam, Einladungen, Links, Wortfilter, Großbuchstaben, Massen-Erwähnungen |
 | `/automod words/links/exempt/raid`    | Wortliste, erlaubte Domains, Ausnahmen, Raid-Schutz          |
+| `/welcome test`                       | Begrüßung und Abschied zur Probe ansehen (einstellen im Dashboard) |
 | `/logging status/set/off/ignore`      | Logs für Nachrichten, Beitritte, Mitglieder, Server und Sprachkanäle, je Art ein eigener Kanal |
 
 Im Discord Developer Portal müssen unter **Bot → Privileged Gateway Intents** die Optionen **Server Members Intent** und **Message Content Intent** eingeschaltet sein (für Auto-Moderation, Raid-Schutz und Logging).
 
-Der Bot braucht auf dem Server die Rechte **Mitglieder kicken**, **Mitglieder bannen**, **Mitglieder im Timeout**, **Nachrichten verwalten** und **Nachrichten senden**, **Links einbetten** und **Dateien anhängen** im Mod-Log- und in den Log-Kanälen. Seine Rolle muss über den Rollen der Mitglieder stehen, die er moderieren soll.
+Der Bot braucht auf dem Server die Rechte **Mitglieder kicken**, **Mitglieder bannen**, **Mitglieder im Timeout**, **Nachrichten verwalten**, **Rollen verwalten** (für Auto-Rollen und Rollen-Panels) und **Nachrichten senden**, **Links einbetten** und **Dateien anhängen** im Mod-Log- und in den Log-Kanälen. Seine Rolle muss über den Rollen der Mitglieder stehen, die er moderieren soll.
 
 ## Aufbau
 

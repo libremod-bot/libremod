@@ -2,8 +2,16 @@ import { DiscordAPIError, MessageFlags, RESTJSONErrorCodes, type Interaction } f
 import { commands } from "../commands/index.js";
 import type { CommandContext } from "../commands/types.js";
 import { logger } from "../logger.js";
+import { handlePanelInteraction, isPanelInteraction } from "../services/rolepanels.js";
 
 export async function onInteractionCreate(interaction: Interaction, ctx: CommandContext) {
+  if ((interaction.isButton() || interaction.isStringSelectMenu()) && isPanelInteraction(interaction.customId)) {
+    await handlePanelInteraction(interaction, ctx.db).catch(async (err) => {
+      logger.error({ err }, "Rollen-Panel fehlgeschlagen");
+      if (interaction.deferred) await interaction.editReply("Da ist leider etwas schiefgelaufen.").catch(() => {});
+    });
+    return;
+  }
   if (!interaction.isChatInputCommand()) return;
   const command = commands.get(interaction.commandName);
   if (!command) return;

@@ -250,6 +250,77 @@ label {
   margin-top: 0.3rem;
 }
 
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.9rem;
+  align-items: end;
+}
+
+.grid-2 .field {
+  margin-bottom: 0;
+}
+
+.grid-2 + .field {
+  margin-top: 1rem;
+}
+
+.check-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 500;
+  font-size: 0.92rem;
+  padding: 0.6rem 0;
+  cursor: pointer;
+}
+
+.check-inline input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.chip code {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.panel-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.panel-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.panel-actions form {
+  margin: 0;
+}
+
 .grid-3 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -383,6 +454,26 @@ label {
   background: var(--danger-soft);
   color: var(--danger);
   border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+}
+
+.toast.warn-box {
+  display: block;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-weight: 500;
+  border-color: color-mix(in srgb, var(--warn) 30%, transparent);
+}
+
+.button.small {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--muted);
 }
 
 /* ---------- Seitenkopf ---------- */

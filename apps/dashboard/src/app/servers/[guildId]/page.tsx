@@ -8,7 +8,10 @@ import {
   gt,
   guildSettings,
   logChannels,
+  autoRoles,
   modCases,
+  rolePanels,
+  welcomeSettings,
   sql,
   warnEscalations,
   type CaseType,
@@ -46,7 +49,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
 
   const { db } = database();
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const [[settings], rules, escalations, [weekStats], recent, channels, logs] = await Promise.all([
+  const [[settings], rules, escalations, [weekStats], recent, channels, logs, [welcome], autoRoleRows, panels] = await Promise.all([
     db.select().from(guildSettings).where(eq(guildSettings.guildId, guildId)),
     db.select().from(automodRules).where(and(eq(automodRules.guildId, guildId), eq(automodRules.enabled, true))),
     db.select({ n: count() }).from(warnEscalations).where(eq(warnEscalations.guildId, guildId)),
@@ -60,7 +63,12 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
     db.select().from(modCases).where(eq(modCases.guildId, guildId)).orderBy(desc(modCases.caseNumber)).limit(5),
     getGuildChannels(guildId),
     db.select().from(logChannels).where(eq(logChannels.guildId, guildId)),
+    db.select().from(welcomeSettings).where(eq(welcomeSettings.guildId, guildId)),
+    db.select({ n: count() }).from(autoRoles).where(eq(autoRoles.guildId, guildId)),
+    db.select({ n: count() }).from(rolePanels).where(eq(rolePanels.guildId, guildId)),
   ]);
+  const welcomeOn = !!(welcome?.welcomeEnabled || welcome?.goodbyeEnabled || welcome?.dmEnabled);
+  const roleFeatures = (autoRoleRows[0]?.n ?? 0) + (panels[0]?.n ?? 0);
 
   const modLogName = channels.find((c) => c.id === settings?.modLogChannelId)?.name;
   const automodOn = settings?.automodEnabled ?? false;
@@ -105,7 +113,20 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
       href: `${base}/logging`,
       status: logs.length ? <span className="badge on">{logs.length} von 5 Log-Arten aktiv</span> : <span className="badge">Aus</span>,
     },
-    { icon: "users", title: "Begrüßung & Rollen", text: "Willkommensnachrichten, Auto-Rollen und Rollen per Button.", status: <span className="badge">Bald</span> },
+    {
+      icon: "wave",
+      title: "Begrüßung",
+      text: "Willkommens- und Abschiedsnachrichten mit Platzhaltern, auf Wunsch per Direktnachricht.",
+      href: `${base}/welcome`,
+      status: welcomeOn ? <span className="badge on">Aktiv</span> : <span className="badge">Aus</span>,
+    },
+    {
+      icon: "tag",
+      title: "Rollen",
+      text: "Auto-Rollen beim Beitritt und Rollen zum Selbstaussuchen per Button oder Menü.",
+      href: `${base}/roles`,
+      status: roleFeatures ? <span className="badge on">Eingerichtet</span> : <span className="badge">Aus</span>,
+    },
     { icon: "steps", title: "Level-System", text: "XP für Text und Sprache mit Rollenbelohnungen, frei einstellbar.", status: <span className="badge">Bald</span> },
   ];
 

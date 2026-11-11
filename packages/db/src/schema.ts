@@ -100,6 +100,8 @@ export interface AutomodConfig {
   words?: string[];
   /** links: erlaubte Domains inkl. Subdomains */
   allowedDomains?: string[];
+  /** Hinweis, den die Person nach dem Löschen kurz im Kanal sieht. Platzhalter wie {user}. */
+  notice?: string;
 }
 
 /** Eine Regel pro Filter und Server. */
@@ -164,3 +166,60 @@ export const logIgnoredChannels = pgTable(
   },
   (t) => [primaryKey({ columns: [t.guildId, t.channelId] })],
 );
+
+/** Begrüßung, Direktnachricht beim Beitritt und Abschied. Texte mit Platzhaltern wie {user}. */
+export const welcomeSettings = pgTable("welcome_settings", {
+  guildId: varchar("guild_id", { length: 32 }).primaryKey(),
+  welcomeEnabled: boolean("welcome_enabled").notNull().default(false),
+  welcomeChannelId: varchar("welcome_channel_id", { length: 32 }),
+  welcomeMessage: text("welcome_message").notNull().default("Willkommen auf **{server}**, {user}! Du bist Mitglied Nummer {membercount}."),
+  welcomeEmbed: boolean("welcome_embed").notNull().default(true),
+  dmEnabled: boolean("dm_enabled").notNull().default(false),
+  dmMessage: text("dm_message").notNull().default("Hallo {username}, schön, dass du auf **{server}** bist!"),
+  goodbyeEnabled: boolean("goodbye_enabled").notNull().default(false),
+  goodbyeChannelId: varchar("goodbye_channel_id", { length: 32 }),
+  goodbyeMessage: text("goodbye_message").notNull().default("**{username}** hat den Server verlassen."),
+  goodbyeEmbed: boolean("goodbye_embed").notNull().default(false),
+});
+
+export type WelcomeSettings = typeof welcomeSettings.$inferSelect;
+
+export const autoRoleTarget = pgEnum("auto_role_target", ["humans", "bots"]);
+export type AutoRoleTarget = (typeof autoRoleTarget.enumValues)[number];
+
+/** Rollen, die neue Mitglieder (bzw. neue Bots) automatisch bekommen. */
+export const autoRoles = pgTable(
+  "auto_roles",
+  {
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    roleId: varchar("role_id", { length: 32 }).notNull(),
+    target: autoRoleTarget("target").notNull().default("humans"),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.roleId, t.target] })],
+);
+
+export const rolePanelStyle = pgEnum("role_panel_style", ["buttons", "select"]);
+export type RolePanelStyle = (typeof rolePanelStyle.enumValues)[number];
+
+/** Nachricht mit Buttons oder Auswahlmenü, über die sich Mitglieder Rollen selbst geben. */
+export const rolePanels = pgTable(
+  "role_panels",
+  {
+    id: serial("id").primaryKey(),
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    channelId: varchar("channel_id", { length: 32 }).notNull(),
+    /** Gesetzt, sobald die Nachricht in Discord gepostet wurde. */
+    messageId: varchar("message_id", { length: 32 }),
+    title: varchar("title", { length: 256 }).notNull(),
+    description: text("description").notNull().default(""),
+    style: rolePanelStyle("style").notNull().default("buttons"),
+    /** Nur eine Rolle aus diesem Panel gleichzeitig (z. B. Farben oder Regionen). */
+    single: boolean("single").notNull().default(false),
+    /** Rollen in der Reihenfolge, in der sie angezeigt werden. */
+    roleIds: jsonb("role_ids").$type<string[]>().notNull().default([]),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("role_panels_guild").on(t.guildId)],
+);
+
+export type RolePanel = typeof rolePanels.$inferSelect;

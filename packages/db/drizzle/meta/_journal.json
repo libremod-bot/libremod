@@ -29,6 +29,13 @@
       "when": 1794393900512,
       "tag": "0003_logging",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794395256224,
+      "tag": "0004_welcome_roles",
+      "breakpoints": true
     }
   ]
 }

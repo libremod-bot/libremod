@@ -4,6 +4,7 @@ import { ping } from "./ping.js";
 import { config } from "./config.js";
 import { automod } from "./automod.js";
 import { logging } from "./logging.js";
+import { welcome } from "./welcome.js";
 import { warn } from "./moderation/warn.js";
 import { timeout, untimeout } from "./moderation/timeout.js";
 import { kick } from "./moderation/kick.js";
@@ -12,6 +13,6 @@ import { purge } from "./moderation/purge.js";
 import { cases, caseCommand } from "./moderation/cases.js";
 
 /** Neue Befehle hier eintragen. */
-const all: Command[] = [ping, config, automod, logging, warn, timeout, untimeout, kick, ban, unban, purge, cases, caseCommand];
+const all: Command[] = [ping, config, automod, logging, welcome, warn, timeout, untimeout, kick, ban, unban, purge, cases, caseCommand];
 
 export const commands = new Collection<string, Command>(all.map((c) => [c.data.name, c]));
