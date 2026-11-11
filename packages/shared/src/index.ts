@@ -8,3 +8,4 @@ export * from "./schedule.js";
 export * from "./community.js";
 export * from "./notifications.js";
 export * from "./netguard.js";
+export * from "./channeltools.js";

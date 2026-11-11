@@ -28,11 +28,11 @@ Website: [libremod.dev](https://libremod.dev) · Geplante Funktionen: [ROADMAP.m
 | `/xp add/remove/set/reset`            | XP von Mitgliedern verwalten                                 |
 | `/logging status/set/off/ignore`      | Logs für Nachrichten, Beitritte, Mitglieder, Server und Sprachkanäle, je Art ein eigener Kanal |
 
-Dazu kommen eigene Befehle, die du im Dashboard anlegst. Geplante Nachrichten, Zähler-Kanäle, temporäre Sprachkanäle und Benachrichtigungen (YouTube, Twitch, Kick, Reddit, RSS) richtest du ebenfalls dort ein.
+Dazu kommen eigene Befehle, die du im Dashboard anlegst. Geplante Nachrichten, Zähler-Kanäle, temporäre Sprachkanäle, Benachrichtigungen (YouTube, Twitch, Kick, Reddit, RSS), den Highlight-Kanal, automatisches Kanal-Leeren und den automatischen Langsam-Modus richtest du ebenfalls dort ein.
 
 Im Discord Developer Portal müssen unter **Bot → Privileged Gateway Intents** die Optionen **Server Members Intent** und **Message Content Intent** eingeschaltet sein (für Auto-Moderation, Raid-Schutz und Logging).
 
-Der Bot braucht auf dem Server die Rechte **Mitglieder kicken**, **Mitglieder bannen**, **Mitglieder im Timeout**, **Nachrichten verwalten**, **Rollen verwalten** (für Auto-Rollen und Rollen-Panels), **Kanäle verwalten** und **Mitglieder verschieben** (für Zähler-Kanäle und temporäre Sprachkanäle) und **Nachrichten senden**, **Links einbetten** und **Dateien anhängen** im Mod-Log- und in den Log-Kanälen. Seine Rolle muss über den Rollen der Mitglieder stehen, die er moderieren soll.
+Der Bot braucht auf dem Server die Rechte **Mitglieder kicken**, **Mitglieder bannen**, **Mitglieder im Timeout**, **Nachrichten verwalten**, **Rollen verwalten** (für Auto-Rollen und Rollen-Panels), **Kanäle verwalten** und **Mitglieder verschieben** (für Zähler-Kanäle, temporäre Sprachkanäle und den Langsam-Modus), **Nachrichtenverlauf lesen** (für Highlights und Kanal-Leeren), **@everyone erwähnen** (nur falls Benachrichtigungen das sollen) und **Nachrichten senden**, **Links einbetten** und **Dateien anhängen** im Mod-Log- und in den Log-Kanälen. Seine Rolle muss über den Rollen der Mitglieder stehen, die er moderieren soll.
 
 ## Aufbau
 

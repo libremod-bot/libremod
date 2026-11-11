@@ -23,6 +23,9 @@ import {
   counterChannels,
   tempVoiceHubs,
   notificationFeeds,
+  highlightSettings,
+  autoPurgeChannels,
+  autoSlowmodeChannels,
   count,
   warnEscalations,
   type AutomodAction,
@@ -53,6 +56,9 @@ import {
   resolveSource,
   SourceError,
   type NotifyPlatform,
+  parseEmojiInput,
+  PURGE_INTERVALS,
+  SLOWMODE_STEPS,
 } from "@libremod/shared";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
@@ -862,4 +868,77 @@ export async function deleteFeed(guildId: string, id: number) {
   const { db } = database();
   await db.delete(notificationFeeds).where(and(eq(notificationFeeds.id, id), eq(notificationFeeds.guildId, guildId)));
   back(`/servers/${guildId}/notifications`);
+}
+
+// --- Highlights und Kanal-Pflege ---
+
+export async function saveHighlights(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/tools`;
+  const enabled = form.get("enabled") === "on";
+  const channelId = text(form, "channelId") || null;
+  const known = await textChannelIds(guildId);
+  if (channelId && !known.text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  if (enabled && !channelId) back(path, "Für den Highlight-Kanal fehlt noch der Kanal.");
+  const emoji = parseEmojiInput(text(form, "emoji") || "⭐");
+  if (!emoji) back(path, "Bitte genau ein Emoji angeben, z. B. ⭐ oder ein Server-Emoji wie <:name:123…>.");
+  const threshold = int(form, "threshold", 1, 100) ?? 5;
+  if (Number.isNaN(threshold)) back(path, "Die Anzahl muss zwischen 1 und 100 liegen.");
+  const values = { enabled, channelId, emoji, threshold, countSelf: form.get("countSelf") === "on", allowNsfw: form.get("allowNsfw") === "on" };
+  const { db, notifySettingsChanged } = database();
+  await db.insert(highlightSettings).values({ guildId, ...values }).onConflictDoUpdate({ target: highlightSettings.guildId, set: values });
+  await notifySettingsChanged(guildId);
+  back(path);
+}
+
+export async function createPurge(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/tools`;
+  const channelId = text(form, "purgeChannelId");
+  const known = await textChannelIds(guildId);
+  if (!known.text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  const intervalHours = Number(text(form, "intervalHours"));
+  if (!PURGE_INTERVALS.some((i) => i.hours === intervalHours)) back(path, "Bitte einen Abstand aus der Liste wählen.");
+  const { db } = database();
+  const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(autoPurgeChannels).where(eq(autoPurgeChannels.guildId, guildId));
+  if (n >= 10) back(path, "Ein Server kann höchstens 10 Kanäle automatisch leeren lassen.");
+  const values = { intervalHours, keepPinned: form.get("keepPinned") === "on", nextRunAt: new Date(Date.now() + intervalHours * 3600_000) };
+  await db.insert(autoPurgeChannels).values({ channelId, guildId, ...values }).onConflictDoUpdate({ target: autoPurgeChannels.channelId, set: values });
+  back(path);
+}
+
+export async function deletePurge(guildId: string, channelId: string) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  await db.delete(autoPurgeChannels).where(and(eq(autoPurgeChannels.channelId, channelId), eq(autoPurgeChannels.guildId, guildId)));
+  back(`/servers/${guildId}/tools`);
+}
+
+export async function createSlowmode(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/tools`;
+  const channelId = text(form, "slowChannelId");
+  const known = await textChannelIds(guildId);
+  if (!known.text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  const messagesPerMinute = int(form, "messagesPerMinute", 2, 1000);
+  if (!messagesPerMinute) back(path, "Die Schwelle muss zwischen 2 und 1000 Nachrichten pro Minute liegen.");
+  const steps: readonly number[] = SLOWMODE_STEPS;
+  const minSeconds = Number(text(form, "minSeconds"));
+  const maxSeconds = Number(text(form, "maxSeconds"));
+  if (!steps.includes(minSeconds) || !steps.includes(maxSeconds)) back(path, "Bitte Werte aus der Liste wählen.");
+  if (minSeconds >= maxSeconds) back(path, "Das Maximum muss größer als das Minimum sein.");
+  const { db, notifySettingsChanged } = database();
+  const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(autoSlowmodeChannels).where(eq(autoSlowmodeChannels.guildId, guildId));
+  if (n >= 20) back(path, "Ein Server kann höchstens 20 Kanäle mit automatischem Langsam-Modus haben.");
+  const values = { messagesPerMinute, minSeconds, maxSeconds };
+  await db.insert(autoSlowmodeChannels).values({ channelId, guildId, ...values }).onConflictDoUpdate({ target: autoSlowmodeChannels.channelId, set: values });
+  await notifySettingsChanged(guildId);
+  back(path);
+}
+
+export async function deleteSlowmode(guildId: string, channelId: string) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  await db.delete(autoSlowmodeChannels).where(and(eq(autoSlowmodeChannels.channelId, channelId), eq(autoSlowmodeChannels.guildId, guildId)));
+  back(`/servers/${guildId}/tools`);
 }

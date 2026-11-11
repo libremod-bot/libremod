@@ -13,6 +13,7 @@ import { scheduleCommandSync, syncAllCommands, syncGuildCommands } from "./servi
 import { startScheduler } from "./services/scheduler.js";
 import { startCounters } from "./services/counters.js";
 import { startNotifications } from "./services/notifications.js";
+import { invalidateHighlights, onHighlightReaction, startChannelTools, trackSlowmodeMessage } from "./services/channeltools.js";
 import { invalidateTempVoice, loadTempChannels, onTempVoiceState } from "./services/tempvoice.js";
 import { invalidateWelcome, onWelcomeJoin, onWelcomeLeave, onWelcomeMemberUpdate } from "./services/welcome.js";
 
@@ -26,6 +27,7 @@ await onSettingsChanged((guildId) => {
   invalidateWelcome(guildId);
   invalidateLevels(guildId);
   invalidateTempVoice(guildId);
+  invalidateHighlights(guildId);
   scheduleCommandSync(client, db, guildId);
 });
 const ctx = { db };
@@ -34,6 +36,7 @@ let voiceXpTimer: NodeJS.Timeout | undefined;
 let schedulerTimer: NodeJS.Timeout | undefined;
 let counterTimer: NodeJS.Timeout | undefined;
 let notifyTimer: NodeJS.Timeout | undefined;
+let channelToolTimers: NodeJS.Timeout[] = [];
 
 const client = new Client({
   intents: [
@@ -44,9 +47,10 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildMessageReactions,
   ],
   // Damit auch Ereignisse zu nicht zwischengespeicherten Nachrichten und Mitgliedern ankommen (Logging).
-  partials: [Partials.Message, Partials.GuildMember, Partials.User],
+  partials: [Partials.Message, Partials.GuildMember, Partials.User, Partials.Reaction],
 });
 
 client.once(Events.ClientReady, (c) => {
@@ -56,11 +60,13 @@ client.once(Events.ClientReady, (c) => {
   schedulerTimer ??= startScheduler(c, db);
   counterTimer ??= startCounters(c, db);
   notifyTimer ??= startNotifications(c, db);
+  if (!channelToolTimers.length) channelToolTimers = startChannelTools(c, db);
   void loadTempChannels(c, db).catch(logError("Temporäre Kanäle"));
   void syncAllCommands(c, db).catch(logError("Eigene Befehle"));
 });
 client.on(Events.InteractionCreate, (i) => void onInteractionCreate(i, ctx));
 const logError = (what: string) => (err: unknown) => logger.error({ err }, `${what} fehlgeschlagen`);
+client.on(Events.MessageCreate, (m) => trackSlowmodeMessage(m));
 client.on(Events.MessageCreate, (m) =>
   void handleMessage(m, db)
     .catch((err) => (logError("Auto-Mod")(err), false))
@@ -79,6 +85,8 @@ client.on(Events.GuildMemberAdd, (m) => {
   void log.onMemberJoin(m, db).catch(logError("Logging"));
   void onWelcomeJoin(m, db).catch(logError("Begrüßung"));
 });
+client.on(Events.MessageReactionAdd, (r, u) => void onHighlightReaction(r, u, db).catch(logError("Highlights")));
+client.on(Events.MessageReactionRemove, (r, u) => void onHighlightReaction(r, u, db).catch(logError("Highlights")));
 client.on(Events.GuildMemberRemove, (m) => void onWelcomeLeave(m, db).catch(logError("Abschied")));
 client.on(Events.GuildMemberUpdate, (a, b) => void onWelcomeMemberUpdate(a, b, db).catch(logError("Auto-Rollen")));
 
@@ -113,6 +121,7 @@ async function shutdown(signal: string) {
   clearInterval(schedulerTimer);
   clearInterval(counterTimer);
   clearInterval(notifyTimer);
+  channelToolTimers.forEach(clearInterval);
   await client.destroy();
   await close();
   process.exit(0);

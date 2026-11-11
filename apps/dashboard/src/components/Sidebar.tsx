@@ -29,6 +29,7 @@ export function SidebarLinks({ guildId }: { guildId: string }) {
         { href: `${base}/commands`, label: "Eigene Befehle", icon: "slash" },
         { href: `${base}/schedule`, label: "Geplante Nachrichten", icon: "clock" },
         { href: `${base}/channels`, label: "Sprachkanäle & Zähler", icon: "mic" },
+        { href: `${base}/tools`, label: "Highlights & Kanal-Pflege", icon: "sparkle" },
         { href: `${base}/notifications`, label: "Benachrichtigungen", icon: "bell" },
       ],
     },

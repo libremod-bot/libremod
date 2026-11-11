@@ -405,3 +405,56 @@ export const notificationFeeds = pgTable(
 );
 
 export type NotificationFeed = typeof notificationFeeds.$inferSelect;
+
+/** Highlight-Kanal: Nachrichten mit vielen gleichen Reaktionen werden dort gesammelt. */
+export const highlightSettings = pgTable("highlight_settings", {
+  guildId: varchar("guild_id", { length: 32 }).primaryKey(),
+  enabled: boolean("enabled").notNull().default(false),
+  channelId: varchar("channel_id", { length: 32 }),
+  /** Unicode-Emoji oder ID eines Server-Emojis. */
+  emoji: varchar("emoji", { length: 64 }).notNull().default("⭐"),
+  threshold: integer("threshold").notNull().default(5),
+  /** Zählt die Reaktion der Person, die die Nachricht geschrieben hat? */
+  countSelf: boolean("count_self").notNull().default(false),
+  /** Nachrichten aus NSFW-Kanälen mitnehmen? */
+  allowNsfw: boolean("allow_nsfw").notNull().default(false),
+});
+
+export type HighlightSettings = typeof highlightSettings.$inferSelect;
+
+/** Bereits hervorgehobene Nachrichten, damit jede nur einmal gepostet wird. */
+export const highlightPosts = pgTable("highlight_posts", {
+  messageId: varchar("message_id", { length: 32 }).primaryKey(),
+  guildId: varchar("guild_id", { length: 32 }).notNull(),
+  channelId: varchar("channel_id", { length: 32 }).notNull(),
+  /** null, solange der Beitrag gerade erstellt wird. */
+  highlightMessageId: varchar("highlight_message_id", { length: 32 }),
+  highlightChannelId: varchar("highlight_channel_id", { length: 32 }),
+  count: integer("count").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Kanäle, die Libremod in festen Abständen leert. */
+export const autoPurgeChannels = pgTable("auto_purge_channels", {
+  channelId: varchar("channel_id", { length: 32 }).primaryKey(),
+  guildId: varchar("guild_id", { length: 32 }).notNull(),
+  intervalHours: integer("interval_hours").notNull(),
+  keepPinned: boolean("keep_pinned").notNull().default(true),
+  nextRunAt: timestamp("next_run_at", { withTimezone: true }).notNull(),
+  lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+  lastDeleted: integer("last_deleted"),
+});
+
+export type AutoPurgeChannel = typeof autoPurgeChannels.$inferSelect;
+
+/** Kanäle mit automatischem Langsam-Modus je nach Aktivität. */
+export const autoSlowmodeChannels = pgTable("auto_slowmode_channels", {
+  channelId: varchar("channel_id", { length: 32 }).primaryKey(),
+  guildId: varchar("guild_id", { length: 32 }).notNull(),
+  /** Ab so vielen Nachrichten pro Minute greift der Langsam-Modus. */
+  messagesPerMinute: integer("messages_per_minute").notNull().default(20),
+  minSeconds: integer("min_seconds").notNull().default(0),
+  maxSeconds: integer("max_seconds").notNull().default(30),
+});
+
+export type AutoSlowmodeChannel = typeof autoSlowmodeChannels.$inferSelect;
