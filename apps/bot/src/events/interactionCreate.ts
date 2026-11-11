@@ -8,6 +8,8 @@ import { handleTicketInteraction, isTicketInteraction } from "../services/ticket
 import { handleSuggestionVote, isSuggestionInteraction } from "../services/community2.js";
 import { handleVerifyInteraction, isVerifyInteraction } from "../services/protection.js";
 import { handleGiveawayButton, isGiveawayInteraction } from "../services/fun.js";
+import { handlePhishingButton, isPhishingInteraction } from "../services/phishing.js";
+import { invalidateAutomod } from "../services/automod.js";
 
 export async function onInteractionCreate(interaction: Interaction, ctx: CommandContext) {
   if ((interaction.isButton() || interaction.isStringSelectMenu()) && isPanelInteraction(interaction.customId)) {
@@ -44,6 +46,13 @@ export async function onInteractionCreate(interaction: Interaction, ctx: Command
   if (interaction.isButton() && isGiveawayInteraction(interaction.customId)) {
     await handleGiveawayButton(interaction, ctx.db).catch(async (err) => {
       logger.error({ err }, "Gewinnspiel-Knopf fehlgeschlagen");
+      if (!interaction.replied) await interaction.reply({ content: "Da ist leider etwas schiefgelaufen.", flags: MessageFlags.Ephemeral }).catch(() => {});
+    });
+    return;
+  }
+  if (interaction.isButton() && isPhishingInteraction(interaction.customId)) {
+    await handlePhishingButton(interaction, ctx.db, invalidateAutomod).catch(async (err) => {
+      logger.error({ err }, "Phishing-Knopf fehlgeschlagen");
       if (!interaction.replied) await interaction.reply({ content: "Da ist leider etwas schiefgelaufen.", flags: MessageFlags.Ephemeral }).catch(() => {});
     });
     return;

@@ -27,10 +27,12 @@ import {
   renderTemplate,
   SpamTracker,
   checkPhishing,
+  extractLinks,
 } from "@libremod/shared";
 import { moderate } from "./actions.js";
 import { getSettings } from "./cases.js";
 import { markAutomodDeleted } from "./logging.js";
+import { LinkSpreadTracker, postPhishingNotice, shortLinkTargets } from "./phishing.js";
 
 interface GuildAutomod {
   enabled: boolean;
@@ -121,7 +123,7 @@ function evaluate(filter: AutomodFilter, message: Message<true>, rule: AutomodRu
       return checkMentions(count, everyone, rule.config.threshold);
     }
     case "phishing":
-      return checkPhishing(content, rule.config.blockedDomains);
+      return null; // eigener Schritt, siehe phishingStep
     case "spam":
       return spam.check(`${message.guildId}:${message.author.id}`, content, rule.config.threshold);
   }
@@ -133,9 +135,14 @@ export async function handleMessage(message: Message | PartialMessage, db: Db, {
   const am = await load(db, message.guildId);
   if (!am.enabled || am.rules.size === 0) return false;
   const channel = message.channel;
-  if (isExempt(message.member, channel.id, "parentId" in channel ? channel.parentId : null, am)) return false;
+  const exempt = isExempt(message.member, channel.id, "parentId" in channel ? channel.parentId : null, am);
+  // Betrugslinks prüfen wir auch bei Ausnahmen und beim Team: gekaperte Konten gibt es überall. Nur der Inhaber bleibt außen vor.
+  const phishing = am.rules.get("phishing");
+  if (phishing && message.author.id !== message.guild.ownerId && (await phishingStep(message, phishing, db, edited, exempt))) return true;
+  if (exempt) return false;
 
   for (const filter of FILTER_ORDER) {
+    if (filter === "phishing") continue;
     if (edited && filter === "spam") continue; // Bearbeitungen zählen nicht als neue Nachrichten
     const rule = am.rules.get(filter);
     if (!rule) continue;
@@ -149,6 +156,54 @@ export async function handleMessage(message: Message | PartialMessage, db: Db, {
     return true;
   }
   return false;
+}
+
+const spread = new LinkSpreadTracker();
+setInterval(() => spread.sweep(), 60_000).unref();
+
+const HIJACK_TIMEOUT_SECONDS = 60 * 60;
+
+async function phishingStep(message: Message<true>, rule: AutomodRule, db: Db, edited: boolean, exempt: boolean): Promise<boolean> {
+  const text = [message.content, ...message.embeds.map((e) => e.url ?? "")].join("\n");
+  const links = extractLinks(text);
+  if (!links.length) return false;
+  const opts = { blocked: rule.config.blockedDomains, allowed: rule.config.allowedDomains };
+  let reason = checkPhishing(text, opts);
+  if (!reason) {
+    const targets = await shortLinkTargets(links);
+    const viaShort = targets.length ? checkPhishing(text, opts, targets) : null;
+    if (viaShort) reason = `${viaShort} (hinter einem Kurzlink)`;
+  }
+  // Derselbe Link in mehreren Kanälen kurz hintereinander: typisch für gekaperte Konten.
+  const canSpread = !edited && !exempt && !message.member!.permissions.has(PermissionFlagsBits.ManageMessages);
+  const copies = canSpread ? spread.record(message.guildId, message.author.id, links, { channelId: message.channelId, messageId: message.id }) : null;
+  if (!reason && !copies) return false;
+
+  for (const c of copies ?? []) {
+    if (c.messageId === message.id) continue;
+    markAutomodDeleted(c.messageId);
+    const ch = message.guild.channels.cache.get(c.channelId);
+    if (ch?.isTextBased()) await ch.messages.delete(c.messageId).catch(() => {});
+  }
+  markAutomodDeleted(message.id);
+  await message.delete().catch(() => {});
+  if (rule.config.notice) void sendNotice(message, rule.config.notice);
+
+  const why = reason ?? `Gleicher Link in ${new Set(copies!.map((c) => c.channelId)).size} Kanälen innerhalb von 2 Minuten, Konto vermutlich gekapert`;
+  if (copies) {
+    await message.author
+      .send(
+        `Von deinem Konto wurde auf **${message.guild.name}** derselbe Link in mehreren Kanälen gepostet. Falls du das nicht warst, ist dein Konto vermutlich gekapert: ` +
+          "Ändere sofort dein Passwort, schalte die Zwei-Faktor-Anmeldung ein und melde unter Einstellungen → Geräte alle unbekannten Geräte ab.",
+      )
+      .catch(() => {});
+  }
+  await postPhishingNotice(message, db, `Auto-Mod (Anti-Phishing): ${why}`, copies ? `${copies.length} Kopien gelöscht.` : undefined);
+  // Bei gekaperten Konten mindestens stummschalten, damit nicht weiter gespammt wird.
+  const effective: AutomodRule =
+    copies && (rule.action === "delete" || rule.action === "warn") ? { ...rule, action: "timeout", durationSeconds: HIJACK_TIMEOUT_SECONDS } : rule;
+  if (effective.action !== "delete") await punish(message, effective, `Auto-Mod (Anti-Phishing): ${why}`.slice(0, 500), db);
+  return true;
 }
 
 const NOTICE_LIFETIME_MS = 10_000;

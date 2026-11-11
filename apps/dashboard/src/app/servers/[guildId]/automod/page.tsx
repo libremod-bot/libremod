@@ -147,6 +147,20 @@ export default async function AutomodPage({
                         style={{ minHeight: 60 }}
                       />
                       <div className="hint">Eine Domain pro Zeile. Echte Discord-, Steam- und andere bekannte Seiten bleiben immer erlaubt.</div>
+                      <label htmlFor="phishing.allowedDomains" style={{ marginTop: ".75rem" }}>
+                        Freigegeben (Fehlalarme)
+                      </label>
+                      <textarea
+                        id="phishing.allowedDomains"
+                        name="phishing.allowedDomains"
+                        defaultValue={(rule?.config.allowedDomains ?? []).join("\n")}
+                        style={{ minHeight: 60 }}
+                      />
+                      <div className="hint">
+                        Prüft auch Kurzlinks (bit.ly usw.), getarnte Links und typische Betrugstexte. Postet jemand denselben Link in mehreren Kanälen,
+                        löscht Libremod alle Kopien und schaltet die Person mindestens 1 Stunde stumm. Im Mod-Log kann dein Team Domains per Knopf
+                        sperren oder freigeben, per Rechtsklick auf eine Nachricht → Apps → „Betrugslink sperren“ auch nachträglich.
+                      </div>
                     </div>
                   )}
                   {f === "links" && (

@@ -99,6 +99,7 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 ## 0.14 Mehr Moderation
 
 - Anti-Phishing als Auto-Mod-Filter: erkennt nachgemachte Discord-, Steam- und andere Links, eigene Sperrliste
+- Anti-Phishing erweitert: getarnte Markdown-Links, Links ohne https://, Punycode-Doppelgänger, Kurzlinks (abgesichert aufgelöst), typische Betrugstexte, gekaperte Konten (gleicher Link in mehreren Kanälen), Sperren und Freigeben per Knopf im Mod-Log oder Rechtsklick
 - Namensschutz: greift ein, wenn jemand heißt wie Team, Inhaber oder Bot (auch mit Tricks wie „Mlchel“)
 - Massenaktionen `/massban`, `/masskick`, `/masstimeout` per Liste oder „alle, die in den letzten X Minuten beigetreten sind“, mit Bestätigung
 - Einspruch gegen Bans über eine eigene Seite im Dashboard, Link in der Ban-Nachricht, Entscheidung durch das Team

@@ -251,6 +251,9 @@ export async function saveAutomod(guildId: string, form: FormData) {
       const domains = list(form, "phishing.blockedDomains").map((d) => d.toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, ""));
       if (domains.length > 500) back(path, "Höchstens 500 gesperrte Domains.");
       config.blockedDomains = [...new Set(domains.filter((d) => /^[a-z0-9.-]+\.[a-z0-9-]+$/.test(d)))];
+      const allowed = list(form, "phishing.allowedDomains").map((d) => d.toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, ""));
+      if (allowed.length > 500) back(path, "Höchstens 500 freigegebene Domains.");
+      config.allowedDomains = [...new Set(allowed.filter((d) => /^[a-z0-9.-]+\.[a-z0-9-]+$/.test(d)))];
     }
     if (filter === "links") {
       config.allowedDomains = [

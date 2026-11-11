@@ -16,7 +16,7 @@ import { ticket } from "./tickets.js";
 import { suggest, suggestion, temprole } from "./community2.js";
 import { lockdown, modstats, note, unlock, verify } from "./protection.js";
 import { birthday, giveaway, poll, remind } from "./fun.js";
-import { massban, masskick, masstimeout } from "./safety.js";
+import { massban, masskick, masstimeout, reportPhishingMenu } from "./safety.js";
 import { quote, saveQuoteMenu, type ContextMenu } from "./extras.js";
 import { balance, buy, coins, daily, inventory, payCommand, richlist, shop, work } from "./economy.js";
 
@@ -26,7 +26,7 @@ const all: Command[] = [ping, config, automod, logging, welcome, rank, leaderboa
 export const commands = new Collection<string, Command>(all.map((c) => [c.data.name, c]));
 
 /** Befehle im Rechtsklick-Menü von Nachrichten. */
-export const contextMenus = new Collection<string, ContextMenu>([saveQuoteMenu].map((c) => [c.data.name, c]));
+export const contextMenus = new Collection<string, ContextMenu>([saveQuoteMenu, reportPhishingMenu].map((c) => [c.data.name, c]));
 
 /** Alles, was bei Discord registriert wird. */
 export function commandBodies() {

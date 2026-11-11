@@ -55,3 +55,40 @@ test("Einspruch erneut erlaubt?", () => {
   assert.equal(appealBlocker([{ status: "denied", reviewedAt: new Date("2026-09-01T12:00:00Z"), createdAt: now }], 30, now), null);
   assert.equal(appealBlocker([], 30, now), null);
 });
+
+test("Punycode", async () => {
+  const { domainToASCII } = await import("node:url");
+  const { punycodeDecode, unicodeHost } = await import("./safety.js");
+  assert.equal(punycodeDecode("bcher-kva"), "bücher");
+  const fake = domainToASCII("dіscord.com"); // kyrillisches і
+  assert.match(fake, /^xn--/);
+  assert.equal(unicodeHost(fake), "dіscord.com");
+  assert.match(checkPhishing(`https://${fake}/gift`)!, /Nachahmung von discord/);
+  assert.equal(punycodeDecode("!!!"), null);
+});
+
+test("Links ohne https und getarnte Links", async () => {
+  const { extractLinks, maskedLinkReason } = await import("./safety.js");
+  assert.deepEqual(extractLinks("schau discord-gift.ru/abc und mail@test.de").map((l) => l.host), ["discord-gift.ru"]);
+  assert.ok(checkPhishing("hol dir das: dlscord.gift/nitro"));
+  assert.equal(checkPhishing("Datei bild.png und version 1.2.3, z.B. das"), null);
+  assert.match(maskedLinkReason("[discord.com/nitro](https://evil.example/x)")!, /zeigt „discord.com“/);
+  assert.equal(maskedLinkReason("[www.libremod.xyz](https://libremod.xyz/docs)"), null);
+  assert.equal(maskedLinkReason("[hier klicken](https://libremod.xyz)"), null);
+  assert.ok(checkPhishing("[steamcommunity.com](https://sc-trade.example/x)"));
+});
+
+test("Betrugstexte nur mit fremdem Link", () => {
+  assert.match(checkPhishing("FREE NITRO for everyone https://nitro-xyz.example/abc")!, /Nitro/i);
+  assert.match(checkPhishing("I accidentally reported you, talk to https://support-help.example")!, /Versehen/);
+  assert.match(checkPhishing("50$ steam gift for the first 10 users https://store-gifts.example")!, /Betrugsverdacht/);
+  assert.equal(checkPhishing("free nitro wäre schon cool"), null, "ohne Link");
+  assert.equal(checkPhishing("Free Nitro gibt's hier: https://discord.gift/abc"), null, "echter Geschenk-Link");
+  assert.equal(checkPhishing("Wer hat Lust auf das Steam-Geschenk? https://store.steampowered.com/app/1"), null);
+});
+
+test("Freigaben und Sperren", () => {
+  assert.equal(checkPhishing("https://diskord.gg/abc", { allowed: ["diskord.gg"] }), null);
+  assert.match(checkPhishing("https://x.bad.example", { blocked: ["bad.example"] })!, /gesperrte/);
+  assert.match(checkPhishing("schau mal", {}, [{ host: "dlscord.com", path: "/" }])!, /Nachahmung/);
+});

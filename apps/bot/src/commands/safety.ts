@@ -1,4 +1,6 @@
 import {
+  ApplicationCommandType,
+  ContextMenuCommandBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
@@ -10,12 +12,15 @@ import {
   type GuildMember,
   type User,
 } from "discord.js";
-import { MAX_MASS_TARGETS, MAX_TIMEOUT_SECONDS, parseDuration, parseUserIds } from "@libremod/shared";
+import { extractLinks, isOfficialDomain, isShortener, MAX_MASS_TARGETS, MAX_TIMEOUT_SECONDS, parseDuration, parseUserIds } from "@libremod/shared";
 import type { Command, CommandContext } from "./types.js";
 import { inGuild, replyPrivate, REASON_MAX, type GuildInteraction } from "./moderation/shared.js";
 import { moderationBlocker } from "../lib/permissions.js";
 import { moderate } from "../services/actions.js";
 import { logger } from "../logger.js";
+import type { ContextMenu } from "./extras.js";
+import { shortLinkTargets, updatePhishingLists } from "../services/phishing.js";
+import { invalidateAutomod } from "../services/automod.js";
 
 type MassType = "ban" | "kick" | "timeout";
 
@@ -170,3 +175,31 @@ const make = (type: MassType): Command => ({
 export const massban = make("ban");
 export const masskick = make("kick");
 export const masstimeout = make("timeout");
+
+// =============== Rechtsklick: Betrugslink melden ===============
+
+export const reportPhishingMenu: ContextMenu = {
+  data: new ContextMenuCommandBuilder()
+    .setName("Betrugslink sperren")
+    .setType(ApplicationCommandType.Message)
+    .setContexts(InteractionContextType.Guild)
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
+  async execute(interaction, { db }) {
+    if (!interaction.inCachedGuild()) return;
+    const msg = interaction.targetMessage;
+    const links = extractLinks([msg.content, ...msg.embeds.map((e) => e.url ?? "")].join("\n"));
+    const targets = await shortLinkTargets(links);
+    // Echte Seiten wie discord.com und Kurzlink-Dienste selbst nie sperren, nur das Ziel.
+    const safe = [...new Set([...links.filter((l) => !isShortener(l.host)), ...targets].map((l) => l.host))].filter((h) => !isOfficialDomain(h)).slice(0, 10);
+    if (!safe.length) {
+      return void (await interaction.reply({ content: "In dieser Nachricht finde ich keinen Link, den ich sperren könnte.", flags: MessageFlags.Ephemeral }));
+    }
+    const enabled = await updatePhishingLists(db, interaction.guildId, { blocked: safe });
+    invalidateAutomod(interaction.guildId);
+    await msg.delete().catch(() => {});
+    await interaction.reply({
+      content: `Gesperrt: ${safe.join(", ")}. Die Nachricht ist gelöscht.${enabled ? "" : "\nHinweis: Der Anti-Phishing-Filter ist noch aus. Schalte ihn im Dashboard unter Auto-Mod ein, damit die Sperre greift."}`,
+      flags: MessageFlags.Ephemeral,
+    });
+  },
+};

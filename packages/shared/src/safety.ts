@@ -65,28 +65,136 @@ const BRANDS: Brand[] = [
 /** Lockwörter typischer Betrugsseiten. */
 const BAIT = ["nitro", "gift", "free", "airdrop", "claim", "promo", "drop", "giveaway", "verify", "login", "auth", "bonus", "reward", "trade", "skins"];
 
-const URL_RE = /\bhttps?:\/\/([^\s/<>"')\]]+)([^\s<>"')\]]*)/gi;
+/** Bekannte Kurzlink-Dienste: Das echte Ziel steht erst hinter der Weiterleitung. */
+export const SHORTENERS = [
+  "bit.ly", "bitly.com", "tinyurl.com", "t.co", "goo.gl", "is.gd", "v.gd", "cutt.ly", "rebrand.ly", "shorturl.at", "rb.gy", "t.ly",
+  "ow.ly", "buff.ly", "tiny.cc", "s.id", "shorte.st", "adf.ly", "u.to", "clck.ru", "qr.ae", "lnkd.in", "tiny.one", "shrtco.de", "short.gy",
+];
 
-const endsWithDomain = (host: string, domain: string) => host === domain || host.endsWith(`.${domain}`);
+export const isShortener = (host: string) => SHORTENERS.some((d) => endsWithDomain(host, d));
 
-export function extractLinks(content: string): { host: string; path: string }[] {
-  const out: { host: string; path: string }[] = [];
-  for (const m of content.matchAll(URL_RE)) {
-    const host = m[1]!.toLowerCase().split("@").pop()!.split(":")[0]!.replace(/\.$/, "");
-    if (host) out.push({ host, path: (m[2] ?? "").toLowerCase() });
+const URL_RE = /\bhttps?:\/\/([^\s/<>"')\]?#]+)([^\s<>"')\]]*)/gi;
+// Domains ohne https:// davor, z. B. „discord-gift.ru/abc“. Nicht nach @ (E-Mail) oder mitten in einem Link.
+const BARE_RE = /(?<![\w@/.:-])((?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,24}|xn--[a-z0-9-]{2,30}))(\/[^\s<>"')\]]*)?(?![\w-])/gi;
+const MASKED_RE = /\[([^\]\n]{1,200})\]\(\s*<?(https?:\/\/[^\s)>]+)>?\s*\)/gi;
+
+function endsWithDomain(host: string, domain: string) {
+  return host === domain || host.endsWith(`.${domain}`);
+}
+
+// --- Punycode (RFC 3492), damit „xn--…“-Domains mit echten Zeichen geprüft werden ---
+
+function adapt(delta: number, points: number, first: boolean) {
+  let d = first ? Math.floor(delta / 700) : delta >> 1;
+  d += Math.floor(d / points);
+  let k = 0;
+  while (d > 455) {
+    d = Math.floor(d / 35);
+    k += 36;
   }
+  return k + Math.floor((36 * d) / (d + 38));
+}
+
+export function punycodeDecode(input: string): string | null {
+  const out: number[] = [];
+  const basic = Math.max(0, input.lastIndexOf("-"));
+  for (let j = 0; j < basic; j++) out.push(input.charCodeAt(j));
+  let n = 128;
+  let bias = 72;
+  let i = 0;
+  for (let index = basic > 0 ? basic + 1 : 0; index < input.length; ) {
+    const oldi = i;
+    let w = 1;
+    for (let k = 36; ; k += 36) {
+      if (index >= input.length) return null;
+      const c = input.charCodeAt(index++);
+      const digit = c >= 48 && c <= 57 ? c - 22 : c >= 65 && c <= 90 ? c - 65 : c >= 97 && c <= 122 ? c - 97 : 36;
+      if (digit >= 36) return null;
+      i += digit * w;
+      const t = k <= bias ? 1 : k >= bias + 26 ? 26 : k - bias;
+      if (digit < t) break;
+      w *= 36 - t;
+      if (w > 1e12) return null;
+    }
+    const len = out.length + 1;
+    bias = adapt(i - oldi, len, oldi === 0);
+    n += Math.floor(i / len);
+    i %= len;
+    if (n > 0x10ffff) return null;
+    out.splice(i++, 0, n);
+  }
+  return String.fromCodePoint(...out);
+}
+
+/** Host mit echten Zeichen statt „xn--“. */
+export function unicodeHost(host: string): string {
+  return host
+    .split(".")
+    .map((l) => (l.startsWith("xn--") ? (punycodeDecode(l.slice(4)) ?? l) : l))
+    .join(".");
+}
+
+/** Grob die Haupt-Domain: libremod.xyz, bbc.co.uk */
+function baseDomain(host: string) {
+  const l = host.split(".");
+  const second = l[l.length - 2] ?? "";
+  const n = l.length >= 3 && l[l.length - 1]!.length === 2 && ["co", "com", "org", "net", "gov", "ac", "edu"].includes(second) ? 3 : 2;
+  return l.slice(-n).join(".");
+}
+
+export interface FoundLink {
+  host: string;
+  path: string;
+  /** Vollständiger Link, bei Domains ohne Schema mit https:// davor. */
+  url: string;
+}
+
+export function extractLinks(content: string): FoundLink[] {
+  const out: FoundLink[] = [];
+  const seen = new Set<string>();
+  const add = (rawHost: string, rawPath: string, url: string) => {
+    const host = rawHost.toLowerCase().split("@").pop()!.split(":")[0]!.replace(/\.$/, "");
+    const path = rawPath.toLowerCase();
+    if (!host || seen.has(host + path)) return;
+    seen.add(host + path);
+    out.push({ host, path, url });
+  };
+  for (const m of content.matchAll(URL_RE)) add(m[1]!, m[2] ?? "", m[0]);
+  for (const m of content.matchAll(BARE_RE)) add(m[1]!, m[2] ?? "", `https://${m[0]}`);
   return out;
 }
 
-/** Bewertet einen Link. Gibt den Grund zurück oder null, wenn er unauffällig ist. */
-export function phishingReason(host: string, path = "", blocked: string[] = []): string | null {
-  const cleanBlocked = blocked.map((d) => d.toLowerCase().replace(/^\*?\./, ""));
-  if (cleanBlocked.some((d) => endsWithDomain(host, d))) return `gesperrte Domain ${host}`;
-  if (BRANDS.some((b) => b.official.some((d) => endsWithDomain(host, d)))) return null;
+export interface PhishingOptions {
+  /** Zusätzlich gesperrte Domains (inkl. Subdomains). */
+  blocked?: string[];
+  /** Vom Team freigegebene Domains, z. B. nach einem Fehlalarm. */
+  allowed?: string[];
+}
 
-  const labels = host.split(".");
+const clean = (list: string[] = []) => list.map((d) => d.toLowerCase().replace(/^\*?\./, ""));
+
+const isOfficial = (host: string) => BRANDS.some((b) => b.official.some((d) => endsWithDomain(host, d)));
+
+/** Echte Seite einer oft nachgeahmten Marke (discord.com, steamcommunity.com …)? */
+export const isOfficialDomain = isOfficial;
+
+/** Bewertet einen Link. Gibt den Grund zurück oder null, wenn er unauffällig ist. */
+export function phishingReason(host: string, path = "", opts: PhishingOptions | string[] = {}): string | null {
+  const o = Array.isArray(opts) ? { blocked: opts } : opts;
+  if (clean(o.blocked).some((d) => endsWithDomain(host, d))) return `gesperrte Domain ${host}`;
+  if (clean(o.allowed).some((d) => endsWithDomain(host, d))) return null;
+  if (isOfficial(host)) return null;
+
+  const shown = unicodeHost(host);
+  // Beide Schreibweisen prüfen: kaputtes Punycode soll den Rohtext nicht verstecken.
+  return lookalikeReason(host, path, shown) ?? (shown !== host ? lookalikeReason(shown, path, shown) : null);
+}
+
+function lookalikeReason(form: string, path: string, shown: string): string | null {
+  const host = form;
+  const labels = form.split(".");
   const body = labels.slice(0, -1); // ohne Endung wie .com
-  const hasBait = BAIT.some((w) => host.includes(w) || path.includes(w));
+  const hasBait = BAIT.some((w) => form.includes(w) || path.includes(w));
   for (const brand of BRANDS) {
     // Echte Domain nur vorne im Namen versteckt: discord.com.free-gift.ru
     if (brand.official.some((d) => host.includes(`${d}.`) || host.includes(`${d}-`))) return `getarnter Link ${host}`;
@@ -95,27 +203,65 @@ export function phishingReason(host: string, path = "", blocked: string[] = []):
       const plain = raw.replace(/[^a-z]/g, "");
       const skel = skeleton(raw);
       if (!skel) continue;
-      if (skel === brandSkel && plain !== brand.name) return `Nachahmung von ${brand.name}: ${host}`;
-      if (skel.includes(brandSkel) && skel !== brandSkel && hasBait) return `verdächtiger ${brand.name}-Link ${host}`;
-      if (skel === brandSkel && hasBait && plain === brand.name && raw !== brand.name) return `verdächtiger ${brand.name}-Link ${host}`;
+      if (skel === brandSkel && plain !== brand.name) return `Nachahmung von ${brand.name}: ${shown}`;
+      if (skel.includes(brandSkel) && skel !== brandSkel && hasBait) return `verdächtiger ${brand.name}-Link ${shown}`;
+      if (skel === brandSkel && hasBait && plain === brand.name && raw !== brand.name) return `verdächtiger ${brand.name}-Link ${shown}`;
       // Tippfehler-Domains: gleich lang oder ein Zeichen kürzer, höchstens ein (bei langen Namen zwei) Fehler
       const max = brandSkel.length >= 10 ? 2 : 1;
       if (skel.length <= brandSkel.length && skel.length >= brandSkel.length - 1 && skel !== brandSkel) {
-        const dist = editDistance(skel, brandSkel);
-        if (dist <= max) return `Nachahmung von ${brand.name}: ${host}`;
+        if (editDistance(skel, brandSkel) <= max) return `Nachahmung von ${brand.name}: ${shown}`;
       }
     }
   }
-  if (host.includes("nitro") && /free|gift|claim|drop/.test(host + path)) return `verdächtiger Nitro-Link ${host}`;
+  if (form.includes("nitro") && /free|gift|claim|drop/.test(form + path)) return `verdächtiger Nitro-Link ${shown}`;
   return null;
 }
 
-/** Prüft alle Links einer Nachricht. */
-export function checkPhishing(content: string, blocked: string[] = []): string | null {
-  for (const { host, path } of extractLinks(content)) {
-    const reason = phishingReason(host, path, blocked);
+/** Markdown-Link, dessen sichtbarer Text eine andere Seite zeigt als das echte Ziel. */
+export function maskedLinkReason(content: string): string | null {
+  for (const m of content.matchAll(MASKED_RE)) {
+    const label = m[1]!;
+    const target = extractLinks(m[2]!)[0];
+    const shown = extractLinks(label)[0];
+    if (!target || !shown) continue;
+    if (baseDomain(shown.host) !== baseDomain(target.host)) return `getarnter Link: zeigt „${shown.host}“, führt aber zu ${target.host}`;
+  }
+  return null;
+}
+
+/** Typische Sätze aus Betrugsnachrichten. */
+const SCAM_TEXT: [RegExp, string][] = [
+  [/free\s*(discord\s*)?nitro|nitro\s*(for\s*)?free|(gratis|kostenlos\w*)\s*nitro/, "kostenloses Nitro"],
+  [/(steam|discord|nitro)\s*(gift|geschenk|giveaway)/, "angebliches Geschenk"],
+  [/[$€]\s?\d{2,3}\s*(steam|gift|skins?|guthaben)|\d{2,3}\s?([$€]|usd|eur)\s*(steam|gift|skins?|guthaben)/, "Geld- oder Guthaben-Versprechen"],
+  [/(accident\w*|aus versehen|versehentlich)\s+(reported|gemeldet)/, "„aus Versehen gemeldet“-Masche"],
+  [/(leaving|quitting|aufh(ö|oe)r\w*)\b.{0,40}\b(cs2|csgo|cs:go|skins|inventory|inventar)/, "„verschenke mein Inventar“-Masche"],
+  [/claim\s+(your|it|now|here)|jetzt\s+(abholen|einl(ö|oe)sen|sichern)/, "Aufforderung zum Abholen"],
+  [/(first|erste[nr]?)\s+\d+\s+(users?|people|leute|personen)/, "„nur für die ersten“-Druck"],
+  [/airdrop|crypto\s*giveaway|(eth|btc|usdt)\s*(giveaway|geschenkt)/, "Krypto-Lockangebot"],
+];
+
+export function scamTextReason(content: string): string | null {
+  const t = content.toLowerCase();
+  for (const [re, label] of SCAM_TEXT) if (re.test(t)) return label;
+  return null;
+}
+
+/** Prüft eine ganze Nachricht. `extraHosts` sind z. B. aufgelöste Ziele von Kurzlinks. */
+export function checkPhishing(content: string, opts: PhishingOptions | string[] = {}, extra: { host: string; path: string }[] = []): string | null {
+  const o = Array.isArray(opts) ? { blocked: opts } : opts;
+  const links = [...extractLinks(content), ...extra];
+  if (!links.length) return null;
+  for (const { host, path } of links) {
+    const reason = phishingReason(host, path, o);
     if (reason) return `Betrugsverdacht: ${reason}`;
   }
+  const masked = maskedLinkReason(content);
+  if (masked) return `Betrugsverdacht: ${masked}`;
+  const allowed = clean(o.allowed);
+  const unknown = links.filter((l) => !isOfficial(l.host) && !allowed.some((d) => endsWithDomain(l.host, d)));
+  const text = unknown.length ? scamTextReason(content) : null;
+  if (text) return `Betrugsverdacht: ${text} mit Link zu ${unicodeHost(unknown[0]!.host)}`;
   return null;
 }
 
