@@ -26,6 +26,10 @@ import {
   highlightSettings,
   autoPurgeChannels,
   autoSlowmodeChannels,
+  ticketSettings,
+  ticketCategories,
+  ticketPanels,
+  type TicketQuestion,
   count,
   warnEscalations,
   type AutomodAction,
@@ -59,6 +63,11 @@ import {
   parseEmojiInput,
   PURGE_INTERVALS,
   SLOWMODE_STEPS,
+  AUTO_CLOSE_OPTIONS,
+  buildTicketPanelMessage,
+  cleanQuestions,
+  MAX_TICKET_CATEGORIES,
+  MAX_TICKET_PANELS,
 } from "@libremod/shared";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
@@ -941,4 +950,190 @@ export async function deleteSlowmode(guildId: string, channelId: string) {
   const { db } = database();
   await db.delete(autoSlowmodeChannels).where(and(eq(autoSlowmodeChannels.channelId, channelId), eq(autoSlowmodeChannels.guildId, guildId)));
   back(`/servers/${guildId}/tools`);
+}
+
+// --- Tickets ---
+
+const TICKETS = (guildId: string) => `/servers/${guildId}/tickets`;
+
+export async function saveTicketSettings(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = TICKETS(guildId);
+  const logChannelId = text(form, "logChannelId") || null;
+  const known = await textChannelIds(guildId);
+  if (logChannelId && !known.text.has(logChannelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  const autoCloseHours = Number(text(form, "autoCloseHours") || 0);
+  if (!(AUTO_CLOSE_OPTIONS as readonly number[]).includes(autoCloseHours)) back(path, "Bitte einen Wert aus der Liste wählen.");
+  const roles = new Set((await getGuildRoles(guildId)).map((r) => r.id));
+  const blockedRoleIds = [...new Set(form.getAll("blockedRoleIds").filter((v): v is string => typeof v === "string" && roles.has(v)))];
+  const values = {
+    logChannelId,
+    autoCloseHours,
+    blockedRoleIds,
+    transcriptDm: form.get("transcriptDm") === "on",
+    ratingEnabled: form.get("ratingEnabled") === "on",
+    ownerCanClose: form.get("ownerCanClose") === "on",
+  };
+  const { db } = database();
+  await db.insert(ticketSettings).values({ guildId, ...values }).onConflictDoUpdate({ target: ticketSettings.guildId, set: values });
+  back(path);
+}
+
+async function readCategoryForm(guildId: string, form: FormData, path: string) {
+  const name = text(form, "name");
+  if (!name || name.length > 80) back(path, "Bitte einen Namen mit höchstens 80 Zeichen angeben.");
+  const rawEmoji = text(form, "emoji");
+  const emoji = rawEmoji ? parseEmojiInput(rawEmoji) : null;
+  if (rawEmoji && !emoji) back(path, "Bitte genau ein Emoji angeben oder das Feld leer lassen.");
+  const description = text(form, "description");
+  if (description.length > 100) back(path, "Die Kurzbeschreibung darf höchstens 100 Zeichen lang sein.");
+  const mode = text(form, "mode") === "thread" ? "thread" : "channel";
+  const channels = await getGuildChannels(guildId);
+  const parentId = text(form, mode === "thread" ? "threadParentId" : "categoryParentId") || null;
+  if (mode === "thread") {
+    if (!parentId || !channels.some((c) => c.id === parentId && c.type === CHANNEL_TEXT)) back(path, "Für Threads bitte einen Textkanal wählen, in dem sie entstehen.");
+  } else if (parentId && !channels.some((c) => c.id === parentId && c.type === CHANNEL_CATEGORY)) {
+    back(path, "Bitte eine Kategorie dieses Servers wählen.");
+  }
+  const roles = new Set((await getGuildRoles(guildId)).map((r) => r.id));
+  const staffRoleIds = [...new Set(form.getAll("staffRoleIds").filter((v): v is string => typeof v === "string" && roles.has(v)))].slice(0, 10);
+  const welcomeMessage = text(form, "welcomeMessage").replace(/\r\n/g, "\n") || "Hallo {user}, danke für dein Ticket! Das Team meldet sich so schnell wie möglich.";
+  if (welcomeMessage.length > 2000) back(path, "Die Begrüßung darf höchstens 2000 Zeichen lang sein.");
+  const maxOpen = int(form, "maxOpen", 1, 10) ?? 1;
+  if (Number.isNaN(maxOpen)) back(path, "Offene Tickets pro Person: 1 bis 10.");
+  const nameTemplate = text(form, "nameTemplate") || "ticket-{number}";
+  if (nameTemplate.length > 90) back(path, "Die Namensvorlage ist zu lang.");
+  const questions: TicketQuestion[] = cleanQuestions(
+    [0, 1, 2, 3, 4].map((n) => ({
+      label: text(form, `q${n}label`),
+      placeholder: text(form, `q${n}placeholder`),
+      long: form.get(`q${n}long`) === "on",
+      required: form.get(`q${n}required`) === "on",
+    })),
+  );
+  return { name, emoji, description, mode: mode as "channel" | "thread", parentId, staffRoleIds, pingStaff: form.get("pingStaff") === "on", welcomeMessage, maxOpen, nameTemplate, questions };
+}
+
+/** Alle Panels neu zeichnen, z. B. nachdem sich der Name einer Ticket-Art geändert hat. */
+async function refreshTicketPanels(guildId: string) {
+  const { db } = database();
+  const [panels, cats] = await Promise.all([
+    db.select().from(ticketPanels).where(eq(ticketPanels.guildId, guildId)),
+    db.select().from(ticketCategories).where(eq(ticketCategories.guildId, guildId)),
+  ]);
+  for (const p of panels) {
+    if (!p.messageId) continue;
+    const list = p.categoryIds.map((id) => cats.find((c) => c.id === id)).filter((c) => !!c);
+    if (!list.length) continue;
+    await editBotMessage(p.channelId, p.messageId, buildTicketPanelMessage(p, list)).catch(() => {});
+  }
+}
+
+export async function createTicketCategory(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `${TICKETS(guildId)}/categories/new`;
+  const values = await readCategoryForm(guildId, form, path);
+  const { db } = database();
+  const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(ticketCategories).where(eq(ticketCategories.guildId, guildId));
+  if (n >= MAX_TICKET_CATEGORIES) back(path, `Ein Server kann höchstens ${MAX_TICKET_CATEGORIES} Ticket-Arten haben.`);
+  await db.insert(ticketCategories).values({ guildId, ...values, position: n });
+  back(TICKETS(guildId));
+}
+
+export async function updateTicketCategory(guildId: string, id: number, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `${TICKETS(guildId)}/categories/${id}`;
+  const values = await readCategoryForm(guildId, form, path);
+  const { db } = database();
+  const updated = await db.update(ticketCategories).set(values).where(and(eq(ticketCategories.id, id), eq(ticketCategories.guildId, guildId))).returning();
+  if (!updated.length) back(TICKETS(guildId), "Diese Ticket-Art gibt es nicht mehr.");
+  await refreshTicketPanels(guildId);
+  back(path);
+}
+
+export async function deleteTicketCategory(guildId: string, id: number) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  await db.delete(ticketCategories).where(and(eq(ticketCategories.id, id), eq(ticketCategories.guildId, guildId)));
+  // Aus Panels austragen; leere Panels bleiben, bis sie bearbeitet oder gelöscht werden.
+  const panels = await db.select().from(ticketPanels).where(eq(ticketPanels.guildId, guildId));
+  for (const p of panels) {
+    if (p.categoryIds.includes(id)) await db.update(ticketPanels).set({ categoryIds: p.categoryIds.filter((c) => c !== id) }).where(eq(ticketPanels.id, p.id));
+  }
+  await refreshTicketPanels(guildId);
+  back(TICKETS(guildId));
+}
+
+async function readTicketPanelForm(guildId: string, form: FormData, path: string) {
+  const title = text(form, "title");
+  if (!title || title.length > 256) back(path, "Bitte eine Überschrift mit höchstens 256 Zeichen angeben.");
+  const description = text(form, "description").replace(/\r\n/g, "\n");
+  if (description.length > 2000) back(path, "Die Beschreibung ist zu lang.");
+  const channelId = text(form, "channelId");
+  const known = await textChannelIds(guildId);
+  if (!known.text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  const color = /^#[0-9a-f]{6}$/i.test(text(form, "color")) ? parseInt(text(form, "color").slice(1), 16) : 0x4cb4ff;
+  const style = text(form, "style") === "select" ? "select" : "buttons";
+  const { db } = database();
+  const cats = await db.select().from(ticketCategories).where(eq(ticketCategories.guildId, guildId));
+  const picked = new Set(form.getAll("categoryIds").map(Number));
+  const categories = cats.filter((c) => picked.has(c.id)).sort((a, b) => a.position - b.position || a.id - b.id);
+  if (!categories.length) back(path, "Bitte mindestens eine Ticket-Art auswählen.");
+  return { values: { title, description, channelId, color, style: style as "buttons" | "select", categoryIds: categories.map((c) => c.id) }, categories };
+}
+
+export async function createTicketPanel(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `${TICKETS(guildId)}/panels/new`;
+  const { values, categories } = await readTicketPanelForm(guildId, form, path);
+  const { db } = database();
+  const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(ticketPanels).where(eq(ticketPanels.guildId, guildId));
+  if (n >= MAX_TICKET_PANELS) back(path, `Ein Server kann höchstens ${MAX_TICKET_PANELS} Ticket-Panels haben.`);
+  const [panel] = await db.insert(ticketPanels).values({ guildId, ...values }).returning();
+  let error: string | undefined;
+  try {
+    const msg = await sendBotMessage(values.channelId, buildTicketPanelMessage({ ...values, id: panel!.id }, categories));
+    await db.update(ticketPanels).set({ messageId: msg.id }).where(eq(ticketPanels.id, panel!.id));
+  } catch (err) {
+    error = postError(err);
+  }
+  back(TICKETS(guildId), error);
+}
+
+export async function updateTicketPanel(guildId: string, panelId: number, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `${TICKETS(guildId)}/panels/${panelId}`;
+  const { db } = database();
+  const [old] = await db.select().from(ticketPanels).where(and(eq(ticketPanels.id, panelId), eq(ticketPanels.guildId, guildId)));
+  if (!old) back(TICKETS(guildId), "Dieses Panel gibt es nicht mehr.");
+  const { values, categories } = await readTicketPanelForm(guildId, form, path);
+  const body = buildTicketPanelMessage({ ...values, id: panelId }, categories);
+  let messageId = old.messageId;
+  let error: string | undefined;
+  try {
+    if (messageId && old.channelId === values.channelId) {
+      try {
+        await editBotMessage(values.channelId, messageId, body);
+      } catch (err) {
+        if (!(err instanceof DiscordError && err.status === 404)) throw err;
+        messageId = null;
+      }
+    } else if (messageId) {
+      await deleteBotMessage(old.channelId, messageId).catch(() => {});
+      messageId = null;
+    }
+    if (!messageId) messageId = (await sendBotMessage(values.channelId, body)).id;
+  } catch (err) {
+    error = postError(err);
+  }
+  await db.update(ticketPanels).set({ ...values, messageId }).where(eq(ticketPanels.id, panelId));
+  back(path, error);
+}
+
+export async function deleteTicketPanel(guildId: string, panelId: number) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  const [panel] = await db.delete(ticketPanels).where(and(eq(ticketPanels.id, panelId), eq(ticketPanels.guildId, guildId))).returning();
+  if (panel?.messageId) await deleteBotMessage(panel.channelId, panel.messageId).catch(() => {});
+  back(TICKETS(guildId));
 }

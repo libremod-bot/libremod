@@ -4,12 +4,22 @@ import type { CommandContext } from "../commands/types.js";
 import { logger } from "../logger.js";
 import { handlePanelInteraction, isPanelInteraction } from "../services/rolepanels.js";
 import { handleCustomCommand } from "../services/customcommands.js";
+import { handleTicketInteraction, isTicketInteraction } from "../services/tickets.js";
 
 export async function onInteractionCreate(interaction: Interaction, ctx: CommandContext) {
   if ((interaction.isButton() || interaction.isStringSelectMenu()) && isPanelInteraction(interaction.customId)) {
     await handlePanelInteraction(interaction, ctx.db).catch(async (err) => {
       logger.error({ err }, "Rollen-Panel fehlgeschlagen");
       if (interaction.deferred) await interaction.editReply("Da ist leider etwas schiefgelaufen.").catch(() => {});
+    });
+    return;
+  }
+  if ((interaction.isButton() || interaction.isStringSelectMenu() || interaction.isModalSubmit()) && isTicketInteraction(interaction.customId)) {
+    await handleTicketInteraction(interaction, ctx.db).catch(async (err) => {
+      logger.error({ err }, "Ticket-Aktion fehlgeschlagen");
+      const content = "Da ist leider etwas schiefgelaufen.";
+      if (interaction.deferred || interaction.replied) await interaction.editReply({ content, components: [] }).catch(() => {});
+      else await interaction.reply({ content, flags: MessageFlags.Ephemeral }).catch(() => {});
     });
     return;
   }

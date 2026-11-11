@@ -12,8 +12,9 @@ import { kick } from "./moderation/kick.js";
 import { ban, unban } from "./moderation/ban.js";
 import { purge } from "./moderation/purge.js";
 import { cases, caseCommand } from "./moderation/cases.js";
+import { ticket } from "./tickets.js";
 
 /** Neue Befehle hier eintragen. */
-const all: Command[] = [ping, config, automod, logging, welcome, rank, leaderboard, xp, warn, timeout, untimeout, kick, ban, unban, purge, cases, caseCommand];
+const all: Command[] = [ping, config, automod, logging, welcome, rank, leaderboard, xp, warn, timeout, untimeout, kick, ban, unban, purge, cases, caseCommand, ticket];
 
 export const commands = new Collection<string, Command>(all.map((c) => [c.data.name, c]));

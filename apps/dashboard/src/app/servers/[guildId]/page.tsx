@@ -21,6 +21,8 @@ import {
   highlightSettings,
   autoPurgeChannels,
   autoSlowmodeChannels,
+  tickets,
+  ticketPanels,
   sql,
   warnEscalations,
   type CaseType,
@@ -58,7 +60,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
 
   const { db } = database();
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const [[settings], rules, escalations, [weekStats], recent, channels, logs, [welcome], autoRoleRows, panels, [levels], [cmdCount], [schedCount], [counterCount], [hubCount], [feedCount], [hl], [purgeCount], [slowCount]] = await Promise.all([
+  const [[settings], rules, escalations, [weekStats], recent, channels, logs, [welcome], autoRoleRows, panels, [levels], [cmdCount], [schedCount], [counterCount], [hubCount], [feedCount], [hl], [purgeCount], [slowCount], [openTickets], [panelCount]] = await Promise.all([
     db.select().from(guildSettings).where(eq(guildSettings.guildId, guildId)),
     db.select().from(automodRules).where(and(eq(automodRules.guildId, guildId), eq(automodRules.enabled, true))),
     db.select({ n: count() }).from(warnEscalations).where(eq(warnEscalations.guildId, guildId)),
@@ -84,6 +86,8 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
     db.select({ enabled: highlightSettings.enabled }).from(highlightSettings).where(eq(highlightSettings.guildId, guildId)),
     db.select({ n: count() }).from(autoPurgeChannels).where(eq(autoPurgeChannels.guildId, guildId)),
     db.select({ n: count() }).from(autoSlowmodeChannels).where(eq(autoSlowmodeChannels.guildId, guildId)),
+    db.select({ n: count() }).from(tickets).where(and(eq(tickets.guildId, guildId), eq(tickets.status, "open"))),
+    db.select({ n: count() }).from(ticketPanels).where(eq(ticketPanels.guildId, guildId)),
   ]);
   const countBadge = (n: number | undefined, one: string, many: string) =>
     n ? <span className="badge on">{n === 1 ? one : `${n} ${many}`}</span> : <span className="badge">Keine</span>;
@@ -105,6 +109,17 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
   const doneCount = steps.filter((s) => s.done).length;
 
   const modules: { icon: IconName; title: string; text: string; href?: string; status: React.ReactNode }[] = [
+    {
+      icon: "ticket",
+      title: "Tickets",
+      text: "Support-Tickets mit Formularen, Team-Rollen, Übernahme, Transkripten und Bewertungen.",
+      href: `${base}/tickets`,
+      status: panelCount?.n ? (
+        <span className="badge on">{openTickets?.n ? `${openTickets.n} offen` : "Aktiv"}</span>
+      ) : (
+        <span className="badge">Aus</span>
+      ),
+    },
     {
       icon: "gavel",
       title: "Moderation",

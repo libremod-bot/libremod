@@ -6,7 +6,7 @@ export const MAX_CUSTOM_COMMANDS = 50;
 /** Namen der eingebauten Befehle, die eigene Befehle nicht überschreiben dürfen. */
 export const RESERVED_COMMANDS = [
   "ping", "config", "automod", "logging", "welcome", "rank", "leaderboard", "xp",
-  "warn", "timeout", "untimeout", "kick", "ban", "unban", "purge", "cases", "case",
+  "warn", "timeout", "untimeout", "kick", "ban", "unban", "purge", "cases", "case", "ticket",
 ];
 
 /** Antworten werden durch eine Zeile mit genau "---" getrennt. */

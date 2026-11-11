@@ -13,6 +13,7 @@ import { scheduleCommandSync, syncAllCommands, syncGuildCommands } from "./servi
 import { startScheduler } from "./services/scheduler.js";
 import { startCounters } from "./services/counters.js";
 import { startNotifications } from "./services/notifications.js";
+import { onTicketChannelDeleted, startTicketJobs, trackTicketMessage } from "./services/tickets.js";
 import { invalidateHighlights, onHighlightReaction, startChannelTools, trackSlowmodeMessage } from "./services/channeltools.js";
 import { invalidateTempVoice, loadTempChannels, onTempVoiceState } from "./services/tempvoice.js";
 import { invalidateWelcome, onWelcomeJoin, onWelcomeLeave, onWelcomeMemberUpdate } from "./services/welcome.js";
@@ -36,6 +37,7 @@ let voiceXpTimer: NodeJS.Timeout | undefined;
 let schedulerTimer: NodeJS.Timeout | undefined;
 let counterTimer: NodeJS.Timeout | undefined;
 let notifyTimer: NodeJS.Timeout | undefined;
+let ticketTimer: NodeJS.Timeout | undefined;
 let channelToolTimers: NodeJS.Timeout[] = [];
 
 const client = new Client({
@@ -60,13 +62,17 @@ client.once(Events.ClientReady, (c) => {
   schedulerTimer ??= startScheduler(c, db);
   counterTimer ??= startCounters(c, db);
   notifyTimer ??= startNotifications(c, db);
+  ticketTimer ??= startTicketJobs(c, db);
   if (!channelToolTimers.length) channelToolTimers = startChannelTools(c, db);
   void loadTempChannels(c, db).catch(logError("Temporäre Kanäle"));
   void syncAllCommands(c, db).catch(logError("Eigene Befehle"));
 });
 client.on(Events.InteractionCreate, (i) => void onInteractionCreate(i, ctx));
 const logError = (what: string) => (err: unknown) => logger.error({ err }, `${what} fehlgeschlagen`);
-client.on(Events.MessageCreate, (m) => trackSlowmodeMessage(m));
+client.on(Events.MessageCreate, (m) => {
+  trackSlowmodeMessage(m);
+  void trackTicketMessage(m, db).catch(logError("Tickets"));
+});
 client.on(Events.MessageCreate, (m) =>
   void handleMessage(m, db)
     .catch((err) => (logError("Auto-Mod")(err), false))
@@ -102,6 +108,8 @@ client.on(Events.GuildMemberUpdate, logged(log.onMemberUpdate));
 client.on(Events.UserUpdate, (before, after) => void log.onUserUpdate(before, after, client, db).catch(logError("Logging")));
 client.on(Events.ChannelCreate, logged(log.onChannelCreate));
 client.on(Events.ChannelDelete, logged(log.onChannelDelete));
+client.on(Events.ChannelDelete, (c) => void onTicketChannelDeleted(c.id, db).catch(logError("Tickets")));
+client.on(Events.ThreadDelete, (t) => void onTicketChannelDeleted(t.id, db).catch(logError("Tickets")));
 client.on(Events.ChannelUpdate, logged(log.onChannelUpdate));
 client.on(Events.GuildRoleCreate, logged(log.onRoleCreate));
 client.on(Events.GuildRoleDelete, logged(log.onRoleDelete));
@@ -121,6 +129,7 @@ async function shutdown(signal: string) {
   clearInterval(schedulerTimer);
   clearInterval(counterTimer);
   clearInterval(notifyTimer);
+  clearInterval(ticketTimer);
   channelToolTimers.forEach(clearInterval);
   await client.destroy();
   await close();

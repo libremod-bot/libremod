@@ -458,3 +458,121 @@ export const autoSlowmodeChannels = pgTable("auto_slowmode_channels", {
 });
 
 export type AutoSlowmodeChannel = typeof autoSlowmodeChannels.$inferSelect;
+
+// --- Ticket-System ---
+
+export interface TicketQuestion {
+  label: string;
+  placeholder: string;
+  /** true = mehrzeilig */
+  long: boolean;
+  required: boolean;
+}
+
+export interface TicketAnswer {
+  question: string;
+  answer: string;
+}
+
+/** Allgemeine Ticket-Einstellungen pro Server. */
+export const ticketSettings = pgTable("ticket_settings", {
+  guildId: varchar("guild_id", { length: 32 }).primaryKey(),
+  /** Hierhin gehen Transkripte und Ereignisse (geöffnet, geschlossen, Bewertung). */
+  logChannelId: varchar("log_channel_id", { length: 32 }),
+  transcriptDm: boolean("transcript_dm").notNull().default(true),
+  ratingEnabled: boolean("rating_enabled").notNull().default(true),
+  ownerCanClose: boolean("owner_can_close").notNull().default(true),
+  /** Schließt Tickets ohne neue Nachricht nach so vielen Stunden. 0 = nie. */
+  autoCloseHours: integer("auto_close_hours").notNull().default(0),
+  /** Mitglieder mit diesen Rollen können keine Tickets öffnen. */
+  blockedRoleIds: jsonb("blocked_role_ids").$type<string[]>().notNull().default([]),
+  /** Laufende Nummer für das nächste Ticket. */
+  nextNumber: integer("next_number").notNull().default(1),
+});
+
+export type TicketSettings = typeof ticketSettings.$inferSelect;
+
+export const ticketMode = pgEnum("ticket_mode", ["channel", "thread"]);
+export type TicketMode = (typeof ticketMode.enumValues)[number];
+
+/** Ticket-Arten, z. B. „Support“, „Bewerbung“, „Melden“. */
+export const ticketCategories = pgTable(
+  "ticket_categories",
+  {
+    id: serial("id").primaryKey(),
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    name: varchar("name", { length: 80 }).notNull(),
+    emoji: varchar("emoji", { length: 64 }),
+    description: varchar("description", { length: 100 }).notNull().default(""),
+    /** channel: eigener Kanal, thread: privater Thread. */
+    mode: ticketMode("mode").notNull().default("channel"),
+    /** channel: Discord-Kategorie für neue Kanäle (optional). thread: Textkanal, in dem die Threads entstehen. */
+    parentId: varchar("parent_id", { length: 32 }),
+    /** Team-Rollen, die die Tickets dieser Art sehen und bearbeiten. */
+    staffRoleIds: jsonb("staff_role_ids").$type<string[]>().notNull().default([]),
+    /** Team-Rollen beim Öffnen erwähnen. */
+    pingStaff: boolean("ping_staff").notNull().default(false),
+    welcomeMessage: text("welcome_message").notNull().default("Hallo {user}, danke für dein Ticket! Das Team meldet sich so schnell wie möglich."),
+    /** Bis zu 5 Fragen, die vor dem Öffnen beantwortet werden. */
+    questions: jsonb("questions").$type<TicketQuestion[]>().notNull().default([]),
+    /** Höchstzahl offener Tickets dieser Art pro Person. */
+    maxOpen: integer("max_open").notNull().default(1),
+    nameTemplate: varchar("name_template", { length: 100 }).notNull().default("ticket-{number}"),
+    position: integer("position").notNull().default(0),
+  },
+  (t) => [index("ticket_categories_guild").on(t.guildId)],
+);
+
+export type TicketCategory = typeof ticketCategories.$inferSelect;
+
+export const ticketPanelStyle = pgEnum("ticket_panel_style", ["buttons", "select"]);
+
+/** Nachricht mit Buttons bzw. Menü, über die Mitglieder Tickets öffnen. */
+export const ticketPanels = pgTable("ticket_panels", {
+  id: serial("id").primaryKey(),
+  guildId: varchar("guild_id", { length: 32 }).notNull(),
+  channelId: varchar("channel_id", { length: 32 }).notNull(),
+  messageId: varchar("message_id", { length: 32 }),
+  title: varchar("title", { length: 256 }).notNull(),
+  description: text("description").notNull().default(""),
+  color: integer("color").notNull().default(0x4cb4ff),
+  style: ticketPanelStyle("style").notNull().default("buttons"),
+  categoryIds: jsonb("category_ids").$type<number[]>().notNull().default([]),
+});
+
+export type TicketPanel = typeof ticketPanels.$inferSelect;
+
+export const ticketStatus = pgEnum("ticket_status", ["open", "closed"]);
+
+export const tickets = pgTable(
+  "tickets",
+  {
+    id: serial("id").primaryKey(),
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    number: integer("number").notNull(),
+    categoryId: integer("category_id"),
+    categoryName: varchar("category_name", { length: 80 }).notNull(),
+    /** Kanal bzw. Thread des Tickets; null, solange er erstellt wird. */
+    channelId: varchar("channel_id", { length: 32 }),
+    ownerId: varchar("owner_id", { length: 32 }).notNull(),
+    claimedBy: varchar("claimed_by", { length: 32 }),
+    status: ticketStatus("status").notNull().default("open"),
+    answers: jsonb("answers").$type<TicketAnswer[]>().notNull().default([]),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    lastActivityAt: timestamp("last_activity_at", { withTimezone: true }).notNull().defaultNow(),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    closedBy: varchar("closed_by", { length: 32 }),
+    closeReason: varchar("close_reason", { length: 500 }),
+    messageCount: integer("message_count").notNull().default(0),
+    rating: integer("rating"),
+    /** Transkript als HTML, im Dashboard ansehbar. */
+    transcript: text("transcript"),
+  },
+  (t) => [
+    uniqueIndex("tickets_guild_number").on(t.guildId, t.number),
+    index("tickets_channel").on(t.channelId),
+    index("tickets_open").on(t.guildId, t.status),
+  ],
+);
+
+export type Ticket = typeof tickets.$inferSelect;

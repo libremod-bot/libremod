@@ -52,9 +52,12 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 - Neue Beiträge aus Reddit-Communities
 - RSS-Feeds
 
+## 0.7 Tickets
+
+- Ticket-System mit Ticket-Arten, Formularfragen, Panels (Buttons oder Menü), eigenem Kanal oder privatem Thread, Team-Rollen, Übernahme, Transkripten im Dashboard, Bewertungen und automatischem Schließen
+
 ## Später
 
-- Ticket-System für Support-Anfragen mit eigenen Formularfeldern, Buttons und Texten sowie einstellbarer Höchstzahl offener Tickets pro Person
 - Server-Währung mit Shop
 - Eigener Name und Avatar des Bots pro Server, soweit Discord das erlaubt (beim Selbsthosten ohnehin frei wählbar)
 
