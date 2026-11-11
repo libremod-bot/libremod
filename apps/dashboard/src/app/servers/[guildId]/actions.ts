@@ -22,6 +22,7 @@ import {
   scheduledMessages,
   counterChannels,
   tempVoiceHubs,
+  notificationFeeds,
   count,
   warnEscalations,
   type AutomodAction,
@@ -44,6 +45,14 @@ import {
   RESERVED_COMMANDS,
   splitResponses,
   toSchedule,
+  credentialsFromEnv,
+  MAX_FEEDS,
+  NOTIFY_PLATFORMS,
+  platformAvailable,
+  PLATFORM_INFO,
+  resolveSource,
+  SourceError,
+  type NotifyPlatform,
 } from "@libremod/shared";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
@@ -770,4 +779,87 @@ export async function revokeWarning(guildId: string, caseNumber: number) {
     .set({ active: false })
     .where(and(eq(modCases.guildId, guildId), eq(modCases.caseNumber, caseNumber), eq(modCases.type, "warn")));
   back(`/servers/${guildId}/cases`);
+}
+
+// --- Benachrichtigungen ---
+
+async function readFeedForm(guildId: string, form: FormData, path: string) {
+  const channelId = text(form, "channelId");
+  const known = await textChannelIds(guildId);
+  if (!known.text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  const mention = text(form, "mentionRoleId");
+  let mentionRoleId: string | null = null;
+  if (mention) {
+    const roles = await getGuildRoles(guildId);
+    if (mention !== guildId && !roles.some((r) => r.id === mention)) back(path, "Diese Rolle gibt es nicht.");
+    mentionRoleId = mention;
+  }
+  const message = text(form, "message").replace(/\r\n/g, "\n");
+  if (message.length > 1500) back(path, "Der Text ist zu lang (höchstens 1500 Zeichen).");
+  return { channelId, mentionRoleId, message };
+}
+
+export async function createFeed(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/notifications`;
+  const platform = text(form, "platform") as NotifyPlatform;
+  if (!NOTIFY_PLATFORMS.includes(platform)) back(path, "Bitte eine Plattform wählen.");
+  const creds = credentialsFromEnv();
+  if (!platformAvailable(platform, creds)) back(path, `${PLATFORM_INFO[platform].label} ist auf dieser Libremod-Instanz nicht eingerichtet.`);
+  const { channelId, mentionRoleId, message } = await readFeedForm(guildId, form, path);
+
+  const { db } = database();
+  const existing = await db.select().from(notificationFeeds).where(eq(notificationFeeds.guildId, guildId));
+  if (existing.length >= MAX_FEEDS) back(path, `Ein Server kann höchstens ${MAX_FEEDS} Benachrichtigungen haben.`);
+
+  let source: { sourceId: string; name: string };
+  try {
+    source = await resolveSource(platform, text(form, "source"), creds);
+  } catch (err) {
+    const msg = err instanceof SourceError ? err.message : "Unbekannter Fehler";
+    back(path, msg.startsWith("Bitte") ? msg : `${PLATFORM_INFO[platform].label}: ${msg.replace(/\.$/, "")}. Bitte die Angabe prüfen.`);
+  }
+  if (existing.some((f) => f.platform === platform && f.sourceId === source.sourceId && f.channelId === channelId))
+    back(path, "Diese Quelle wird in diesem Kanal schon gemeldet.");
+
+  await db.insert(notificationFeeds).values({
+    guildId,
+    channelId,
+    platform,
+    sourceId: source.sourceId,
+    name: source.name.slice(0, 200),
+    message: message || PLATFORM_INFO[platform].defaultMessage,
+    mentionRoleId,
+  });
+  back(path);
+}
+
+export async function updateFeed(guildId: string, id: number, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/notifications/${id}`;
+  const { channelId, mentionRoleId, message } = await readFeedForm(guildId, form, path);
+  const { db } = database();
+  const [f] = await db.select().from(notificationFeeds).where(and(eq(notificationFeeds.id, id), eq(notificationFeeds.guildId, guildId)));
+  if (!f) back(`/servers/${guildId}/notifications`, "Diese Benachrichtigung gibt es nicht mehr.");
+  await db
+    .update(notificationFeeds)
+    .set({ channelId, mentionRoleId, message: message || PLATFORM_INFO[f.platform].defaultMessage })
+    .where(eq(notificationFeeds.id, id));
+  back(path);
+}
+
+export async function toggleFeed(guildId: string, id: number) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  const [f] = await db.select().from(notificationFeeds).where(and(eq(notificationFeeds.id, id), eq(notificationFeeds.guildId, guildId)));
+  // Beim Einschalten Fehlerzähler zurücksetzen; gesehene Einträge bleiben, damit nichts Altes nachkommt.
+  if (f) await db.update(notificationFeeds).set({ enabled: !f.enabled, failures: 0, lastError: null }).where(eq(notificationFeeds.id, id));
+  back(`/servers/${guildId}/notifications`);
+}
+
+export async function deleteFeed(guildId: string, id: number) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  await db.delete(notificationFeeds).where(and(eq(notificationFeeds.id, id), eq(notificationFeeds.guildId, guildId)));
+  back(`/servers/${guildId}/notifications`);
 }

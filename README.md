@@ -28,7 +28,7 @@ Website: [libremod.dev](https://libremod.dev) · Geplante Funktionen: [ROADMAP.m
 | `/xp add/remove/set/reset`            | XP von Mitgliedern verwalten                                 |
 | `/logging status/set/off/ignore`      | Logs für Nachrichten, Beitritte, Mitglieder, Server und Sprachkanäle, je Art ein eigener Kanal |
 
-Dazu kommen eigene Befehle, die du im Dashboard anlegst. Geplante Nachrichten, Zähler-Kanäle und temporäre Sprachkanäle richtest du ebenfalls dort ein.
+Dazu kommen eigene Befehle, die du im Dashboard anlegst. Geplante Nachrichten, Zähler-Kanäle, temporäre Sprachkanäle und Benachrichtigungen (YouTube, Twitch, Kick, Reddit, RSS) richtest du ebenfalls dort ein.
 
 Im Discord Developer Portal müssen unter **Bot → Privileged Gateway Intents** die Optionen **Server Members Intent** und **Message Content Intent** eingeschaltet sein (für Auto-Moderation, Raid-Schutz und Logging).
 
@@ -91,6 +91,15 @@ server {
 ```
 
 Änderungen im Dashboard übernimmt der Bot sofort.
+
+## Benachrichtigungen für Twitch und Kick
+
+YouTube, Reddit und RSS-Feeds funktionieren ohne Zugangsdaten. Für Livestream-Meldungen von Twitch und Kick braucht die Instanz eine eigene, kostenlose Anwendung bei der jeweiligen Plattform:
+
+- **Twitch:** Unter [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps) eine Anwendung anlegen (Kategorie beliebig, OAuth-Redirect z. B. `http://localhost`), dann `TWITCH_CLIENT_ID` und `TWITCH_CLIENT_SECRET` in die `.env` eintragen.
+- **Kick:** Unter [kick.com/settings/developer](https://kick.com/settings/developer) eine Anwendung anlegen, dann `KICK_CLIENT_ID` und `KICK_CLIENT_SECRET` eintragen.
+
+Danach Bot und Dashboard neu starten. Ohne diese Angaben ist die Plattform im Dashboard ausgegraut.
 
 ## Entwicklung
 

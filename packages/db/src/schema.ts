@@ -370,3 +370,38 @@ export const tempVoiceChannels = pgTable("temp_voice_channels", {
   ownerId: varchar("owner_id", { length: 32 }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export type TempVoiceChannel = typeof tempVoiceChannels.$inferSelect;
+
+export const notifyPlatform = pgEnum("notify_platform", ["youtube", "twitch", "kick", "reddit", "rss"]);
+
+/** Benachrichtigungen über neue Videos, Livestreams, Beiträge und Feed-Einträge. */
+export const notificationFeeds = pgTable(
+  "notification_feeds",
+  {
+    id: serial("id").primaryKey(),
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    channelId: varchar("channel_id", { length: 32 }).notNull(),
+    platform: notifyPlatform("platform").notNull(),
+    /** YouTube-Kanal-ID, Twitch-/Kick-Name, Subreddit oder Feed-Adresse. */
+    sourceId: varchar("source_id", { length: 500 }).notNull(),
+    name: varchar("name", { length: 200 }).notNull(),
+    message: text("message").notNull(),
+    /** Rolle, die erwähnt wird; die Server-ID steht für @everyone. */
+    mentionRoleId: varchar("mention_role_id", { length: 32 }),
+    enabled: boolean("enabled").notNull().default(true),
+    /** Bereits gesehene Einträge. null = noch nie abgefragt, dann wird nichts Altes gepostet. */
+    seen: jsonb("seen").$type<string[]>(),
+    /** Twitch/Kick: zuletzt verkündeter Stream. */
+    lastStreamId: varchar("last_stream_id", { length: 100 }),
+    live: boolean("live").notNull().default(false),
+    lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
+    lastPostAt: timestamp("last_post_at", { withTimezone: true }),
+    failures: integer("failures").notNull().default(0),
+    lastError: varchar("last_error", { length: 200 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("notification_guild").on(t.guildId), index("notification_source").on(t.platform, t.sourceId)],
+);
+
+export type NotificationFeed = typeof notificationFeeds.$inferSelect;

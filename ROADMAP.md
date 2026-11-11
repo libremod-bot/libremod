@@ -48,7 +48,7 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 
 ## 0.6 Benachrichtigungen
 
-- Neue Videos und Livestreams (z. B. YouTube, Twitch, Kick, TikTok)
+- Neue Videos und Livestreams (YouTube, Twitch, Kick); TikTok, sobald es dafür eine offene Schnittstelle gibt
 - Neue Beiträge aus Reddit-Communities
 - RSS-Feeds
 

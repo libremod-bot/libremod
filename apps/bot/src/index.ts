@@ -12,6 +12,7 @@ import { handleMessageXp, invalidateLevels, startVoiceXp } from "./services/leve
 import { scheduleCommandSync, syncAllCommands, syncGuildCommands } from "./services/customcommands.js";
 import { startScheduler } from "./services/scheduler.js";
 import { startCounters } from "./services/counters.js";
+import { startNotifications } from "./services/notifications.js";
 import { invalidateTempVoice, loadTempChannels, onTempVoiceState } from "./services/tempvoice.js";
 import { invalidateWelcome, onWelcomeJoin, onWelcomeLeave, onWelcomeMemberUpdate } from "./services/welcome.js";
 
@@ -32,6 +33,7 @@ let tempBanTimer: NodeJS.Timeout | undefined;
 let voiceXpTimer: NodeJS.Timeout | undefined;
 let schedulerTimer: NodeJS.Timeout | undefined;
 let counterTimer: NodeJS.Timeout | undefined;
+let notifyTimer: NodeJS.Timeout | undefined;
 
 const client = new Client({
   intents: [
@@ -53,6 +55,7 @@ client.once(Events.ClientReady, (c) => {
   voiceXpTimer ??= startVoiceXp(c, db);
   schedulerTimer ??= startScheduler(c, db);
   counterTimer ??= startCounters(c, db);
+  notifyTimer ??= startNotifications(c, db);
   void loadTempChannels(c, db).catch(logError("Temporäre Kanäle"));
   void syncAllCommands(c, db).catch(logError("Eigene Befehle"));
 });
@@ -109,6 +112,7 @@ async function shutdown(signal: string) {
   clearInterval(voiceXpTimer);
   clearInterval(schedulerTimer);
   clearInterval(counterTimer);
+  clearInterval(notifyTimer);
   await client.destroy();
   await close();
   process.exit(0);

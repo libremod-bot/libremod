@@ -17,6 +17,7 @@ import {
   scheduledMessages,
   counterChannels,
   tempVoiceHubs,
+  notificationFeeds,
   sql,
   warnEscalations,
   type CaseType,
@@ -54,7 +55,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
 
   const { db } = database();
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const [[settings], rules, escalations, [weekStats], recent, channels, logs, [welcome], autoRoleRows, panels, [levels], [cmdCount], [schedCount], [counterCount], [hubCount]] = await Promise.all([
+  const [[settings], rules, escalations, [weekStats], recent, channels, logs, [welcome], autoRoleRows, panels, [levels], [cmdCount], [schedCount], [counterCount], [hubCount], [feedCount]] = await Promise.all([
     db.select().from(guildSettings).where(eq(guildSettings.guildId, guildId)),
     db.select().from(automodRules).where(and(eq(automodRules.guildId, guildId), eq(automodRules.enabled, true))),
     db.select({ n: count() }).from(warnEscalations).where(eq(warnEscalations.guildId, guildId)),
@@ -76,6 +77,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
     db.select({ n: count() }).from(scheduledMessages).where(and(eq(scheduledMessages.guildId, guildId), eq(scheduledMessages.enabled, true))),
     db.select({ n: count() }).from(counterChannels).where(eq(counterChannels.guildId, guildId)),
     db.select({ n: count() }).from(tempVoiceHubs).where(eq(tempVoiceHubs.guildId, guildId)),
+    db.select({ n: count() }).from(notificationFeeds).where(and(eq(notificationFeeds.guildId, guildId), eq(notificationFeeds.enabled, true))),
   ]);
   const countBadge = (n: number | undefined, one: string, many: string) =>
     n ? <span className="badge on">{n === 1 ? one : `${n} ${many}`}</span> : <span className="badge">Keine</span>;
@@ -166,6 +168,13 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
       text: "Sprachkanäle, die sich selbst erstellen und löschen, und Kanäle mit Mitgliederzahl.",
       href: `${base}/channels`,
       status: countBadge((counterCount?.n ?? 0) + (hubCount?.n ?? 0), "1 eingerichtet", "eingerichtet"),
+    },
+    {
+      icon: "bell",
+      title: "Benachrichtigungen",
+      text: "Neue Videos, Livestreams, Reddit-Beiträge und RSS-Feeds automatisch im Kanal melden.",
+      href: `${base}/notifications`,
+      status: countBadge(feedCount?.n, "1 aktiv", "aktiv"),
     },
   ];
 
