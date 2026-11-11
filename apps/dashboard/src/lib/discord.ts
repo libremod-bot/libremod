@@ -166,6 +166,31 @@ export function getBotTopPosition(guildId: string) {
   });
 }
 
+export interface MemberInfo {
+  id: string;
+  name: string;
+  avatar: string;
+}
+
+/** Namen und Avatare für eine Liste von Nutzer-IDs (z. B. Rangliste). Unbekannte bekommen ihre ID als Namen. */
+export async function getMembers(guildId: string, ids: string[]): Promise<MemberInfo[]> {
+  return Promise.all(
+    ids.map((id) =>
+      cached(`member:${guildId}:${id}`, 5 * 60_000, async () => {
+        try {
+          const m = await discord<{ nick: string | null; user: { id: string; username: string; global_name: string | null; avatar: string | null } }>(
+            `/guilds/${guildId}/members/${id}`,
+            bot(),
+          );
+          return { id, name: m.nick ?? m.user.global_name ?? m.user.username, avatar: avatarUrl(m.user) };
+        } catch {
+          return { id, name: id, avatar: avatarUrl({ id, avatar: null }) };
+        }
+      }),
+    ),
+  );
+}
+
 // --- Nachrichten des Bots (Rollen-Panels) ---
 
 const jsonInit = (method: string, body?: unknown): RequestInit => ({

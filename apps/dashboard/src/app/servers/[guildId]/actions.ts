@@ -15,6 +15,9 @@ import {
   autoRoles,
   rolePanels,
   welcomeSettings,
+  levelNoXp,
+  levelRewards,
+  levelSettings,
   warnEscalations,
   type AutomodAction,
   type AutomodFilter,
@@ -408,6 +411,82 @@ export async function deletePanel(guildId: string, panelId: number) {
   const [panel] = await db.delete(rolePanels).where(and(eq(rolePanels.id, panelId), eq(rolePanels.guildId, guildId))).returning();
   if (panel?.messageId) await deleteBotMessage(panel.channelId, panel.messageId).catch(() => {});
   back(`/servers/${guildId}/roles`);
+}
+
+// --- Level ---
+
+const ANNOUNCE = ["off", "same", "channel", "dm"] as const;
+
+export async function saveLevels(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/levels`;
+  const textXpMin = int(form, "textXpMin", 0, 1000) ?? 15;
+  const textXpMax = int(form, "textXpMax", 0, 1000) ?? 25;
+  const cooldownSeconds = int(form, "cooldownSeconds", 0, 3600) ?? 60;
+  const voiceXpPerMinute = int(form, "voiceXpPerMinute", 0, 1000) ?? 10;
+  if ([textXpMin, textXpMax, cooldownSeconds, voiceXpPerMinute].some(Number.isNaN)) back(path, "Bitte nur ganze Zahlen im erlaubten Bereich.");
+  if (textXpMin > textXpMax) back(path, "Die Mindest-XP dürfen nicht größer als die Höchst-XP sein.");
+
+  const announce = text(form, "announce") as (typeof ANNOUNCE)[number];
+  if (!ANNOUNCE.includes(announce)) back(path, "Unbekannte Einstellung für die Verkündung.");
+  const announceChannelId = text(form, "announceChannelId") || null;
+  const known = await textChannelIds(guildId);
+  if (announceChannelId && !known.text.has(announceChannelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  if (announce === "channel" && !announceChannelId) back(path, "Für „In einem festen Kanal“ fehlt noch der Kanal.");
+  const announceMessage = text(form, "announceMessage") || "Glückwunsch {user}, du bist jetzt **Level {level}**!";
+  if (announceMessage.length > 500) back(path, "Der Text für den Level-Aufstieg darf höchstens 500 Zeichen lang sein.");
+
+  const roles = new Set((await getGuildRoles(guildId)).map((r) => r.id));
+  const noRoles = [...new Set(form.getAll("noXpRoles").filter((v): v is string => typeof v === "string" && roles.has(v)))];
+  const noChannels = [...new Set(form.getAll("noXpChannels").filter((v): v is string => typeof v === "string" && known.all.has(v)))];
+
+  const values = {
+    enabled: form.get("enabled") === "on",
+    textXpMin,
+    textXpMax,
+    cooldownSeconds,
+    voiceXpPerMinute,
+    announce,
+    announceChannelId,
+    announceMessage,
+    stackRewards: form.get("stackRewards") === "on",
+  };
+  const { db, notifySettingsChanged } = database();
+  await db.transaction(async (tx) => {
+    await tx.insert(levelSettings).values({ guildId, ...values }).onConflictDoUpdate({ target: levelSettings.guildId, set: values });
+    await tx.delete(levelNoXp).where(eq(levelNoXp.guildId, guildId));
+    const rows = [
+      ...noRoles.map((targetId) => ({ guildId, kind: "role" as const, targetId })),
+      ...noChannels.map((targetId) => ({ guildId, kind: "channel" as const, targetId })),
+    ];
+    if (rows.length) await tx.insert(levelNoXp).values(rows);
+  });
+  await notifySettingsChanged(guildId);
+  back(path);
+}
+
+export async function addLevelReward(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/levels`;
+  const level = int(form, "level", 1, 500);
+  if (!level) back(path, "Bitte ein Level zwischen 1 und 500 angeben.");
+  const { valid } = await assignableRoles(guildId, form, "roleId");
+  if (valid.length !== 1) back(path, "Diese Rolle kann Libremod nicht vergeben.");
+  const { db, notifySettingsChanged } = database();
+  await db
+    .insert(levelRewards)
+    .values({ guildId, level, roleId: valid[0]! })
+    .onConflictDoUpdate({ target: [levelRewards.guildId, levelRewards.level], set: { roleId: valid[0]! } });
+  await notifySettingsChanged(guildId);
+  back(path);
+}
+
+export async function removeLevelReward(guildId: string, level: number) {
+  await requireGuildAccess(guildId);
+  const { db, notifySettingsChanged } = database();
+  await db.delete(levelRewards).where(and(eq(levelRewards.guildId, guildId), eq(levelRewards.level, level)));
+  await notifySettingsChanged(guildId);
+  back(`/servers/${guildId}/levels`);
 }
 
 // --- Fallakte ---

@@ -223,3 +223,68 @@ export const rolePanels = pgTable(
 );
 
 export type RolePanel = typeof rolePanels.$inferSelect;
+
+export const levelAnnounce = pgEnum("level_announce", ["off", "same", "channel", "dm"]);
+export type LevelAnnounce = (typeof levelAnnounce.enumValues)[number];
+
+/** Einstellungen des Level-Systems pro Server. */
+export const levelSettings = pgTable("level_settings", {
+  guildId: varchar("guild_id", { length: 32 }).primaryKey(),
+  enabled: boolean("enabled").notNull().default(false),
+  /** XP pro Nachricht, zufällig zwischen min und max. */
+  textXpMin: integer("text_xp_min").notNull().default(15),
+  textXpMax: integer("text_xp_max").notNull().default(25),
+  /** Nur eine Nachricht pro Zeitraum bringt XP (gegen Spam). */
+  cooldownSeconds: integer("cooldown_seconds").notNull().default(60),
+  /** XP pro Minute im Sprachkanal, 0 = aus. Zählt nur mit mindestens einer weiteren Person und ohne Taubschaltung. */
+  voiceXpPerMinute: integer("voice_xp_per_minute").notNull().default(10),
+  /** Wo Level-Aufstiege verkündet werden. */
+  announce: levelAnnounce("announce").notNull().default("same"),
+  announceChannelId: varchar("announce_channel_id", { length: 32 }),
+  announceMessage: text("announce_message").notNull().default("Glückwunsch {user}, du bist jetzt **Level {level}**!"),
+  /** true: alle erreichten Belohnungsrollen behalten. false: nur die höchste. */
+  stackRewards: boolean("stack_rewards").notNull().default(true),
+});
+
+export type LevelSettings = typeof levelSettings.$inferSelect;
+
+/** Rolle, die ab einem bestimmten Level vergeben wird. */
+export const levelRewards = pgTable(
+  "level_rewards",
+  {
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    level: integer("level").notNull(),
+    roleId: varchar("role_id", { length: 32 }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.level] })],
+);
+
+export type LevelReward = typeof levelRewards.$inferSelect;
+
+/** Rollen und Kanäle, in denen es keine XP gibt. */
+export const levelNoXp = pgTable(
+  "level_no_xp",
+  {
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    kind: exemptionKind("kind").notNull(),
+    targetId: varchar("target_id", { length: 32 }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.kind, t.targetId] })],
+);
+
+/** XP und Level jedes Mitglieds pro Server. */
+export const memberXp = pgTable(
+  "member_xp",
+  {
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    userId: varchar("user_id", { length: 32 }).notNull(),
+    xp: integer("xp").notNull().default(0),
+    level: integer("level").notNull().default(0),
+    messages: integer("messages").notNull().default(0),
+    voiceMinutes: integer("voice_minutes").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.userId] }), index("member_xp_ranking").on(t.guildId, t.xp)],
+);
+
+export type MemberXp = typeof memberXp.$inferSelect;

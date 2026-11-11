@@ -706,6 +706,22 @@ label {
   border-radius: 999px;
 }
 
+.progress.small-progress {
+  margin: 0;
+  height: 6px;
+}
+
+.member {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 600;
+}
+
+.member img {
+  border-radius: 50%;
+}
+
 .modules {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

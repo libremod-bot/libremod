@@ -14,6 +14,7 @@ export function SidebarLinks({ guildId }: { guildId: string }) {
     { href: `${base}/logging`, label: "Logging", icon: "log" },
     { href: `${base}/welcome`, label: "Begrüßung", icon: "wave" },
     { href: `${base}/roles`, label: "Rollen", icon: "tag" },
+    { href: `${base}/levels`, label: "Level", icon: "steps" },
     { href: `${base}/cases`, label: "Fallakte", icon: "list" },
   ];
   return (

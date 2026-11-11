@@ -123,13 +123,13 @@ function evaluate(filter: AutomodFilter, message: Message<true>, rule: AutomodRu
   }
 }
 
-/** Prüft eine neue oder bearbeitete Nachricht. */
-export async function handleMessage(message: Message | PartialMessage, db: Db, { edited = false } = {}) {
-  if (!message.inGuild() || message.author.bot || message.webhookId || !message.member) return;
+/** Prüft eine neue oder bearbeitete Nachricht. Liefert true, wenn die Nachricht entfernt wurde. */
+export async function handleMessage(message: Message | PartialMessage, db: Db, { edited = false } = {}): Promise<boolean> {
+  if (!message.inGuild() || message.author.bot || message.webhookId || !message.member) return false;
   const am = await load(db, message.guildId);
-  if (!am.enabled || am.rules.size === 0) return;
+  if (!am.enabled || am.rules.size === 0) return false;
   const channel = message.channel;
-  if (isExempt(message.member, channel.id, "parentId" in channel ? channel.parentId : null, am)) return;
+  if (isExempt(message.member, channel.id, "parentId" in channel ? channel.parentId : null, am)) return false;
 
   for (const filter of FILTER_ORDER) {
     if (edited && filter === "spam") continue; // Bearbeitungen zählen nicht als neue Nachrichten
@@ -142,8 +142,9 @@ export async function handleMessage(message: Message | PartialMessage, db: Db, {
     await message.delete().catch(() => {});
     if (rule.config.notice) void sendNotice(message, rule.config.notice);
     await punish(message, rule, `Auto-Mod (${FILTER_LABELS[filter]}): ${violation}`, db);
-    return;
+    return true;
   }
+  return false;
 }
 
 const NOTICE_LIFETIME_MS = 10_000;

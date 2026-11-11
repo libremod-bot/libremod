@@ -12,6 +12,7 @@ import {
   modCases,
   rolePanels,
   welcomeSettings,
+  levelSettings,
   sql,
   warnEscalations,
   type CaseType,
@@ -49,7 +50,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
 
   const { db } = database();
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const [[settings], rules, escalations, [weekStats], recent, channels, logs, [welcome], autoRoleRows, panels] = await Promise.all([
+  const [[settings], rules, escalations, [weekStats], recent, channels, logs, [welcome], autoRoleRows, panels, [levels]] = await Promise.all([
     db.select().from(guildSettings).where(eq(guildSettings.guildId, guildId)),
     db.select().from(automodRules).where(and(eq(automodRules.guildId, guildId), eq(automodRules.enabled, true))),
     db.select({ n: count() }).from(warnEscalations).where(eq(warnEscalations.guildId, guildId)),
@@ -66,6 +67,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
     db.select().from(welcomeSettings).where(eq(welcomeSettings.guildId, guildId)),
     db.select({ n: count() }).from(autoRoles).where(eq(autoRoles.guildId, guildId)),
     db.select({ n: count() }).from(rolePanels).where(eq(rolePanels.guildId, guildId)),
+    db.select({ enabled: levelSettings.enabled }).from(levelSettings).where(eq(levelSettings.guildId, guildId)),
   ]);
   const welcomeOn = !!(welcome?.welcomeEnabled || welcome?.goodbyeEnabled || welcome?.dmEnabled);
   const roleFeatures = (autoRoleRows[0]?.n ?? 0) + (panels[0]?.n ?? 0);
@@ -127,7 +129,13 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
       href: `${base}/roles`,
       status: roleFeatures ? <span className="badge on">Eingerichtet</span> : <span className="badge">Aus</span>,
     },
-    { icon: "steps", title: "Level-System", text: "XP für Text und Sprache mit Rollenbelohnungen, frei einstellbar.", status: <span className="badge">Bald</span> },
+    {
+      icon: "steps",
+      title: "Level",
+      text: "XP für Nachrichten und Sprachkanäle, Rollenbelohnungen und Rangliste.",
+      href: `${base}/levels`,
+      status: levels?.enabled ? <span className="badge on">Aktiv</span> : <span className="badge">Aus</span>,
+    },
   ];
 
   return (
