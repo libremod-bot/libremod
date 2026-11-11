@@ -32,6 +32,7 @@ import {
 import { moderate } from "./actions.js";
 import { getSettings } from "./cases.js";
 import { markAutomodDeleted } from "./logging.js";
+import { externalPhishingList } from "./phishlists.js";
 import { LinkSpreadTracker, postPhishingNotice, shortLinkTargets } from "./phishing.js";
 
 interface GuildAutomod {
@@ -167,7 +168,11 @@ async function phishingStep(message: Message<true>, rule: AutomodRule, db: Db, e
   const text = [message.content, ...message.embeds.map((e) => e.url ?? "")].join("\n");
   const links = extractLinks(text);
   if (!links.length) return false;
-  const opts = { blocked: rule.config.blockedDomains, allowed: rule.config.allowedDomains };
+  const opts = {
+    blocked: rule.config.blockedDomains,
+    allowed: rule.config.allowedDomains,
+    listed: rule.config.externalLists === false ? undefined : externalPhishingList(),
+  };
   let reason = checkPhishing(text, opts);
   if (!reason) {
     const targets = await shortLinkTargets(links);

@@ -135,6 +135,19 @@ pnpm --filter @libremod/dashboard dev   # Dashboard auf http://localhost:3000
 
 Vor einem Pull Request: `pnpm typecheck && pnpm build && pnpm test`.
 
+## Datenschutz
+
+Libremod hat keine Telemetrie und meldet nichts an die Entwickler oder an libremod.xyz. Der Bot verbindet sich nur mit Discord, mit Kurzlink-Diensten (um zu prüfen, wohin ein Kurzlink führt), mit den Feeds, die ein Server-Team selbst einträgt, und mit den Betrugslink-Listen unten. Bilder und Videos lädt er nie herunter.
+
+## Betrugslink-Listen
+
+Das Anti-Phishing nutzt zusätzlich zur eigenen Erkennung zwei freie Listen bekannter Betrugsdomains. Libremod lädt sie alle 6 Stunden herunter und prüft Links lokal, es wird nichts an die Listen gesendet. Abschaltbar pro Server im Dashboard oder für die ganze Instanz mit `PHISHING_LISTS=off`.
+
+- [discord-phishing-links](https://github.com/nikolaischunk/discord-phishing-links) von nikolaischunk, MIT-Lizenz, Copyright (c) 2021 nikolaischunk
+- [Discord-Phishing-URLs](https://github.com/Dogino/Discord-Phishing-URLs) von Dogino, Unlicense (gemeinfrei)
+
+Danke an beide für ihre Arbeit. Die Listen sind nicht Teil dieses Repositorys und werden nicht mit Libremod ausgeliefert.
+
 ## Lizenz
 
 [GNU Affero General Public License v3.0](LICENSE)

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { appealBlocker, checkPhishing, editDistance, impersonates, parseUserIds, phishingReason, skeleton } from "./safety.js";
+import { appealBlocker, checkPhishing, DomainList, parseDomainList, editDistance, impersonates, parseUserIds, phishingReason, skeleton } from "./safety.js";
 
 test("Phishing erkennt Nachahmungen", () => {
   const bad = [
@@ -91,4 +91,28 @@ test("Freigaben und Sperren", () => {
   assert.equal(checkPhishing("https://diskord.gg/abc", { allowed: ["diskord.gg"] }), null);
   assert.match(checkPhishing("https://x.bad.example", { blocked: ["bad.example"] })!, /gesperrte/);
   assert.match(checkPhishing("schau mal", {}, [{ host: "dlscord.com", path: "/" }])!, /Nachahmung/);
+});
+
+test("öffentliche Listen: Text, JSON und URLs werden zu reinen Domains", () => {
+  const txt = "# Kommentar\nBetrug-Nitro.ru\nhttps://www.fake-gift.xyz/login?x=1\n\ndiscord.com\npages.dev\nbit.ly\nsteamcommunity.com.ru\nkein domain\nusdсаsе.соm\n";
+  assert.deepEqual(parseDomainList(txt).sort(), ["betrug-nitro.ru", "fake-gift.xyz", "steamcommunity.com.ru"]);
+  assert.deepEqual(parseDomainList(JSON.stringify({ domains: ["a-scam.com", 5, "discord.gg"] })), ["a-scam.com"]);
+  assert.deepEqual(parseDomainList("[\"x-scam.net\"]"), ["x-scam.net"]);
+  assert.deepEqual(parseDomainList("{kaputt"), []);
+});
+
+test("öffentliche Listen: Abgleich mit Subdomains, offizielle Seiten nie", () => {
+  const list = new DomainList(["betrug.ru", "evil.pages.dev"]);
+  assert.equal(list.has("betrug.ru"), true);
+  assert.equal(list.has("login.betrug.ru"), true);
+  assert.equal(list.has("www.betrug.ru"), true);
+  assert.equal(list.has("nichtbetrug.ru"), false);
+  assert.equal(list.has("ok.pages.dev"), false);
+  assert.equal(list.has("ru"), false);
+  assert.equal(new DomainList(["discord.com"]).has("discord.com"), false);
+  const opts = { listed: list };
+  assert.match(checkPhishing("schau mal https://login.betrug.ru/abc", opts) ?? "", /bekannte Betrugsdomain login\.betrug\.ru/);
+  assert.equal(checkPhishing("schau mal https://login.betrug.ru/abc", { ...opts, allowed: ["betrug.ru"] }), null);
+  assert.equal(checkPhishing("https://discord.com/channels/1", opts), null);
+  assert.equal(checkPhishing("https://login.betrug.ru"), null);
 });

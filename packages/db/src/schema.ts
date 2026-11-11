@@ -103,6 +103,8 @@ export interface AutomodConfig {
   allowedDomains?: string[];
   /** phishing: zusätzlich gesperrte Domains inkl. Subdomains */
   blockedDomains?: string[];
+  /** phishing: öffentliche Betrugslink-Listen mitnutzen (fehlt = an) */
+  externalLists?: boolean;
   /** Hinweis, den die Person nach dem Löschen kurz im Kanal sieht. Platzhalter wie {user}. */
   notice?: string;
 }

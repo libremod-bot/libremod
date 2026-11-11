@@ -138,6 +138,14 @@ export default async function AutomodPage({
                   )}
                   {f === "phishing" && (
                     <div className="field">
+                      <label className="check-inline" style={{ padding: 0, marginBottom: ".75rem" }}>
+                        <input type="checkbox" name="phishing.externalLists" defaultChecked={rule?.config.externalLists ?? true} />
+                        Öffentliche Betrugslink-Listen nutzen
+                      </label>
+                      <div className="hint" style={{ marginTop: "-.5rem", marginBottom: ".75rem" }}>
+                        Zehntausende bekannte Betrugsdomains aus zwei freien Listen auf GitHub. Libremod lädt die Listen nur herunter und prüft
+                        Links bei sich. Es wird nichts an die Listen gesendet, weder Nachrichten noch Nutzer noch dein Server.
+                      </div>
                       <label htmlFor="phishing.blockedDomains">Zusätzlich gesperrte Domains</label>
                       <textarea
                         id="phishing.blockedDomains"

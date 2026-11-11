@@ -8,6 +8,11 @@ const schema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL fehlt"),
   /** Für Links ins Dashboard, z. B. zum Einspruch gegen einen Ban. */
   DASHBOARD_URL: z.string().url().optional().or(z.literal("").transform(() => undefined)),
+  /** Öffentliche Betrugslink-Listen herunterladen (Standard: an). „off“ schaltet sie für alle Server ab. */
+  PHISHING_LISTS: z
+    .string()
+    .optional()
+    .transform((v) => !["off", "false", "0", "aus", "no"].includes((v ?? "").trim().toLowerCase())),
   LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error"]).default("info"),
 });
 

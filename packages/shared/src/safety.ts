@@ -169,6 +169,8 @@ export interface PhishingOptions {
   blocked?: string[];
   /** Vom Team freigegebene Domains, z. B. nach einem Fehlalarm. */
   allowed?: string[];
+  /** Domains aus öffentlichen Betrugslink-Listen (lokal abgeglichen). */
+  listed?: Pick<DomainList, "has">;
 }
 
 const clean = (list: string[] = []) => list.map((d) => d.toLowerCase().replace(/^\*?\./, ""));
@@ -186,6 +188,7 @@ export function phishingReason(host: string, path = "", opts: PhishingOptions | 
   if (isOfficial(host)) return null;
 
   const shown = unicodeHost(host);
+  if (o.listed?.has(host)) return `bekannte Betrugsdomain ${shown}`;
   // Beide Schreibweisen prüfen: kaputtes Punycode soll den Rohtext nicht verstecken.
   return lookalikeReason(host, path, shown) ?? (shown !== host ? lookalikeReason(shown, path, shown) : null);
 }
@@ -323,4 +326,78 @@ export function appealBlocker(
     return `Dein letzter Einspruch wurde abgelehnt. Einen neuen kannst du ab ${until.toLocaleDateString("de-DE", { timeZone: "Europe/Berlin" })} stellen.`;
   }
   return null;
+}
+
+// --- Öffentliche Betrugslink-Listen ---
+
+/**
+ * Freie Hosting-Plattformen: Ein Eintrag wie „pages.dev“ würde sonst jede Seite dort sperren.
+ * Einzelne Unterseiten (betrug.pages.dev) bleiben sperrbar.
+ */
+const SHARED_HOSTS = [
+  "pages.dev", "workers.dev", "github.io", "gitlab.io", "vercel.app", "netlify.app", "web.app", "firebaseapp.com", "glitch.me",
+  "herokuapp.com", "repl.co", "replit.app", "blogspot.com", "wixsite.com", "weebly.com", "000webhostapp.com", "gitbook.io",
+  "ngrok.io", "ngrok-free.app", "onrender.com", "fly.dev", "azurewebsites.net", "appspot.com", "translate.goog", "sites.google.com",
+  "ddns.net", "myftp.org", "duckdns.org", "no-ip.org", "sytes.net", "servehttp.com", "work.gd", "free.nf", "rf.gd",
+];
+
+const LIST_DOMAIN_RE = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,24}|xn--[a-z0-9-]{2,30})$/;
+export const MAX_LIST_ENTRIES = 200_000;
+
+/** Eintrag einer Liste auf die reine Domain bringen, z. B. „https://Betrug.ru/login?x“ → „betrug.ru“. */
+function listEntryDomain(raw: string): string | null {
+  let d = raw.trim().toLowerCase();
+  if (!d || d.startsWith("#") || d.startsWith("//")) return null;
+  d = d.replace(/^[a-z][a-z0-9+.-]*:\/\//, "").replace(/^[^@/]*@/, "");
+  d = d.split(/[/?#:\s]/)[0]!.replace(/^\*?\./, "").replace(/\.$/, "");
+  if (d.startsWith("www.")) d = d.slice(4);
+  if (d.length > 253 || !LIST_DOMAIN_RE.test(d)) return null;
+  if (d.split(".").length < 2) return null;
+  // Nie offizielle Seiten, Kurzlink-Dienste oder ganze Hosting-Plattformen sperren.
+  if (isOfficial(d) || SHORTENERS.includes(d) || SHARED_HOSTS.includes(d)) return null;
+  return d;
+}
+
+/** Liest eine Liste als Text (eine Domain oder URL pro Zeile) oder als JSON ({ domains: [...] } bzw. [...]). */
+export function parseDomainList(text: string): string[] {
+  let entries: unknown[] | null = null;
+  const t = text.trimStart();
+  if (t.startsWith("{") || t.startsWith("[")) {
+    try {
+      const json = JSON.parse(t) as unknown;
+      entries = Array.isArray(json) ? json : Array.isArray((json as { domains?: unknown })?.domains) ? (json as { domains: unknown[] }).domains : [];
+    } catch {
+      entries = [];
+    }
+  }
+  const out = new Set<string>();
+  for (const e of entries ?? text.split(/\r?\n/)) {
+    if (typeof e !== "string") continue;
+    const d = listEntryDomain(e);
+    if (d) out.add(d);
+    if (out.size >= MAX_LIST_ENTRIES) break;
+  }
+  return [...out];
+}
+
+/** Domain-Menge mit Abgleich inklusive Subdomains: „login.betrug.ru“ trifft den Eintrag „betrug.ru“. */
+export class DomainList {
+  private readonly set: Set<string>;
+  constructor(domains: Iterable<string> = []) {
+    this.set = new Set(domains);
+  }
+  get size() {
+    return this.set.size;
+  }
+  has(host: string): boolean {
+    let h = host.toLowerCase().replace(/\.$/, "");
+    if (h.startsWith("www.")) h = h.slice(4);
+    if (isOfficial(h)) return false;
+    for (;;) {
+      if (this.set.has(h)) return true;
+      const dot = h.indexOf(".");
+      if (dot < 0 || h.indexOf(".", dot + 1) < 0) return false; // nie nur gegen eine Endung wie „ru“ prüfen
+      h = h.slice(dot + 1);
+    }
+  }
 }
