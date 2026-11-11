@@ -1,4 +1,4 @@
-import { Client, Events, GatewayIntentBits } from "discord.js";
+import { Client, Events, GatewayIntentBits, Partials } from "discord.js";
 import { createDb } from "@libremod/db";
 import { runMigrations } from "@libremod/db/migrate";
 import { config } from "./config.js";
@@ -7,12 +7,16 @@ import { onInteractionCreate } from "./events/interactionCreate.js";
 import { onGuildCreate } from "./events/guildCreate.js";
 import { startTempBanScheduler } from "./services/tempbans.js";
 import { handleMemberJoin, handleMessage, invalidateAutomod } from "./services/automod.js";
+import * as log from "./services/logging.js";
 
 await runMigrations(config.DATABASE_URL);
 logger.info("Datenbank ist auf dem neuesten Stand");
 
 const { db, close, onSettingsChanged } = createDb(config.DATABASE_URL);
-await onSettingsChanged(invalidateAutomod);
+await onSettingsChanged((guildId) => {
+  invalidateAutomod(guildId);
+  log.invalidateLogging(guildId);
+});
 const ctx = { db };
 let tempBanTimer: NodeJS.Timeout | undefined;
 
@@ -24,7 +28,10 @@ const client = new Client({
     // Privilegiert: im Developer Portal unter „Bot“ einschalten.
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildVoiceStates,
   ],
+  // Damit auch Ereignisse zu nicht zwischengespeicherten Nachrichten und Mitgliedern ankommen (Logging).
+  partials: [Partials.Message, Partials.GuildMember, Partials.User],
 });
 
 client.once(Events.ClientReady, (c) => {
@@ -35,11 +42,34 @@ client.on(Events.InteractionCreate, (i) => void onInteractionCreate(i, ctx));
 const logError = (what: string) => (err: unknown) => logger.error({ err }, `${what} fehlgeschlagen`);
 client.on(Events.MessageCreate, (m) => void handleMessage(m, db).catch(logError("Auto-Mod")));
 client.on(Events.MessageUpdate, (oldMessage, newMessage) => {
+  void log.onMessageUpdate(oldMessage, newMessage, db).catch(logError("Logging"));
   // Nur echte Textänderungen prüfen, nicht z. B. nachgeladene Link-Vorschauen.
-  if (oldMessage.content === newMessage.content) return;
+  if (newMessage.partial || (!oldMessage.partial && oldMessage.content === newMessage.content)) return;
   void handleMessage(newMessage, db, { edited: true }).catch(logError("Auto-Mod"));
 });
-client.on(Events.GuildMemberAdd, (m) => void handleMemberJoin(m, db).catch(logError("Raid-Schutz")));
+client.on(Events.GuildMemberAdd, (m) => {
+  void handleMemberJoin(m, db).catch(logError("Raid-Schutz"));
+  void log.onMemberJoin(m, db).catch(logError("Logging"));
+});
+
+// Logging
+const logged =
+  <A extends unknown[]>(fn: (...args: [...A, typeof db]) => Promise<void>) =>
+  (...args: A) =>
+    void fn(...args, db).catch(logError("Logging"));
+client.on(Events.MessageDelete, logged(log.onMessageDelete));
+client.on(Events.MessageBulkDelete, logged(log.onMessageBulkDelete));
+client.on(Events.GuildMemberRemove, logged(log.onMemberLeave));
+client.on(Events.GuildMemberUpdate, logged(log.onMemberUpdate));
+client.on(Events.UserUpdate, (before, after) => void log.onUserUpdate(before, after, client, db).catch(logError("Logging")));
+client.on(Events.ChannelCreate, logged(log.onChannelCreate));
+client.on(Events.ChannelDelete, logged(log.onChannelDelete));
+client.on(Events.ChannelUpdate, logged(log.onChannelUpdate));
+client.on(Events.GuildRoleCreate, logged(log.onRoleCreate));
+client.on(Events.GuildRoleDelete, logged(log.onRoleDelete));
+client.on(Events.GuildRoleUpdate, logged(log.onRoleUpdate));
+client.on(Events.GuildUpdate, logged(log.onGuildUpdate));
+client.on(Events.VoiceStateUpdate, logged(log.onVoiceStateUpdate));
 client.on(Events.GuildCreate, (g) =>
   void onGuildCreate(g, ctx).catch((err) => logger.error({ err }, "guildCreate fehlgeschlagen")),
 );

@@ -524,7 +524,7 @@ label {
 /* ---------- Übersicht ---------- */
 .stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
 }
 
@@ -697,6 +697,49 @@ label {
 .badge.info {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+/* ---------- Logging ---------- */
+.log-events {
+  list-style: none;
+  margin: 0.9rem 0 1rem;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.log-events li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.log-events li::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translateY(-1px);
+}
+
+.filter-head h3 {
+  margin: 0;
+  line-height: 38px;
+}
+
+.inline-form {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.inline-form select {
+  flex: 1 1 240px;
+  width: auto;
 }
 
 /* ---------- Auto-Mod Filter ---------- */

@@ -18,6 +18,11 @@ const PATHS = {
   mail: "M3 6h18v12H3z M3 7l9 6 9-6",
   steps: "M4 20h4v-4h4v-4h4V8h4",
   plus: "M12 5v14M5 12h14",
+  message: "M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z M8 10.5h8M8 14h5",
+  door: "M14 3H6v18h8 M10 12h11M18 9l3 3-3 3",
+  usercog: "M14 21v-1.5a4.5 4.5 0 0 0-4.5-4.5H6a4 4 0 0 0-4 4V21 M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M19 14v1.5M19 20.5V22M15.5 18H17M21 18h1.5M19 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4z",
+  server: "M4 4h16v6H4z M4 14h16v6H4z M8 7h.01M8 17h.01",
+  mic: "M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z M5 11a7 7 0 0 0 14 0M12 18v3",
 } as const;
 
 export type IconName = keyof typeof PATHS;

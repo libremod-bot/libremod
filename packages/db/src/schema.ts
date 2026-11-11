@@ -131,3 +131,36 @@ export const automodExemptions = pgTable(
   },
   (t) => [primaryKey({ columns: [t.guildId, t.kind, t.targetId] })],
 );
+
+export type AutomodExemption = typeof automodExemptions.$inferSelect;
+
+/**
+ * Log-Arten. Jede Art kann in einen eigenen Kanal gehen.
+ * messages: gelöschte/bearbeitete Nachrichten, members: Beitritte/Austritte,
+ * member_updates: Namen, Spitznamen, Rollen, server: Kanäle und Rollen, voice: Sprachkanäle.
+ */
+export const logCategory = pgEnum("log_category", ["messages", "members", "member_updates", "server", "voice"]);
+export type LogCategory = (typeof logCategory.enumValues)[number];
+
+/** Eine Zeile pro aktiver Log-Art. Keine Zeile = diese Art wird nicht geloggt. */
+export const logChannels = pgTable(
+  "log_channels",
+  {
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    category: logCategory("category").notNull(),
+    channelId: varchar("channel_id", { length: 32 }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.category] })],
+);
+
+export type LogChannel = typeof logChannels.$inferSelect;
+
+/** Kanäle oder Kategorien, deren Nachrichten nicht im Nachrichten-Log landen. */
+export const logIgnoredChannels = pgTable(
+  "log_ignored_channels",
+  {
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    channelId: varchar("channel_id", { length: 32 }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.channelId] })],
+);

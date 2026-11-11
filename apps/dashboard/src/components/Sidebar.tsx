@@ -11,6 +11,7 @@ export function SidebarLinks({ guildId }: { guildId: string }) {
     { href: base, label: "Übersicht", icon: "home" },
     { href: `${base}/moderation`, label: "Moderation", icon: "gavel" },
     { href: `${base}/automod`, label: "Auto-Mod", icon: "shield" },
+    { href: `${base}/logging`, label: "Logging", icon: "log" },
     { href: `${base}/cases`, label: "Fallakte", icon: "list" },
   ];
   return (

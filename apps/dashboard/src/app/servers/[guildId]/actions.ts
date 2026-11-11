@@ -8,15 +8,20 @@ import {
   automodRules,
   eq,
   guildSettings,
+  logCategory,
+  logChannels,
+  logIgnoredChannels,
   modCases,
   warnEscalations,
   type AutomodAction,
   type AutomodFilter,
   type EscalationAction,
+  type LogCategory,
 } from "@libremod/db";
 import { MAX_TIMEOUT_SECONDS, parseDuration } from "@libremod/shared";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
+import { CHANNEL_ANNOUNCEMENT, CHANNEL_TEXT, getGuildChannels } from "@/lib/discord";
 
 const SNOWFLAKE = /^\d{17,20}$/;
 const AUTOMOD_ACTIONS: AutomodAction[] = ["delete", "warn", "timeout", "kick", "ban"];
@@ -177,6 +182,63 @@ export async function saveAutomod(guildId: string, form: FormData) {
     if (exemptions.length) await tx.insert(automodExemptions).values(exemptions).onConflictDoNothing();
   });
 
+  await notifySettingsChanged(guildId);
+  back(path);
+}
+
+// --- Logging ---
+
+async function textChannelIds(guildId: string) {
+  const channels = await getGuildChannels(guildId);
+  return {
+    all: new Set(channels.map((c) => c.id)),
+    text: new Set(channels.filter((c) => c.type === CHANNEL_TEXT || c.type === CHANNEL_ANNOUNCEMENT).map((c) => c.id)),
+  };
+}
+
+export async function saveLogging(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/logging`;
+  const { db, notifySettingsChanged } = database();
+  const known = await textChannelIds(guildId);
+  const current = new Map(
+    (await db.select().from(logChannels).where(eq(logChannels.guildId, guildId))).map((r) => [r.category, r.channelId]),
+  );
+
+  const chosen: { category: LogCategory; channelId: string }[] = [];
+  for (const category of logCategory.enumValues as readonly LogCategory[]) {
+    const channelId = text(form, `${category}.channel`);
+    if (!channelId) continue;
+    // Ein inzwischen gelöschter Kanal darf stehen bleiben, neue Kanäle müssen Textkanäle dieses Servers sein.
+    if (!known.text.has(channelId) && current.get(category) !== channelId) back(path, "Bitte nur Textkanäle dieses Servers wählen.");
+    chosen.push({ category, channelId });
+  }
+  const ignored = [
+    ...new Set(form.getAll("ignoredChannels").filter((v): v is string => typeof v === "string" && known.all.has(v))),
+  ];
+
+  await db.transaction(async (tx) => {
+    await tx.delete(logChannels).where(eq(logChannels.guildId, guildId));
+    if (chosen.length) await tx.insert(logChannels).values(chosen.map((c) => ({ guildId, ...c })));
+    await tx.delete(logIgnoredChannels).where(eq(logIgnoredChannels.guildId, guildId));
+    if (ignored.length) await tx.insert(logIgnoredChannels).values(ignored.map((channelId) => ({ guildId, channelId })));
+  });
+  await notifySettingsChanged(guildId);
+  back(path);
+}
+
+export async function quickLogging(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/logging`;
+  const channelId = text(form, "channelId");
+  const known = await textChannelIds(guildId);
+  if (!known.text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+
+  const { db, notifySettingsChanged } = database();
+  await db
+    .insert(logChannels)
+    .values((logCategory.enumValues as readonly LogCategory[]).map((category) => ({ guildId, category, channelId })))
+    .onConflictDoUpdate({ target: [logChannels.guildId, logChannels.category], set: { channelId } });
   await notifySettingsChanged(guildId);
   back(path);
 }

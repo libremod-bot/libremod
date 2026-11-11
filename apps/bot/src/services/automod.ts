@@ -28,6 +28,7 @@ import {
 } from "@libremod/shared";
 import { moderate } from "./actions.js";
 import { getSettings } from "./cases.js";
+import { markAutomodDeleted } from "./logging.js";
 
 interface GuildAutomod {
   enabled: boolean;
@@ -136,6 +137,7 @@ export async function handleMessage(message: Message | PartialMessage, db: Db, {
     const violation = evaluate(filter, message, rule, am);
     if (!violation) continue;
 
+    markAutomodDeleted(message.id);
     await message.delete().catch(() => {});
     await punish(message, rule, `Auto-Mod (${FILTER_LABELS[filter]}): ${violation}`, db);
     return;

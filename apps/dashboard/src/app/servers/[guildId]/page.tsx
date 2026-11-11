@@ -7,6 +7,7 @@ import {
   eq,
   gt,
   guildSettings,
+  logChannels,
   modCases,
   sql,
   warnEscalations,
@@ -45,7 +46,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
 
   const { db } = database();
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const [[settings], rules, escalations, [weekStats], recent, channels] = await Promise.all([
+  const [[settings], rules, escalations, [weekStats], recent, channels, logs] = await Promise.all([
     db.select().from(guildSettings).where(eq(guildSettings.guildId, guildId)),
     db.select().from(automodRules).where(and(eq(automodRules.guildId, guildId), eq(automodRules.enabled, true))),
     db.select({ n: count() }).from(warnEscalations).where(eq(warnEscalations.guildId, guildId)),
@@ -58,6 +59,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
       .where(and(eq(modCases.guildId, guildId), gt(modCases.createdAt, weekAgo))),
     db.select().from(modCases).where(eq(modCases.guildId, guildId)).orderBy(desc(modCases.caseNumber)).limit(5),
     getGuildChannels(guildId),
+    db.select().from(logChannels).where(eq(logChannels.guildId, guildId)),
   ]);
 
   const modLogName = channels.find((c) => c.id === settings?.modLogChannelId)?.name;
@@ -70,6 +72,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
     { done: rules.length > 0, text: "Mindestens einen Filter aktivieren", href: `${base}/automod` },
     { done: hasEscalations, text: "Verwarnungsstufen festlegen", href: `${base}/moderation` },
     { done: settings?.raidEnabled ?? false, text: "Raid-Schutz aktivieren", href: `${base}/automod#raid` },
+    { done: logs.length > 0, text: "Logging einrichten", href: `${base}/logging` },
   ];
   const doneCount = steps.filter((s) => s.done).length;
 
@@ -95,7 +98,13 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
       href: `${base}/cases`,
       status: <span className="badge info">{weekStats?.total ?? 0} diese Woche</span>,
     },
-    { icon: "log", title: "Logging", text: "Gelöschte und bearbeitete Nachrichten, Beitritte, Rollenänderungen.", status: <span className="badge">Bald</span> },
+    {
+      icon: "log",
+      title: "Logging",
+      text: "Gelöschte und bearbeitete Nachrichten, Beitritte, Rollen, Kanäle und Sprachkanäle.",
+      href: `${base}/logging`,
+      status: logs.length ? <span className="badge on">{logs.length} von 5 Log-Arten aktiv</span> : <span className="badge">Aus</span>,
+    },
     { icon: "users", title: "Begrüßung & Rollen", text: "Willkommensnachrichten, Auto-Rollen und Rollen per Button.", status: <span className="badge">Bald</span> },
     { icon: "steps", title: "Level-System", text: "XP für Text und Sprache mit Rollenbelohnungen, frei einstellbar.", status: <span className="badge">Bald</span> },
   ];
@@ -114,6 +123,10 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
         <div className="card stat">
           <div className="stat-label">Aktive Filter</div>
           <div className="stat-value">{automodOn ? rules.length : 0} / 6</div>
+        </div>
+        <div className="card stat">
+          <div className="stat-label">Logging</div>
+          <div className="stat-value">{logs.length} / 5</div>
         </div>
         <div className="card stat">
           <div className="stat-label">Fälle (7 Tage)</div>
