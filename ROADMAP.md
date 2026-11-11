@@ -56,10 +56,61 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 
 - Ticket-System mit Ticket-Arten, Formularfragen, Panels (Buttons oder Menü), eigenem Kanal oder privatem Thread, Team-Rollen, Übernahme, Transkripten im Dashboard, Bewertungen und automatischem Schließen
 
+## 0.8 Server-Währung
+
+- Eigene Währung pro Server mit frei wählbarem Namen und Symbol
+- Täglicher Bonus, Arbeiten, Überweisen und Rangliste
+- Shop mit Rollen und eigenen Artikeln, verwaltet im Dashboard
+
 ## Später
 
-- Server-Währung mit Shop
+### Moderation und Sicherheit
+
+- Notizen zu Mitgliedern, die nur das Team sieht
+- Mod-Statistik: wer im Team wie viele Fälle bearbeitet hat
+- Massenaktionen: mehrere Mitglieder auf einmal bannen oder stummschalten
+- Verifizierung neuer Mitglieder per Button, optional mit Captcha im Dashboard
+- Schutz vor Konten mit verdächtigen Namen (z. B. Nachahmung von Teammitgliedern)
+- Sperre („Lockdown“) für einzelne oder alle Kanäle mit einem Befehl
+- Anti-Phishing: bekannte Betrugslinks automatisch entfernen
+- Einspruch gegen Bans über ein Formular im Dashboard
+
+### Community
+
+- Umfragen mit Buttons, Laufzeit und Ergebnis-Diagramm
+- Gewinnspiele mit Teilnahme per Button, Bedingungen (Rolle, Level) und Auslosung
+- Erinnerungen: `/remind` für Mitglieder
+- Geburtstage mit Gratulation und Geburtstagsrolle für einen Tag
+- Vorschläge-Kanal mit Abstimmung und Status (angenommen, abgelehnt)
+- Event-Planer mit Zu- und Absagen und Erinnerung vor Beginn
+- Zitate speichern und zufällig wieder hervorholen
+- Rollen mit Ablaufdatum, z. B. 30 Tage VIP
+- Zähl-Spiel und Wortketten-Kanal
+- Begrüßungsbild mit Avatar (aus 0.4, noch offen)
+- Sprachkanal-Rolle (aus 0.4, noch offen)
+
+### Level und Währung
+
+- Level-Karten als Bild für `/rank`
+- Doppelte XP an Wochenenden oder für bestimmte Rollen
+- Saisons: Rangliste regelmäßig zurücksetzen, Ergebnisse archivieren
+- Belohnungen in Währung für Level-Aufstiege
+
+### Dashboard und Bedienung
+
+- Änderungsprotokoll im Dashboard: wer hat wann welche Einstellung geändert
+- Team-Zugänge: Moderatoren bekommen nur Zugriff auf bestimmte Seiten
+- Einstellungen exportieren und auf einem anderen Server importieren
+- Server-Statistik: Mitgliederentwicklung, aktivste Kanäle und Uhrzeiten
+- Mehrsprachigkeit: Bot und Dashboard auch auf Englisch
+- Embed-Editor mit Live-Vorschau für alle Nachrichten
 - Eigener Name und Avatar des Bots pro Server, soweit Discord das erlaubt (beim Selbsthosten ohnehin frei wählbar)
+
+### Betrieb und Selbsthosten
+
+- Fertiges Docker-Image auf GitHub, Update mit einem Befehl
+- Automatische Datenbank-Sicherungen mit Aufbewahrungsdauer
+- Statusseite und Gesundheitsprüfung für Selbsthoster
 
 ## Dashboard
 
