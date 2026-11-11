@@ -25,6 +25,9 @@ import {
   ticketPanels,
   economySettings,
   shopItems,
+  giveaways,
+  birthdays,
+  birthdaySettings,
   sql,
   warnEscalations,
   type CaseType,
@@ -62,7 +65,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
 
   const { db } = database();
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const [[settings], rules, escalations, [weekStats], recent, channels, logs, [welcome], autoRoleRows, panels, [levels], [cmdCount], [schedCount], [counterCount], [hubCount], [feedCount], [hl], [purgeCount], [slowCount], [openTickets], [panelCount], [eco], [itemCount]] = await Promise.all([
+  const [[settings], rules, escalations, [weekStats], recent, channels, logs, [welcome], autoRoleRows, panels, [levels], [cmdCount], [schedCount], [counterCount], [hubCount], [feedCount], [hl], [purgeCount], [slowCount], [openTickets], [panelCount], [eco], [itemCount], [gwCount], [bday], [bdayCount]] = await Promise.all([
     db.select().from(guildSettings).where(eq(guildSettings.guildId, guildId)),
     db.select().from(automodRules).where(and(eq(automodRules.guildId, guildId), eq(automodRules.enabled, true))),
     db.select({ n: count() }).from(warnEscalations).where(eq(warnEscalations.guildId, guildId)),
@@ -92,6 +95,9 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
     db.select({ n: count() }).from(ticketPanels).where(eq(ticketPanels.guildId, guildId)),
     db.select({ enabled: economySettings.enabled }).from(economySettings).where(eq(economySettings.guildId, guildId)),
     db.select({ n: count() }).from(shopItems).where(eq(shopItems.guildId, guildId)),
+    db.select({ n: count() }).from(giveaways).where(and(eq(giveaways.guildId, guildId), eq(giveaways.ended, false))),
+    db.select({ enabled: birthdaySettings.enabled }).from(birthdaySettings).where(eq(birthdaySettings.guildId, guildId)),
+    db.select({ n: count() }).from(birthdays).where(eq(birthdays.guildId, guildId)),
   ]);
   const countBadge = (n: number | undefined, one: string, many: string) =>
     n ? <span className="badge on">{n === 1 ? one : `${n} ${many}`}</span> : <span className="badge">Keine</span>;
@@ -208,6 +214,24 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
       href: `${base}/economy`,
       status: eco?.enabled ? (
         <span className="badge on">{itemCount?.n ? `Aktiv · ${itemCount.n} im Shop` : "Aktiv"}</span>
+      ) : (
+        <span className="badge">Aus</span>
+      ),
+    },
+    {
+      icon: "gift",
+      title: "Gewinnspiele",
+      text: "Preise verlosen mit Mitmach-Knopf, Bedingungen wie Rolle oder Level und fairer Auslosung.",
+      href: `${base}/giveaways`,
+      status: countBadge(gwCount?.n, "1 läuft", "laufen"),
+    },
+    {
+      icon: "cake",
+      title: "Geburtstage",
+      text: "Mitglieder tragen ihren Geburtstag ein, Libremod gratuliert und vergibt für einen Tag eine Rolle.",
+      href: `${base}/birthdays`,
+      status: bday?.enabled ? (
+        <span className="badge on">{bdayCount?.n ? `Aktiv · ${bdayCount.n} eingetragen` : "Aktiv"}</span>
       ) : (
         <span className="badge">Aus</span>
       ),

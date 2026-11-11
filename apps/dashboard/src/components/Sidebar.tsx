@@ -28,6 +28,8 @@ export function SidebarLinks({ guildId }: { guildId: string }) {
         { href: `${base}/roles`, label: "Rollen", icon: "tag" },
         { href: `${base}/levels`, label: "Level", icon: "steps" },
         { href: `${base}/economy`, label: "Währung & Shop", icon: "coin" },
+        { href: `${base}/giveaways`, label: "Gewinnspiele", icon: "gift" },
+        { href: `${base}/birthdays`, label: "Geburtstage", icon: "cake" },
         { href: `${base}/commands`, label: "Eigene Befehle", icon: "slash" },
         { href: `${base}/schedule`, label: "Geplante Nachrichten", icon: "clock" },
         { href: `${base}/channels`, label: "Sprachkanäle & Zähler", icon: "mic" },

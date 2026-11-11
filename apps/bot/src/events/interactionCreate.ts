@@ -5,6 +5,7 @@ import { logger } from "../logger.js";
 import { handlePanelInteraction, isPanelInteraction } from "../services/rolepanels.js";
 import { handleCustomCommand } from "../services/customcommands.js";
 import { handleTicketInteraction, isTicketInteraction } from "../services/tickets.js";
+import { handleGiveawayButton, isGiveawayInteraction } from "../services/fun.js";
 
 export async function onInteractionCreate(interaction: Interaction, ctx: CommandContext) {
   if ((interaction.isButton() || interaction.isStringSelectMenu()) && isPanelInteraction(interaction.customId)) {
@@ -20,6 +21,13 @@ export async function onInteractionCreate(interaction: Interaction, ctx: Command
       const content = "Da ist leider etwas schiefgelaufen.";
       if (interaction.deferred || interaction.replied) await interaction.editReply({ content, components: [] }).catch(() => {});
       else await interaction.reply({ content, flags: MessageFlags.Ephemeral }).catch(() => {});
+    });
+    return;
+  }
+  if (interaction.isButton() && isGiveawayInteraction(interaction.customId)) {
+    await handleGiveawayButton(interaction, ctx.db).catch(async (err) => {
+      logger.error({ err }, "Gewinnspiel-Knopf fehlgeschlagen");
+      if (!interaction.replied) await interaction.reply({ content: "Da ist leider etwas schiefgelaufen.", flags: MessageFlags.Ephemeral }).catch(() => {});
     });
     return;
   }

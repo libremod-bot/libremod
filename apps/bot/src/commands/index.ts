@@ -13,9 +13,10 @@ import { ban, unban } from "./moderation/ban.js";
 import { purge } from "./moderation/purge.js";
 import { cases, caseCommand } from "./moderation/cases.js";
 import { ticket } from "./tickets.js";
+import { birthday, giveaway, poll, remind } from "./fun.js";
 import { balance, buy, coins, daily, inventory, payCommand, richlist, shop, work } from "./economy.js";
 
 /** Neue Befehle hier eintragen. */
-const all: Command[] = [ping, config, automod, logging, welcome, rank, leaderboard, xp, warn, timeout, untimeout, kick, ban, unban, purge, cases, caseCommand, ticket, balance, daily, work, payCommand, shop, buy, inventory, richlist, coins];
+const all: Command[] = [ping, config, automod, logging, welcome, rank, leaderboard, xp, warn, timeout, untimeout, kick, ban, unban, purge, cases, caseCommand, ticket, balance, daily, work, payCommand, shop, buy, inventory, richlist, coins, giveaway, poll, remind, birthday];
 
 export const commands = new Collection<string, Command>(all.map((c) => [c.data.name, c]));

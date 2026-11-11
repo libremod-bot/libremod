@@ -665,3 +665,92 @@ export const economyLog = pgTable(
   },
   (t) => [index("economy_log_guild").on(t.guildId, t.createdAt)],
 );
+
+// --- Gewinnspiele ---
+
+export const giveaways = pgTable(
+  "giveaways",
+  {
+    id: serial("id").primaryKey(),
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    channelId: varchar("channel_id", { length: 32 }).notNull(),
+    messageId: varchar("message_id", { length: 32 }),
+    prize: varchar("prize", { length: 200 }).notNull(),
+    description: varchar("description", { length: 1000 }).notNull().default(""),
+    winners: integer("winners").notNull().default(1),
+    hostId: varchar("host_id", { length: 32 }).notNull(),
+    /** Nur Mitglieder mit dieser Rolle dürfen teilnehmen. */
+    requiredRoleId: varchar("required_role_id", { length: 32 }),
+    /** Mindest-Level aus dem Level-System. */
+    minLevel: integer("min_level").notNull().default(0),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    ended: boolean("ended").notNull().default(false),
+    winnerIds: jsonb("winner_ids").$type<string[]>().notNull().default([]),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("giveaways_due").on(t.ended, t.endsAt), index("giveaways_guild").on(t.guildId)],
+);
+
+export type Giveaway = typeof giveaways.$inferSelect;
+
+export const giveawayEntries = pgTable(
+  "giveaway_entries",
+  {
+    giveawayId: integer("giveaway_id").notNull(),
+    userId: varchar("user_id", { length: 32 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.giveawayId, t.userId] })],
+);
+
+// --- Erinnerungen ---
+
+export const reminders = pgTable(
+  "reminders",
+  {
+    id: serial("id").primaryKey(),
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    channelId: varchar("channel_id", { length: 32 }).notNull(),
+    userId: varchar("user_id", { length: 32 }).notNull(),
+    text: varchar("text", { length: 1000 }).notNull(),
+    /** true = per Direktnachricht statt im Kanal. */
+    dm: boolean("dm").notNull().default(false),
+    dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("reminders_due").on(t.dueAt), index("reminders_user").on(t.guildId, t.userId)],
+);
+
+// --- Geburtstage ---
+
+export const birthdaySettings = pgTable("birthday_settings", {
+  guildId: varchar("guild_id", { length: 32 }).primaryKey(),
+  enabled: boolean("enabled").notNull().default(false),
+  channelId: varchar("channel_id", { length: 32 }),
+  /** Rolle für den Geburtstag, wird am nächsten Tag wieder entfernt. */
+  roleId: varchar("role_id", { length: 32 }),
+  message: text("message").notNull().default("🎉 Alles Gute zum Geburtstag, {user}!"),
+  /** Uhrzeit (Europe/Berlin), zu der gratuliert wird. */
+  hour: integer("hour").notNull().default(9),
+  /** Datum (YYYY-MM-DD), an dem zuletzt gratuliert wurde. */
+  lastRunDate: varchar("last_run_date", { length: 10 }),
+  /** Mitglieder, die gerade die Geburtstagsrolle haben. */
+  roleHolders: jsonb("role_holders").$type<string[]>().notNull().default([]),
+});
+
+export type BirthdaySettings = typeof birthdaySettings.$inferSelect;
+
+export const birthdays = pgTable(
+  "birthdays",
+  {
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    userId: varchar("user_id", { length: 32 }).notNull(),
+    month: integer("month").notNull(),
+    day: integer("day").notNull(),
+    /** Optional, nur für die Altersanzeige. */
+    year: integer("year"),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.userId] }), index("birthdays_date").on(t.guildId, t.month, t.day)],
+);
+
+export type Birthday = typeof birthdays.$inferSelect;

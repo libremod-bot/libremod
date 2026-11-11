@@ -30,13 +30,17 @@ Website: [libremod.dev](https://libremod.dev) · Geplante Funktionen: [ROADMAP.m
 | `/balance`, `/daily`, `/work`, `/pay`   | Server-Währung: Guthaben, täglicher Bonus, Arbeiten, Überweisen |
 | `/shop`, `/buy`, `/inventory`, `/richlist` | Shop, Kaufen (mit Vorschlägen), gekaufte Artikel, Rangliste |
 | `/coins add/remove/set`               | Guthaben von Mitgliedern verwalten (Team)                     |
+| `/giveaway start/end/reroll/list`     | Gewinnspiele mit Mitmach-Knopf, Bedingungen und Neu-Auslosen (Team) |
+| `/poll`                               | Umfrage mit bis zu 10 Antworten, Laufzeit und Mehrfachauswahl |
+| `/remind set/list/delete`             | Erinnerungen im Kanal oder per Direktnachricht               |
+| `/birthday set/remove/show/list`      | Geburtstag eintragen und die nächsten Geburtstage ansehen    |
 | `/logging status/set/off/ignore`      | Logs für Nachrichten, Beitritte, Mitglieder, Server und Sprachkanäle, je Art ein eigener Kanal |
 
-Dazu kommen eigene Befehle, die du im Dashboard anlegst. Geplante Nachrichten, Zähler-Kanäle, temporäre Sprachkanäle, Benachrichtigungen (YouTube, Twitch, Kick, Reddit, RSS), die Server-Währung mit Shop, das Ticket-System (Ticket-Arten mit Formularfragen, Panels, Team-Rollen, Transkripte, Bewertungen), den Highlight-Kanal, automatisches Kanal-Leeren und den automatischen Langsam-Modus richtest du ebenfalls dort ein.
+Dazu kommen eigene Befehle, die du im Dashboard anlegst. Geplante Nachrichten, Zähler-Kanäle, temporäre Sprachkanäle, Benachrichtigungen (YouTube, Twitch, Kick, Reddit, RSS), die Server-Währung mit Shop, Gewinnspiele, Geburtstage (Glückwunsch-Kanal, Uhrzeit, Geburtstagsrolle), das Ticket-System (Ticket-Arten mit Formularfragen, Panels, Team-Rollen, Transkripte, Bewertungen), den Highlight-Kanal, automatisches Kanal-Leeren und den automatischen Langsam-Modus richtest du ebenfalls dort ein.
 
 Im Discord Developer Portal müssen unter **Bot → Privileged Gateway Intents** die Optionen **Server Members Intent** und **Message Content Intent** eingeschaltet sein (für Auto-Moderation, Raid-Schutz und Logging).
 
-Der Bot braucht auf dem Server die Rechte **Mitglieder kicken**, **Mitglieder bannen**, **Mitglieder im Timeout**, **Nachrichten verwalten**, **Rollen verwalten** (für Auto-Rollen und Rollen-Panels), **Kanäle verwalten** und **Mitglieder verschieben** (für Zähler-Kanäle, temporäre Sprachkanäle und den Langsam-Modus), **Nachrichtenverlauf lesen** (für Highlights und Kanal-Leeren), **@everyone erwähnen** (nur falls Benachrichtigungen das sollen), **Threads verwalten**, **Private Threads erstellen** und **Nachrichten in Threads senden** (für Tickets als private Threads) und **Nachrichten senden**, **Links einbetten** und **Dateien anhängen** im Mod-Log- und in den Log-Kanälen. Seine Rolle muss über den Rollen der Mitglieder stehen, die er moderieren soll.
+Der Bot braucht auf dem Server die Rechte **Mitglieder kicken**, **Mitglieder bannen**, **Mitglieder im Timeout**, **Nachrichten verwalten**, **Rollen verwalten** (für Auto-Rollen und Rollen-Panels), **Kanäle verwalten** und **Mitglieder verschieben** (für Zähler-Kanäle, temporäre Sprachkanäle und den Langsam-Modus), **Nachrichtenverlauf lesen** (für Highlights und Kanal-Leeren), **@everyone erwähnen** (nur falls Benachrichtigungen das sollen), **Threads verwalten**, **Private Threads erstellen** und **Nachrichten in Threads senden** (für Tickets als private Threads), **Umfragen erstellen** (für `/poll`) und **Nachrichten senden**, **Links einbetten** und **Dateien anhängen** im Mod-Log- und in den Log-Kanälen. Seine Rolle muss über den Rollen der Mitglieder stehen, die er moderieren soll.
 
 ## Aufbau
 

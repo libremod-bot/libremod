@@ -16,6 +16,7 @@ import { startNotifications } from "./services/notifications.js";
 import { handleMessageCoins, invalidateEconomy } from "./services/economy.js";
 import { onTicketChannelDeleted, startTicketJobs, trackTicketMessage } from "./services/tickets.js";
 import { invalidateHighlights, onHighlightReaction, startChannelTools, trackSlowmodeMessage } from "./services/channeltools.js";
+import { startFunJobs } from "./services/fun.js";
 import { invalidateTempVoice, loadTempChannels, onTempVoiceState } from "./services/tempvoice.js";
 import { invalidateWelcome, onWelcomeJoin, onWelcomeLeave, onWelcomeMemberUpdate } from "./services/welcome.js";
 
@@ -41,6 +42,7 @@ let counterTimer: NodeJS.Timeout | undefined;
 let notifyTimer: NodeJS.Timeout | undefined;
 let ticketTimer: NodeJS.Timeout | undefined;
 let channelToolTimers: NodeJS.Timeout[] = [];
+let funTimers: NodeJS.Timeout[] = [];
 
 const client = new Client({
   intents: [
@@ -66,6 +68,7 @@ client.once(Events.ClientReady, (c) => {
   notifyTimer ??= startNotifications(c, db);
   ticketTimer ??= startTicketJobs(c, db);
   if (!channelToolTimers.length) channelToolTimers = startChannelTools(c, db);
+  if (!funTimers.length) funTimers = startFunJobs(c, db);
   void loadTempChannels(c, db).catch(logError("Temporäre Kanäle"));
   void syncAllCommands(c, db).catch(logError("Eigene Befehle"));
 });
@@ -133,6 +136,7 @@ async function shutdown(signal: string) {
   clearInterval(notifyTimer);
   clearInterval(ticketTimer);
   channelToolTimers.forEach(clearInterval);
+  funTimers.forEach(clearInterval);
   await client.destroy();
   await close();
   process.exit(0);

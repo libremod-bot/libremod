@@ -11,3 +11,4 @@ export * from "./netguard.js";
 export * from "./channeltools.js";
 export * from "./tickets.js";
 export * from "./economy.js";
+export * from "./fun.js";

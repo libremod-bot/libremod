@@ -62,6 +62,13 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 - Täglicher Bonus, Arbeiten, Überweisen und Rangliste
 - Shop mit Rollen und eigenen Artikeln, verwaltet im Dashboard
 
+## 0.9 Community-Klassiker
+
+- Gewinnspiele mit Teilnahme per Button, Bedingungen (Rolle, Level), fairer Auslosung und Neu-Auslosen
+- Umfragen über die eingebaute Umfrage-Funktion von Discord, mit Laufzeit und Mehrfachauswahl
+- Erinnerungen mit `/remind`, im Kanal oder per Direktnachricht
+- Geburtstage mit Glückwunsch, Altersanzeige und Geburtstagsrolle für einen Tag
+
 ## Später
 
 ### Moderation und Sicherheit
@@ -77,10 +84,6 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 
 ### Community
 
-- Umfragen mit Buttons, Laufzeit und Ergebnis-Diagramm
-- Gewinnspiele mit Teilnahme per Button, Bedingungen (Rolle, Level) und Auslosung
-- Erinnerungen: `/remind` für Mitglieder
-- Geburtstage mit Gratulation und Geburtstagsrolle für einen Tag
 - Vorschläge-Kanal mit Abstimmung und Status (angenommen, abgelehnt)
 - Event-Planer mit Zu- und Absagen und Erinnerung vor Beginn
 - Zitate speichern und zufällig wieder hervorholen

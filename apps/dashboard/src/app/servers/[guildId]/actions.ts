@@ -31,6 +31,9 @@ import {
   ticketPanels,
   economySettings,
   shopItems,
+  giveaways,
+  giveawayEntries,
+  birthdaySettings,
   type TicketQuestion,
   count,
   warnEscalations,
@@ -71,6 +74,11 @@ import {
   MAX_TICKET_CATEGORIES,
   MAX_TICKET_PANELS,
   MAX_SHOP_ITEMS,
+  buildGiveawayMessage,
+  MAX_ACTIVE_GIVEAWAYS,
+  MAX_GIVEAWAY_SECONDS,
+  MAX_GIVEAWAY_WINNERS,
+  MIN_GIVEAWAY_SECONDS,
 } from "@libremod/shared";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
@@ -1233,4 +1241,97 @@ export async function deleteShopItem(guildId: string, id: number) {
   const { db } = database();
   await db.delete(shopItems).where(and(eq(shopItems.id, id), eq(shopItems.guildId, guildId)));
   back(ECONOMY(guildId));
+}
+
+// --- Gewinnspiele ---
+
+const GIVEAWAYS = (guildId: string) => `/servers/${guildId}/giveaways`;
+
+export async function createGiveaway(guildId: string, form: FormData) {
+  const { user } = await requireGuildAccess(guildId);
+  const path = GIVEAWAYS(guildId);
+  const prize = text(form, "prize");
+  if (!prize || prize.length > 200) back(path, "Bitte einen Preis mit höchstens 200 Zeichen angeben.");
+  const description = text(form, "description");
+  if (description.length > 1000) back(path, "Die Beschreibung darf höchstens 1000 Zeichen lang sein.");
+  const winners = int(form, "winners", 1, MAX_GIVEAWAY_WINNERS);
+  if (!winners) back(path, `Bitte 1 bis ${MAX_GIVEAWAY_WINNERS} Gewinner angeben.`);
+  const seconds = parseDuration(text(form, "duration"));
+  if (!seconds || seconds < MIN_GIVEAWAY_SECONDS || seconds > MAX_GIVEAWAY_SECONDS) back(path, "Bitte eine Dauer zwischen 1 Minute und 60 Tagen angeben, z. B. 2h oder 3d.");
+  const minLevel = int(form, "minLevel", 0, 1000);
+  if (Number.isNaN(minLevel)) back(path, "Das Mindest-Level muss zwischen 0 und 1000 liegen.");
+  const channelId = text(form, "channelId");
+  if (!(await textChannelIds(guildId)).text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  const roleId = text(form, "requiredRoleId");
+  if (roleId && !(await getGuildRoles(guildId)).some((r) => r.id === roleId)) back(path, "Diese Rolle gibt es nicht.");
+
+  const { db } = database();
+  const [active] = await db.select({ n: count() }).from(giveaways).where(and(eq(giveaways.guildId, guildId), eq(giveaways.ended, false)));
+  if ((active?.n ?? 0) >= MAX_ACTIVE_GIVEAWAYS) back(path, `Es laufen schon ${MAX_ACTIVE_GIVEAWAYS} Gewinnspiele. Beende erst eins.`);
+
+  const [g] = await db
+    .insert(giveaways)
+    .values({ guildId, channelId, prize, description, winners: winners!, hostId: user.id, requiredRoleId: roleId || null, minLevel: minLevel ?? 0, endsAt: new Date(Date.now() + seconds! * 1000) })
+    .returning();
+  try {
+    const msg = await sendBotMessage(channelId, buildGiveawayMessage(g!, 0));
+    await db.update(giveaways).set({ messageId: msg.id }).where(eq(giveaways.id, g!.id));
+  } catch (err) {
+    // Ohne Nachricht kann niemand mitmachen, also wieder entfernen.
+    await db.delete(giveaways).where(eq(giveaways.id, g!.id));
+    back(
+      path,
+      err instanceof DiscordError && (err.status === 403 || err.status === 404)
+        ? "Libremod konnte im Kanal nicht posten. Prüfe dort die Rechte „Nachrichten senden“ und „Links einbetten“."
+        : "Die Nachricht konnte nicht gepostet werden. Bitte später nochmal versuchen.",
+    );
+  }
+  back(path);
+}
+
+/** Setzt das Ende auf jetzt. Der Bot lost innerhalb weniger Sekunden aus. */
+export async function endGiveawayNow(guildId: string, giveawayId: number) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  await db
+    .update(giveaways)
+    .set({ endsAt: new Date() })
+    .where(and(eq(giveaways.id, giveawayId), eq(giveaways.guildId, guildId), eq(giveaways.ended, false)));
+  back(GIVEAWAYS(guildId));
+}
+
+export async function deleteGiveaway(guildId: string, giveawayId: number) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  const [g] = await db.delete(giveaways).where(and(eq(giveaways.id, giveawayId), eq(giveaways.guildId, guildId))).returning();
+  if (g) {
+    await db.delete(giveawayEntries).where(eq(giveawayEntries.giveawayId, g.id));
+    if (g.messageId && !g.ended) await deleteBotMessage(g.channelId, g.messageId).catch(() => {});
+  }
+  back(GIVEAWAYS(guildId));
+}
+
+// --- Geburtstage ---
+
+export async function saveBirthdays(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/birthdays`;
+  const enabled = form.get("enabled") === "on";
+  const channelId = text(form, "channelId") || null;
+  const { db } = database();
+  const [old] = await db.select().from(birthdaySettings).where(eq(birthdaySettings.guildId, guildId));
+  if (channelId && channelId !== old?.channelId && !(await textChannelIds(guildId)).text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  const roleId = text(form, "roleId") || null;
+  if (roleId && roleId !== old?.roleId) {
+    const { invalid } = await assignableRoles(guildId, form, "roleId");
+    if (invalid.length) back(path, "Diese Rolle kann Libremod nicht vergeben. Sie muss unter der Rolle von Libremod stehen.");
+  }
+  if (enabled && !channelId && !roleId) back(path, "Bitte einen Kanal für Glückwünsche oder eine Geburtstagsrolle wählen.");
+  const message = text(form, "message") || "🎉 Alles Gute zum Geburtstag, {user}!";
+  if (message.length > 1000) back(path, "Die Nachricht darf höchstens 1000 Zeichen lang sein.");
+  const hour = int(form, "hour", 0, 23);
+  if (hour === null || Number.isNaN(hour)) back(path, "Bitte eine Uhrzeit wählen.");
+  const values = { enabled, channelId, roleId, message, hour: hour! };
+  await db.insert(birthdaySettings).values({ guildId, ...values }).onConflictDoUpdate({ target: birthdaySettings.guildId, set: values });
+  back(path);
 }

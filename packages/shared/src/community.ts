@@ -8,6 +8,7 @@ export const RESERVED_COMMANDS = [
   "ping", "config", "automod", "logging", "welcome", "rank", "leaderboard", "xp",
   "warn", "timeout", "untimeout", "kick", "ban", "unban", "purge", "cases", "case", "ticket",
   "balance", "daily", "work", "pay", "shop", "buy", "inventory", "richlist", "coins",
+  "giveaway", "poll", "remind", "birthday",
 ];
 
 /** Antworten werden durch eine Zeile mit genau "---" getrennt. */
