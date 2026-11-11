@@ -1,15 +1,17 @@
-import { EmbedBuilder, InteractionContextType, PermissionFlagsBits, SlashCommandBuilder, userMention } from "discord.js";
-import { desc, eq, levelSettings, memberXp } from "@libremod/db";
+import { AttachmentBuilder, EmbedBuilder, InteractionContextType, PermissionFlagsBits, SlashCommandBuilder, time, TimestampStyles, userMention } from "discord.js";
+import { and, desc, eq, levelSeasons, levelSettings, memberXp } from "@libremod/db";
 import { levelProgress, MAX_XP, progressBar } from "@libremod/shared";
 import type { Command } from "./types.js";
 import { getXp, setXp } from "../services/levels.js";
+import { renderRankCard } from "../lib/rankcard.js";
+import { logger } from "../logger.js";
 import { inGuild, replyPrivate } from "./moderation/shared.js";
 
 const nf = new Intl.NumberFormat("de-DE");
 
-async function levelsEnabled(db: Parameters<Command["execute"]>[1]["db"], guildId: string) {
-  const [s] = await db.select({ enabled: levelSettings.enabled }).from(levelSettings).where(eq(levelSettings.guildId, guildId));
-  return s?.enabled ?? false;
+async function loadSettings(db: Parameters<Command["execute"]>[1]["db"], guildId: string) {
+  const [s] = await db.select().from(levelSettings).where(eq(levelSettings.guildId, guildId));
+  return s?.enabled ? s : null;
 }
 
 export const rank: Command = {
@@ -20,14 +22,32 @@ export const rank: Command = {
     .addUserOption((o) => o.setName("mitglied").setDescription("Wessen Level? Leer = deins")),
   async execute(interaction, { db }) {
     if (!inGuild(interaction)) return;
-    if (!(await levelsEnabled(db, interaction.guildId))) {
-      return void (await replyPrivate(interaction, "Das Level-System ist auf diesem Server ausgeschaltet."));
-    }
+    const settings = await loadSettings(db, interaction.guildId);
+    if (!settings) return void (await replyPrivate(interaction, "Das Level-System ist auf diesem Server ausgeschaltet."));
     const user = interaction.options.getUser("mitglied") ?? interaction.user;
     if (user.bot) return void (await replyPrivate(interaction, "Bots sammeln keine XP."));
+    await interaction.deferReply();
     const row = await getXp(db, interaction.guildId, user.id);
     const xp = row?.xp ?? 0;
     const p = levelProgress(xp);
+    const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+    try {
+      const png = await renderRankCard({
+        name: member?.displayName ?? user.globalName ?? user.username,
+        username: user.username,
+        avatarUrl: (member ?? user).displayAvatarURL({ extension: "png", size: 256 }),
+        level: p.level,
+        rank: row ? row.rank : null,
+        current: p.current,
+        needed: p.needed,
+        totalXp: xp,
+        color: settings.cardColor,
+        season: settings.seasonMode === "off" ? null : settings.seasonNumber,
+      });
+      return void (await interaction.editReply({ files: [new AttachmentBuilder(png, { name: "rang.png" })], allowedMentions: { parse: [] } }));
+    } catch (err) {
+      logger.warn({ err }, "Rang-Karte konnte nicht gezeichnet werden");
+    }
     const embed = new EmbedBuilder()
       .setColor(0x7c5cff)
       .setAuthor({ name: user.globalName ?? user.username, iconURL: user.displayAvatarURL({ size: 64 }) })
@@ -39,7 +59,7 @@ export const rank: Command = {
         { name: "Nachrichten", value: nf.format(row?.messages ?? 0), inline: true },
         { name: "Sprachminuten", value: nf.format(row?.voiceMinutes ?? 0), inline: true },
       );
-    await interaction.reply({ embeds: [embed], allowedMentions: { parse: [] } });
+    await interaction.editReply({ embeds: [embed], allowedMentions: { parse: [] } });
   },
 };
 
@@ -48,11 +68,27 @@ export const leaderboard: Command = {
     .setName("leaderboard")
     .setDescription("Die aktivsten Mitglieder nach XP.")
     .setContexts(InteractionContextType.Guild)
-    .addIntegerOption((o) => o.setName("seite").setDescription("Seite (10 pro Seite)").setMinValue(1).setMaxValue(1000)),
+    .addIntegerOption((o) => o.setName("seite").setDescription("Seite (10 pro Seite)").setMinValue(1).setMaxValue(1000))
+    .addIntegerOption((o) => o.setName("saison").setDescription("Bestenliste einer vergangenen Saison").setMinValue(1)),
   async execute(interaction, { db }) {
     if (!inGuild(interaction)) return;
-    if (!(await levelsEnabled(db, interaction.guildId))) {
-      return void (await replyPrivate(interaction, "Das Level-System ist auf diesem Server ausgeschaltet."));
+    const settings = await loadSettings(db, interaction.guildId);
+    if (!settings) return void (await replyPrivate(interaction, "Das Level-System ist auf diesem Server ausgeschaltet."));
+    const medal = ["🥇", "🥈", "🥉"];
+    const seasonNo = interaction.options.getInteger("saison");
+    if (seasonNo) {
+      const [season] = await db
+        .select()
+        .from(levelSeasons)
+        .where(and(eq(levelSeasons.guildId, interaction.guildId), eq(levelSeasons.number, seasonNo)));
+      if (!season) return void (await replyPrivate(interaction, `Saison ${seasonNo} ist nicht abgeschlossen oder gab es nicht.`));
+      const lines = season.top.map((t, i) => `${medal[i] ?? `**${i + 1}.**`} ${userMention(t.userId)} · Level ${t.level} · ${nf.format(t.xp)} XP`);
+      const embed = new EmbedBuilder()
+        .setColor(settings.cardColor)
+        .setTitle(`Saison ${season.number} · Endstand`)
+        .setDescription(lines.join("\n") || "In dieser Saison hat niemand XP gesammelt.")
+        .addFields({ name: "Zeitraum", value: `${time(season.startedAt, TimestampStyles.ShortDate)} bis ${time(season.endedAt, TimestampStyles.ShortDate)}` });
+      return void (await interaction.reply({ embeds: [embed], allowedMentions: { parse: [] } }));
     }
     const page = interaction.options.getInteger("seite") ?? 1;
     const rows = await db
@@ -63,7 +99,6 @@ export const leaderboard: Command = {
       .limit(10)
       .offset((page - 1) * 10);
     if (!rows.length) return void (await replyPrivate(interaction, page === 1 ? "Noch hat niemand XP gesammelt." : "Diese Seite ist leer."));
-    const medal = ["🥇", "🥈", "🥉"];
     const lines = rows.map((r, i) => {
       const pos = (page - 1) * 10 + i + 1;
       return `${medal[pos - 1] ?? `**${pos}.**`} ${userMention(r.userId)} · Level ${r.level} · ${nf.format(r.xp)} XP`;
@@ -72,7 +107,7 @@ export const leaderboard: Command = {
       .setColor(0x7c5cff)
       .setTitle(`Rangliste von ${interaction.guild?.name ?? "diesem Server"}`)
       .setDescription(lines.join("\n"))
-      .setFooter({ text: `Seite ${page}` });
+      .setFooter({ text: settings.seasonMode === "off" ? `Seite ${page}` : `Seite ${page} · Saison ${settings.seasonNumber}` });
     await interaction.reply({ embeds: [embed], allowedMentions: { parse: [] } });
   },
 };

@@ -1,5 +1,5 @@
-import { asc, desc, eq, levelNoXp, levelRewards, levelSettings, memberXp } from "@libremod/db";
-import { levelProgress, totalXpForLevel } from "@libremod/shared";
+import { asc, desc, economySettings, eq, levelMultipliers, levelNoXp, levelRewards, levelSeasons, levelSettings, memberXp } from "@libremod/db";
+import { levelProgress, MAX_XP_PERCENT, SEASON_MODES, totalXpForLevel } from "@libremod/shared";
 import { Icon } from "@/components/Icon";
 import { Notice } from "@/components/Notice";
 import { PageHeader } from "@/components/PageHeader";
@@ -15,11 +15,13 @@ import {
   getGuildRoles,
   getMembers,
 } from "@/lib/discord";
-import { addLevelReward, removeLevelReward, saveLevels } from "../actions";
+import { addLevelMultiplier, addLevelReward, endSeasonNow, removeLevelMultiplier, removeLevelReward, saveLevels } from "../actions";
 
 export const metadata = { title: "Level · Libremod" };
 
 const nf = new Intl.NumberFormat("de-DE");
+const day = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeZone: "Europe/Berlin" });
+const hex = (n: number) => `#${n.toString(16).padStart(6, "0")}`;
 
 export default async function LevelsPage({
   params,
@@ -33,7 +35,7 @@ export default async function LevelsPage({
   const { gespeichert, fehler } = await searchParams;
 
   const { db } = database();
-  const [[s], rewards, noXp, top, channels, roles, botTop] = await Promise.all([
+  const [[s], rewards, noXp, top, channels, roles, botTop, multipliers, seasons, [eco]] = await Promise.all([
     db.select().from(levelSettings).where(eq(levelSettings.guildId, guildId)),
     db.select().from(levelRewards).where(eq(levelRewards.guildId, guildId)).orderBy(asc(levelRewards.level)),
     db.select().from(levelNoXp).where(eq(levelNoXp.guildId, guildId)),
@@ -41,11 +43,20 @@ export default async function LevelsPage({
     getGuildChannels(guildId),
     getGuildRoles(guildId),
     getBotTopPosition(guildId),
+    db.select().from(levelMultipliers).where(eq(levelMultipliers.guildId, guildId)).orderBy(desc(levelMultipliers.percent)),
+    db.select().from(levelSeasons).where(eq(levelSeasons.guildId, guildId)).orderBy(desc(levelSeasons.number)).limit(6),
+    db.select({ enabled: economySettings.enabled, currency: economySettings.currencyName }).from(economySettings).where(eq(economySettings.guildId, guildId)),
   ]);
-  const members = await getMembers(
-    guildId,
-    top.map((t) => t.userId),
-  );
+  const seasonUsers = seasons.flatMap((x) => x.top.slice(0, 3).map((t) => t.userId));
+  const [members, seasonPeople] = await Promise.all([
+    getMembers(
+      guildId,
+      top.map((t) => t.userId),
+    ),
+    getMembers(guildId, [...new Set(seasonUsers)]),
+  ]);
+  const personName = (id: string) => seasonPeople.find((p) => p.id === id)?.name ?? "Unbekannt";
+  const seasonsOn = (s?.seasonMode ?? "off") !== "off";
   const textChannels = channels.filter((c) => c.type === CHANNEL_TEXT || c.type === CHANNEL_ANNOUNCEMENT);
   const roleName = (id: string) => roles.find((r) => r.id === id)?.name ?? "gelöschte Rolle";
   const noXpRoles = noXp.filter((n) => n.kind === "role").map((n) => n.targetId);
@@ -102,6 +113,32 @@ export default async function LevelsPage({
 
         <section className="card">
           <div className="card-title">
+            <Icon name="sparkle" />
+            <h2>Bonus, Münzen und Aussehen</h2>
+          </div>
+          <div className="grid-3">
+            <div>
+              <label htmlFor="weekendPercent">XP am Wochenende in %</label>
+              <input id="weekendPercent" name="weekendPercent" type="number" min={0} max={MAX_XP_PERCENT} defaultValue={s?.weekendPercent ?? 100} />
+            </div>
+            <div>
+              <label htmlFor="levelUpCoins">Münzen pro Level-Aufstieg</label>
+              <input id="levelUpCoins" name="levelUpCoins" type="number" min={0} max={1000000} defaultValue={s?.levelUpCoins ?? 0} />
+            </div>
+            <div>
+              <label htmlFor="cardColor">Farbe der Rang-Karte</label>
+              <input id="cardColor" name="cardColor" type="color" defaultValue={hex(s?.cardColor ?? 0x4cb4ff)} />
+            </div>
+          </div>
+          <div className="hint">
+            100 % heißt normal, 200 % doppelte XP am Samstag und Sonntag. Münzen gibt es nur, wenn{" "}
+            <a href={`/servers/${guildId}/economy`}>Währung &amp; Shop</a> eingeschaltet ist
+            {eco?.enabled ? "" : " (gerade aus)"}. Die Karte zeigt /rank als Bild.
+          </div>
+        </section>
+
+        <section className="card">
+          <div className="card-title">
             <Icon name="steps" />
             <h2>Level-Aufstieg verkünden</h2>
           </div>
@@ -136,8 +173,34 @@ export default async function LevelsPage({
               maxLength={500}
               defaultValue={s?.announceMessage ?? "Glückwunsch {user}, du bist jetzt **Level {level}**!"}
             />
-            <div className="hint">Platzhalter: {"{user}"}, {"{username}"}, {"{level}"}, {"{server}"}.</div>
+            <div className="hint">
+              Platzhalter: {"{user}"}, {"{username}"}, {"{level}"}, {"{server}"}, {"{coins}"} (Münzen für diesen Aufstieg).
+            </div>
           </div>
+        </section>
+
+        <section className="card">
+          <div className="card-title">
+            <Icon name="clock" />
+            <h2>Saisons</h2>
+          </div>
+          <p className="card-sub">
+            Am Ende jeder Saison landen die besten 10 in der Ruhmeshalle und alle fangen wieder bei 0 XP an. Belohnungsrollen bleiben.
+          </p>
+          <fieldset className="radio-cards" aria-label="Saisons">
+            {SEASON_MODES.map((m) => (
+              <label key={m.value} className="radio-card">
+                <input type="radio" name="seasonMode" value={m.value} defaultChecked={(s?.seasonMode ?? "off") === m.value} />
+                <span>
+                  <strong>{m.label}</strong>
+                  <span className="small muted">
+                    {m.value === "off" ? "XP sammeln sich für immer" : m.value === "monthly" ? "Neustart am 1. jedes Monats" : "Neustart am 1. Januar, April, Juli und Oktober"}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+          <div className="hint">Das Ende wird im festen Kanal für Level-Aufstiege verkündet, falls einer gewählt ist.</div>
         </section>
 
         <section className="card">
@@ -249,6 +312,126 @@ export default async function LevelsPage({
           </div>
         </form>
       </section>
+
+      <section className="card">
+        <div className="card-title">
+          <Icon name="sparkle" />
+          <h2>Bonus-Rollen</h2>
+        </div>
+        <p className="card-sub">Mitglieder mit dieser Rolle bekommen mehr oder weniger XP, zum Beispiel Booster 150 %. Hat jemand mehrere, zählt die höchste.</p>
+        {multipliers.length > 0 ? (
+          <div className="table-wrap" style={{ marginBottom: "1.25rem" }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Rolle</th>
+                  <th>XP</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {multipliers.map((m) => (
+                  <tr key={m.roleId}>
+                    <td>
+                      <span className="badge info">@{roleName(m.roleId)}</span>
+                    </td>
+                    <td>
+                      <strong>{m.percent} %</strong>
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      <form action={removeLevelMultiplier.bind(null, guildId, m.roleId)}>
+                        <button className="danger small" type="submit">
+                          Entfernen
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="empty" style={{ paddingTop: 0 }}>
+            Noch keine Bonus-Rollen.
+          </p>
+        )}
+        <form action={addLevelMultiplier.bind(null, guildId)}>
+          <div className="grid-3">
+            <div>
+              <label htmlFor="multRole">Rolle</label>
+              <select id="multRole" name="roleId" required defaultValue="">
+                <option value="" disabled>
+                  Rolle wählen …
+                </option>
+                {roles
+                  .filter((r) => r.id !== guildId)
+                  .map((r) => (
+                    <option key={r.id} value={r.id}>
+                      @{r.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="multPercent">XP in %</label>
+              <input id="multPercent" name="percent" type="number" min={0} max={MAX_XP_PERCENT} required placeholder="150" />
+            </div>
+          </div>
+          <div style={{ marginTop: "1rem" }}>
+            <button type="submit" className="secondary">
+              <Icon name="plus" size={16} /> Bonus-Rolle hinzufügen
+            </button>
+          </div>
+        </form>
+      </section>
+
+      {(seasonsOn || seasons.length > 0) && (
+        <section className="card">
+          <div className="card-title">
+            <Icon name="star" />
+            <h2>Ruhmeshalle</h2>
+          </div>
+          {seasonsOn && s && (
+            <div className="inline-form" style={{ marginBottom: "1rem" }}>
+              <span>
+                Saison <strong>{s.seasonNumber}</strong> läuft seit {day.format(s.seasonStartedAt)}.
+              </span>
+              <form action={endSeasonNow.bind(null, guildId, s.seasonNumber)}>
+                <button type="submit" className="danger small">
+                  Saison jetzt beenden
+                </button>
+              </form>
+            </div>
+          )}
+          {seasons.length === 0 ? (
+            <p className="empty" style={{ paddingTop: 0 }}>
+              Noch keine Saison abgeschlossen.
+            </p>
+          ) : (
+            <ul className="season-list">
+              {seasons.map((x) => (
+                <li key={x.id}>
+                  <div>
+                    <strong>Saison {x.number}</strong>{" "}
+                    <span className="small muted">
+                      {day.format(x.startedAt)} bis {day.format(x.endedAt)}
+                    </span>
+                  </div>
+                  <div className="small">
+                    {x.top.length === 0
+                      ? "Niemand hat XP gesammelt."
+                      : x.top
+                          .slice(0, 3)
+                          .map((t, i) => `${["🥇", "🥈", "🥉"][i]} ${personName(t.userId)} (${nf.format(t.xp)} XP)`)
+                          .join(" · ")}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="hint">Die ganze Liste einer Saison zeigt /leaderboard saison:Nummer.</div>
+        </section>
+      )}
 
       <section className="card">
         <div className="card-title">

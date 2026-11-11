@@ -244,6 +244,16 @@ export const levelSettings = pgTable("level_settings", {
   announceMessage: text("announce_message").notNull().default("Glückwunsch {user}, du bist jetzt **Level {level}**!"),
   /** true: alle erreichten Belohnungsrollen behalten. false: nur die höchste. */
   stackRewards: boolean("stack_rewards").notNull().default(true),
+  /** XP-Faktor in Prozent am Wochenende (Sa/So, deutsche Zeit). 100 = normal. */
+  weekendPercent: integer("weekend_percent").notNull().default(100),
+  /** Münzen der Server-Währung pro Level-Aufstieg, 0 = aus. */
+  levelUpCoins: integer("level_up_coins").notNull().default(0),
+  /** Akzentfarbe der Rang-Karte. */
+  cardColor: integer("card_color").notNull().default(0x4cb4ff),
+  /** Saisons: "off", "monthly" oder "quarterly". */
+  seasonMode: varchar("season_mode", { length: 16 }).notNull().default("off"),
+  seasonNumber: integer("season_number").notNull().default(1),
+  seasonStartedAt: timestamp("season_started_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export type LevelSettings = typeof levelSettings.$inferSelect;
@@ -929,3 +939,32 @@ export const countingChannels = pgTable(
 );
 
 export type CountingChannel = typeof countingChannels.$inferSelect;
+
+// --- Level: Bonus-Rollen und Saisons ---
+
+export const levelMultipliers = pgTable(
+  "level_multipliers",
+  {
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    roleId: varchar("role_id", { length: 32 }).notNull(),
+    /** XP-Faktor in Prozent, z. B. 150 = 1,5-fach. Es zählt die höchste Rolle. */
+    percent: integer("percent").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.roleId] })],
+);
+
+export const levelSeasons = pgTable(
+  "level_seasons",
+  {
+    id: serial("id").primaryKey(),
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    number: integer("number").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }).notNull().defaultNow(),
+    /** Die besten Plätze beim Saisonende. */
+    top: jsonb("top").$type<{ userId: string; xp: number; level: number }[]>().notNull(),
+  },
+  (t) => [uniqueIndex("level_seasons_guild_number").on(t.guildId, t.number)],
+);
+
+export type LevelSeason = typeof levelSeasons.$inferSelect;

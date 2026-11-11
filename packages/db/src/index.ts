@@ -21,3 +21,4 @@ export function createDb(url: string) {
 }
 
 export type Db = ReturnType<typeof createDb>["db"];
+export { endLevelSeason } from "./seasons.js";

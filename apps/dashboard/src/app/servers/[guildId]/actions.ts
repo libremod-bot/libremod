@@ -50,6 +50,8 @@ import {
   type AutomodFilter,
   type EscalationAction,
   type LogCategory,
+  endLevelSeason,
+  levelMultipliers,
 } from "@libremod/db";
 import {
   buildPanelMessage,
@@ -92,6 +94,9 @@ import {
   parseAnswers,
   buildSuggestionMessage,
   SUGGESTION_STATUS,
+  MAX_XP_PERCENT,
+  SEASON_MODES,
+  seasonEndMessage,
 } from "@libremod/shared";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
@@ -498,7 +503,14 @@ export async function saveLevels(guildId: string, form: FormData) {
   const textXpMax = int(form, "textXpMax", 0, 1000) ?? 25;
   const cooldownSeconds = int(form, "cooldownSeconds", 0, 3600) ?? 60;
   const voiceXpPerMinute = int(form, "voiceXpPerMinute", 0, 1000) ?? 10;
-  if ([textXpMin, textXpMax, cooldownSeconds, voiceXpPerMinute].some(Number.isNaN)) back(path, "Bitte nur ganze Zahlen im erlaubten Bereich.");
+  const weekendPercent = int(form, "weekendPercent", 0, MAX_XP_PERCENT) ?? 100;
+  const levelUpCoins = int(form, "levelUpCoins", 0, 1_000_000) ?? 0;
+  if ([textXpMin, textXpMax, cooldownSeconds, voiceXpPerMinute, weekendPercent, levelUpCoins].some(Number.isNaN)) {
+    back(path, "Bitte nur ganze Zahlen im erlaubten Bereich.");
+  }
+  const color = /^#[0-9a-f]{6}$/i.test(text(form, "cardColor")) ? parseInt(text(form, "cardColor").slice(1), 16) : 0x4cb4ff;
+  const seasonMode = text(form, "seasonMode") || "off";
+  if (!SEASON_MODES.some((m) => m.value === seasonMode)) back(path, "Unbekannte Einstellung für Saisons.");
   if (textXpMin > textXpMax) back(path, "Die Mindest-XP dürfen nicht größer als die Höchst-XP sein.");
 
   const announce = text(form, "announce") as (typeof ANNOUNCE)[number];
@@ -524,10 +536,17 @@ export async function saveLevels(guildId: string, form: FormData) {
     announceChannelId,
     announceMessage,
     stackRewards: form.get("stackRewards") === "on",
+    weekendPercent,
+    levelUpCoins,
+    cardColor: color,
+    seasonMode,
   };
   const { db, notifySettingsChanged } = database();
   await db.transaction(async (tx) => {
-    await tx.insert(levelSettings).values({ guildId, ...values }).onConflictDoUpdate({ target: levelSettings.guildId, set: values });
+    const [old] = await tx.select({ seasonMode: levelSettings.seasonMode }).from(levelSettings).where(eq(levelSettings.guildId, guildId));
+    // Wer Saisons neu einschaltet, startet die erste Saison jetzt und nicht rückwirkend.
+    const set = old && old.seasonMode === "off" && seasonMode !== "off" ? { ...values, seasonStartedAt: new Date() } : values;
+    await tx.insert(levelSettings).values({ guildId, ...values }).onConflictDoUpdate({ target: levelSettings.guildId, set });
     await tx.delete(levelNoXp).where(eq(levelNoXp.guildId, guildId));
     const rows = [
       ...noRoles.map((targetId) => ({ guildId, kind: "role" as const, targetId })),
@@ -536,6 +555,45 @@ export async function saveLevels(guildId: string, form: FormData) {
     if (rows.length) await tx.insert(levelNoXp).values(rows);
   });
   await notifySettingsChanged(guildId);
+  back(path);
+}
+
+export async function addLevelMultiplier(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/levels`;
+  const percent = int(form, "percent", 0, MAX_XP_PERCENT);
+  if (percent === null || Number.isNaN(percent)) back(path, `Bitte einen Wert zwischen 0 und ${MAX_XP_PERCENT} % angeben.`);
+  const roleId = text(form, "roleId");
+  const roles = await getGuildRoles(guildId);
+  if (!roles.some((r) => r.id === roleId) || roleId === guildId) back(path, "Bitte eine Rolle dieses Servers wählen.");
+  const { db, notifySettingsChanged } = database();
+  const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(levelMultipliers).where(eq(levelMultipliers.guildId, guildId));
+  if (n >= 25) back(path, "Mehr als 25 Bonus-Rollen gehen nicht.");
+  await db
+    .insert(levelMultipliers)
+    .values({ guildId, roleId, percent: percent! })
+    .onConflictDoUpdate({ target: [levelMultipliers.guildId, levelMultipliers.roleId], set: { percent: percent! } });
+  await notifySettingsChanged(guildId);
+  back(path);
+}
+
+export async function removeLevelMultiplier(guildId: string, roleId: string) {
+  await requireGuildAccess(guildId);
+  const { db, notifySettingsChanged } = database();
+  await db.delete(levelMultipliers).where(and(eq(levelMultipliers.guildId, guildId), eq(levelMultipliers.roleId, roleId)));
+  await notifySettingsChanged(guildId);
+  back(`/servers/${guildId}/levels`);
+}
+
+export async function endSeasonNow(guildId: string, number: number) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/levels`;
+  const { db, notifySettingsChanged } = database();
+  const season = await endLevelSeason(db, guildId, new Date(), number);
+  if (!season) back(path, "Diese Saison ist schon beendet.");
+  await notifySettingsChanged(guildId);
+  const [s] = await db.select({ channelId: levelSettings.announceChannelId }).from(levelSettings).where(eq(levelSettings.guildId, guildId));
+  if (s?.channelId && season!.top.length) await sendBotMessage(s.channelId, seasonEndMessage(season!)).catch(() => {});
   back(path);
 }
 

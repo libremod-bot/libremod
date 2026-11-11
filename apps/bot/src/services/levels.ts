@@ -4,6 +4,8 @@ import {
   eq,
   gt,
   count,
+  endLevelSeason,
+  levelMultipliers,
   levelNoXp,
   levelRewards,
   levelSettings,
@@ -13,14 +15,16 @@ import {
   type LevelReward,
   type LevelSettings,
 } from "@libremod/db";
-import { levelForXp, MAX_XP, randomXp, renderTemplate, rewardRoles } from "@libremod/shared";
+import { applyPercent, levelForXp, MAX_XP, randomXp, renderTemplate, rewardRoles, seasonDue, seasonEndMessage, xpPercent } from "@libremod/shared";
 import { logger } from "../logger.js";
+import { addBalance, loadEconomy } from "./economy.js";
 
 interface GuildLevels {
   settings: LevelSettings | null;
   rewards: LevelReward[];
   noXpRoles: Set<string>;
   noXpChannels: Set<string>;
+  multipliers: Map<string, number>;
   loadedAt: number;
 }
 
@@ -35,20 +39,28 @@ export function invalidateLevels(guildId: string) {
 export async function loadLevels(db: Db, guildId: string): Promise<GuildLevels> {
   const hit = cache.get(guildId);
   if (hit && Date.now() - hit.loadedAt < CACHE_TTL_MS) return hit;
-  const [[settings], rewards, noXp] = await Promise.all([
+  const [[settings], rewards, noXp, multis] = await Promise.all([
     db.select().from(levelSettings).where(eq(levelSettings.guildId, guildId)),
     db.select().from(levelRewards).where(eq(levelRewards.guildId, guildId)),
     db.select().from(levelNoXp).where(eq(levelNoXp.guildId, guildId)),
+    db.select().from(levelMultipliers).where(eq(levelMultipliers.guildId, guildId)),
   ]);
   const entry: GuildLevels = {
     settings: settings ?? null,
     rewards,
     noXpRoles: new Set(noXp.filter((n) => n.kind === "role").map((n) => n.targetId)),
     noXpChannels: new Set(noXp.filter((n) => n.kind === "channel").map((n) => n.targetId)),
+    multipliers: new Map(multis.map((m) => [m.roleId, m.percent])),
     loadedAt: Date.now(),
   };
   cache.set(guildId, entry);
   return entry;
+}
+
+/** XP nach Bonus-Rollen und Wochenend-Faktor. */
+export function boostedXp(cfg: GuildLevels, member: GuildMember, base: number, now = new Date()) {
+  const rolePercents = member.roles.cache.filter((r) => cfg.multipliers.has(r.id)).map((r) => cfg.multipliers.get(r.id)!);
+  return applyPercent(base, xpPercent({ weekendPercent: cfg.settings?.weekendPercent ?? 100, rolePercents }, now));
 }
 
 function blocked(cfg: GuildLevels, member: GuildMember, channel: { id: string; parentId?: string | null }) {
@@ -70,7 +82,7 @@ export async function handleMessageXp(message: Message, db: Db) {
   if ((lastXpAt.get(key) ?? 0) > now - s.cooldownSeconds * 1000) return;
   lastXpAt.set(key, now);
 
-  await addXp(db, message.member, randomXp(s.textXpMin, s.textXpMax), { messages: 1, channel: channel.isSendable() ? channel : null });
+  await addXp(db, message.member, boostedXp(cfg, message.member, randomXp(s.textXpMin, s.textXpMax)), { messages: 1, channel: channel.isSendable() ? channel : null });
 }
 
 setInterval(() => {
@@ -128,10 +140,19 @@ async function syncLevel(
 
   const cfg = await loadLevels(db, member.guild.id);
   await applyRewards(member, level, cfg);
-  if (opts.announce && level > storedLevel && cfg.settings) await announce(member, level, cfg.settings, opts.channel);
+  let coins = 0;
+  // Münzen nur fürs echte Sammeln, nicht wenn das Team mit /xp nachhilft.
+  if (opts.announce && level > storedLevel && cfg.settings && cfg.settings.levelUpCoins > 0) {
+    const eco = await loadEconomy(db, member.guild.id);
+    if (eco?.enabled) {
+      coins = cfg.settings.levelUpCoins * (level - storedLevel);
+      await addBalance(db, member.guild.id, member.id, coins, `Level ${level} erreicht`, eco.startBalance);
+    }
+  }
+  if (opts.announce && level > storedLevel && cfg.settings) await announce(member, level, cfg.settings, opts.channel, coins);
 }
 
-async function announce(member: GuildMember, level: number, s: LevelSettings, source: SendableChannels | null) {
+async function announce(member: GuildMember, level: number, s: LevelSettings, source: SendableChannels | null, coins = 0) {
   if (s.announce === "off") return;
   const text = renderTemplate(s.announceMessage, {
     user: `<@${member.id}>`,
@@ -140,6 +161,7 @@ async function announce(member: GuildMember, level: number, s: LevelSettings, so
     membercount: member.guild.memberCount,
   })
     .replace(/\{level\}/gi, String(level))
+    .replace(/\{coins\}/gi, String(coins))
     .slice(0, 2000);
   try {
     if (s.announce === "dm") {
@@ -226,6 +248,30 @@ export async function voiceTick(guild: Guild, db: Db) {
     // Allein im Kanal gibt es keine XP.
     const others = channel.members.filter((m) => !m.user.bot && m.id !== member.id).size;
     if (others < 1 || blocked(cfg, member, channel)) continue;
-    await addXp(db, member, s.voiceXpPerMinute, { voiceMinutes: 1, channel: null });
+    await addXp(db, member, boostedXp(cfg, member, s.voiceXpPerMinute), { voiceMinutes: 1, channel: null });
   }
+}
+
+/** Beendet fällige Saisons und verkündet die Besten im Ansage-Kanal. */
+export async function runSeasons(client: Client, db: Db, now = new Date()) {
+  const all = await db.select().from(levelSettings).where(eq(levelSettings.enabled, true));
+  for (const s of all) {
+    if (!seasonDue(s.seasonMode, s.seasonStartedAt, now)) continue;
+    const guild = client.guilds.cache.get(s.guildId);
+    if (!guild) continue;
+    const season = await endLevelSeason(db, s.guildId, now, s.seasonNumber);
+    if (!season) continue;
+    invalidateLevels(s.guildId);
+    if (!s.announceChannelId || !season.top.length) continue;
+    const channel = await guild.channels.fetch(s.announceChannelId).catch(() => null);
+    if (!channel?.isSendable()) continue;
+    const msg = seasonEndMessage(season);
+    await channel
+      .send({ content: msg.content, allowedMentions: { users: msg.allowed_mentions.users } })
+      .catch(() => {});
+  }
+}
+
+export function startSeasonJob(client: Client, db: Db): NodeJS.Timeout {
+  return setInterval(() => void runSeasons(client, db).catch((err) => logger.error({ err }, "Saisons fehlgeschlagen")), 10 * 60_000);
 }

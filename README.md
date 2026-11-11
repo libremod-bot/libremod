@@ -30,7 +30,7 @@ Website: [libremod.dev](https://libremod.dev) · Geplante Funktionen: [ROADMAP.m
 | `/automod status/toggle/filter`       | Auto-Moderation: Spam, Einladungen, Links, Wortfilter, Großbuchstaben, Massen-Erwähnungen |
 | `/automod words/links/exempt/raid`    | Wortliste, erlaubte Domains, Ausnahmen, Raid-Schutz          |
 | `/welcome test`                       | Begrüßung und Abschied zur Probe ansehen (einstellen im Dashboard) |
-| `/rank`, `/leaderboard`               | Level, XP und Rangliste                                      |
+| `/rank`, `/leaderboard [saison]`      | Rang-Karte als Bild, Rangliste und Endstand früherer Saisons |
 | `/xp add/remove/set/reset`            | XP von Mitgliedern verwalten                                 |
 | `/ticket close/claim/add/remove/rename` | Tickets verwalten: schließen, übernehmen, Leute hinzufügen oder entfernen, umbenennen |
 | `/balance`, `/daily`, `/work`, `/pay`   | Server-Währung: Guthaben, täglicher Bonus, Arbeiten, Überweisen |

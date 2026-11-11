@@ -82,6 +82,13 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 - Rollen mit Ablaufdatum, von Hand oder als Shop-Artikel, erneuter Kauf verlängert
 - Zähl-Kanal mit Rekord, Neustart bei Fehlern und Schutz gegen doppeltes Zählen
 
+## 0.12 Level und Währung
+
+- Rang-Karte als Bild für `/rank` mit Avatar, Rang, Fortschritt und eigener Farbe
+- XP-Bonus am Wochenende und für bestimmte Rollen (0 bis 500 %)
+- Münzen für jeden Level-Aufstieg, Platzhalter `{coins}` in der Ansage
+- Saisons: monatlich oder vierteljährlich neu starten, die besten 10 kommen in die Ruhmeshalle, `/leaderboard saison:`
+
 ## Später
 
 ### Moderation und Sicherheit
@@ -98,13 +105,6 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 - Wortketten-Kanal
 - Begrüßungsbild mit Avatar (aus 0.4, noch offen)
 - Sprachkanal-Rolle (aus 0.4, noch offen)
-
-### Level und Währung
-
-- Level-Karten als Bild für `/rank`
-- Doppelte XP an Wochenenden oder für bestimmte Rollen
-- Saisons: Rangliste regelmäßig zurücksetzen, Ergebnisse archivieren
-- Belohnungen in Währung für Level-Aufstiege
 
 ### Dashboard und Bedienung
 

@@ -1266,3 +1266,19 @@ ul.suggestion-list .inline-form input {
   flex: 1 1 180px;
   min-width: 0;
 }
+ul.season-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+ul.season-list li {
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  display: grid;
+  gap: 0.25rem;
+  overflow-wrap: anywhere;
+}

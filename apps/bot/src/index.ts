@@ -8,7 +8,7 @@ import { onGuildCreate } from "./events/guildCreate.js";
 import { startTempBanScheduler } from "./services/tempbans.js";
 import { handleMemberJoin, handleMessage, invalidateAutomod } from "./services/automod.js";
 import * as log from "./services/logging.js";
-import { handleMessageXp, invalidateLevels, startVoiceXp } from "./services/levels.js";
+import { handleMessageXp, invalidateLevels, startSeasonJob, startVoiceXp } from "./services/levels.js";
 import { scheduleCommandSync, syncAllCommands, syncGuildCommands } from "./services/customcommands.js";
 import { startScheduler } from "./services/scheduler.js";
 import { startCounters } from "./services/counters.js";
@@ -42,6 +42,7 @@ await onSettingsChanged((guildId) => {
 const ctx = { db };
 let tempBanTimer: NodeJS.Timeout | undefined;
 let voiceXpTimer: NodeJS.Timeout | undefined;
+let seasonTimer: NodeJS.Timeout | undefined;
 let schedulerTimer: NodeJS.Timeout | undefined;
 let counterTimer: NodeJS.Timeout | undefined;
 let notifyTimer: NodeJS.Timeout | undefined;
@@ -70,6 +71,7 @@ client.once(Events.ClientReady, (c) => {
   logger.info({ user: c.user.tag, guilds: c.guilds.cache.size }, "Libremod ist online");
   tempBanTimer ??= startTempBanScheduler(c, db);
   voiceXpTimer ??= startVoiceXp(c, db);
+  seasonTimer ??= startSeasonJob(c, db);
   schedulerTimer ??= startScheduler(c, db);
   counterTimer ??= startCounters(c, db);
   notifyTimer ??= startNotifications(c, db);
@@ -146,6 +148,7 @@ async function shutdown(signal: string) {
   logger.info({ signal }, "Fahre herunter");
   clearInterval(tempBanTimer);
   clearInterval(voiceXpTimer);
+  clearInterval(seasonTimer);
   clearInterval(schedulerTimer);
   clearInterval(counterTimer);
   clearInterval(notifyTimer);
