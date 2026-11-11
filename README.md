@@ -27,9 +27,12 @@ Website: [libremod.dev](https://libremod.dev) · Geplante Funktionen: [ROADMAP.m
 | `/rank`, `/leaderboard`               | Level, XP und Rangliste                                      |
 | `/xp add/remove/set/reset`            | XP von Mitgliedern verwalten                                 |
 | `/ticket close/claim/add/remove/rename` | Tickets verwalten: schließen, übernehmen, Leute hinzufügen oder entfernen, umbenennen |
+| `/balance`, `/daily`, `/work`, `/pay`   | Server-Währung: Guthaben, täglicher Bonus, Arbeiten, Überweisen |
+| `/shop`, `/buy`, `/inventory`, `/richlist` | Shop, Kaufen (mit Vorschlägen), gekaufte Artikel, Rangliste |
+| `/coins add/remove/set`               | Guthaben von Mitgliedern verwalten (Team)                     |
 | `/logging status/set/off/ignore`      | Logs für Nachrichten, Beitritte, Mitglieder, Server und Sprachkanäle, je Art ein eigener Kanal |
 
-Dazu kommen eigene Befehle, die du im Dashboard anlegst. Geplante Nachrichten, Zähler-Kanäle, temporäre Sprachkanäle, Benachrichtigungen (YouTube, Twitch, Kick, Reddit, RSS), das Ticket-System (Ticket-Arten mit Formularfragen, Panels, Team-Rollen, Transkripte, Bewertungen), den Highlight-Kanal, automatisches Kanal-Leeren und den automatischen Langsam-Modus richtest du ebenfalls dort ein.
+Dazu kommen eigene Befehle, die du im Dashboard anlegst. Geplante Nachrichten, Zähler-Kanäle, temporäre Sprachkanäle, Benachrichtigungen (YouTube, Twitch, Kick, Reddit, RSS), die Server-Währung mit Shop, das Ticket-System (Ticket-Arten mit Formularfragen, Panels, Team-Rollen, Transkripte, Bewertungen), den Highlight-Kanal, automatisches Kanal-Leeren und den automatischen Langsam-Modus richtest du ebenfalls dort ein.
 
 Im Discord Developer Portal müssen unter **Bot → Privileged Gateway Intents** die Optionen **Server Members Intent** und **Message Content Intent** eingeschaltet sein (für Auto-Moderation, Raid-Schutz und Logging).
 

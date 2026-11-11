@@ -23,6 +23,8 @@ import {
   autoSlowmodeChannels,
   tickets,
   ticketPanels,
+  economySettings,
+  shopItems,
   sql,
   warnEscalations,
   type CaseType,
@@ -60,7 +62,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
 
   const { db } = database();
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const [[settings], rules, escalations, [weekStats], recent, channels, logs, [welcome], autoRoleRows, panels, [levels], [cmdCount], [schedCount], [counterCount], [hubCount], [feedCount], [hl], [purgeCount], [slowCount], [openTickets], [panelCount]] = await Promise.all([
+  const [[settings], rules, escalations, [weekStats], recent, channels, logs, [welcome], autoRoleRows, panels, [levels], [cmdCount], [schedCount], [counterCount], [hubCount], [feedCount], [hl], [purgeCount], [slowCount], [openTickets], [panelCount], [eco], [itemCount]] = await Promise.all([
     db.select().from(guildSettings).where(eq(guildSettings.guildId, guildId)),
     db.select().from(automodRules).where(and(eq(automodRules.guildId, guildId), eq(automodRules.enabled, true))),
     db.select({ n: count() }).from(warnEscalations).where(eq(warnEscalations.guildId, guildId)),
@@ -88,6 +90,8 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
     db.select({ n: count() }).from(autoSlowmodeChannels).where(eq(autoSlowmodeChannels.guildId, guildId)),
     db.select({ n: count() }).from(tickets).where(and(eq(tickets.guildId, guildId), eq(tickets.status, "open"))),
     db.select({ n: count() }).from(ticketPanels).where(eq(ticketPanels.guildId, guildId)),
+    db.select({ enabled: economySettings.enabled }).from(economySettings).where(eq(economySettings.guildId, guildId)),
+    db.select({ n: count() }).from(shopItems).where(eq(shopItems.guildId, guildId)),
   ]);
   const countBadge = (n: number | undefined, one: string, many: string) =>
     n ? <span className="badge on">{n === 1 ? one : `${n} ${many}`}</span> : <span className="badge">Keine</span>;
@@ -196,6 +200,17 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
       text: "Neue Videos, Livestreams, Reddit-Beiträge und RSS-Feeds automatisch im Kanal melden.",
       href: `${base}/notifications`,
       status: countBadge(feedCount?.n, "1 aktiv", "aktiv"),
+    },
+    {
+      icon: "coin",
+      title: "Währung & Shop",
+      text: "Eigene Währung mit täglichem Bonus, Arbeiten, Überweisungen und einem Shop für Rollen und Artikel.",
+      href: `${base}/economy`,
+      status: eco?.enabled ? (
+        <span className="badge on">{itemCount?.n ? `Aktiv · ${itemCount.n} im Shop` : "Aktiv"}</span>
+      ) : (
+        <span className="badge">Aus</span>
+      ),
     },
     {
       icon: "sparkle",

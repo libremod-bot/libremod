@@ -13,6 +13,7 @@ import { scheduleCommandSync, syncAllCommands, syncGuildCommands } from "./servi
 import { startScheduler } from "./services/scheduler.js";
 import { startCounters } from "./services/counters.js";
 import { startNotifications } from "./services/notifications.js";
+import { handleMessageCoins, invalidateEconomy } from "./services/economy.js";
 import { onTicketChannelDeleted, startTicketJobs, trackTicketMessage } from "./services/tickets.js";
 import { invalidateHighlights, onHighlightReaction, startChannelTools, trackSlowmodeMessage } from "./services/channeltools.js";
 import { invalidateTempVoice, loadTempChannels, onTempVoiceState } from "./services/tempvoice.js";
@@ -29,6 +30,7 @@ await onSettingsChanged((guildId) => {
   invalidateLevels(guildId);
   invalidateTempVoice(guildId);
   invalidateHighlights(guildId);
+  invalidateEconomy(guildId);
   scheduleCommandSync(client, db, guildId);
 });
 const ctx = { db };
@@ -77,7 +79,7 @@ client.on(Events.MessageCreate, (m) =>
   void handleMessage(m, db)
     .catch((err) => (logError("Auto-Mod")(err), false))
     // Was die Auto-Mod entfernt, bringt keine XP.
-    .then((removed) => (removed ? undefined : handleMessageXp(m, db)))
+    .then((removed) => (removed ? undefined : Promise.all([handleMessageXp(m, db), handleMessageCoins(m, db)])))
     .catch(logError("Level")),
 );
 client.on(Events.MessageUpdate, (oldMessage, newMessage) => {

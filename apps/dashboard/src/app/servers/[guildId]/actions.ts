@@ -29,6 +29,8 @@ import {
   ticketSettings,
   ticketCategories,
   ticketPanels,
+  economySettings,
+  shopItems,
   type TicketQuestion,
   count,
   warnEscalations,
@@ -68,6 +70,7 @@ import {
   cleanQuestions,
   MAX_TICKET_CATEGORIES,
   MAX_TICKET_PANELS,
+  MAX_SHOP_ITEMS,
 } from "@libremod/shared";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
@@ -1136,4 +1139,98 @@ export async function deleteTicketPanel(guildId: string, panelId: number) {
   const [panel] = await db.delete(ticketPanels).where(and(eq(ticketPanels.id, panelId), eq(ticketPanels.guildId, guildId))).returning();
   if (panel?.messageId) await deleteBotMessage(panel.channelId, panel.messageId).catch(() => {});
   back(TICKETS(guildId));
+}
+
+// --- Server-Währung ---
+
+const ECONOMY = (guildId: string) => `/servers/${guildId}/economy`;
+
+export async function saveEconomy(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = ECONOMY(guildId);
+  const currencyName = text(form, "currencyName") || "Münzen";
+  if (currencyName.length > 32) back(path, "Der Name der Währung darf höchstens 32 Zeichen lang sein.");
+  const rawSymbol = text(form, "currencySymbol") || "🪙";
+  const currencySymbol = parseEmojiInput(rawSymbol) ?? (rawSymbol.length <= 4 && !/[<>@#]/.test(rawSymbol) ? rawSymbol : null);
+  if (!currencySymbol) back(path, "Als Symbol bitte ein Emoji oder bis zu 4 Zeichen wie €.");
+  const n = (key: string, min: number, max: number, fallback: number) => {
+    const v = int(form, key, min, max);
+    if (Number.isNaN(v)) back(path, "Bitte nur ganze Zahlen im erlaubten Bereich.");
+    return v ?? fallback;
+  };
+  const values = {
+    enabled: form.get("enabled") === "on",
+    currencyName,
+    currencySymbol,
+    startBalance: n("startBalance", 0, 1_000_000, 0),
+    dailyAmount: n("dailyAmount", 0, 1_000_000, 100),
+    dailyStreakBonus: n("dailyStreakBonus", 0, 100_000, 10),
+    workMin: n("workMin", 0, 1_000_000, 20),
+    workMax: n("workMax", 0, 1_000_000, 60),
+    workCooldownMinutes: n("workCooldownMinutes", 5, 24 * 60, 60),
+    chatReward: n("chatReward", 0, 1000, 0),
+    allowPay: form.get("allowPay") === "on",
+  };
+  if (values.workMin > values.workMax) back(path, "Der Mindestlohn darf nicht größer als der Höchstlohn sein.");
+  const { db, notifySettingsChanged } = database();
+  await db.insert(economySettings).values({ guildId, ...values }).onConflictDoUpdate({ target: economySettings.guildId, set: values });
+  await notifySettingsChanged(guildId);
+  back(path);
+}
+
+async function readShopItem(guildId: string, form: FormData, path: string) {
+  const name = text(form, "name");
+  if (!name || name.length > 60) back(path, "Bitte einen Namen mit höchstens 60 Zeichen angeben.");
+  const description = text(form, "description");
+  if (description.length > 200) back(path, "Die Beschreibung darf höchstens 200 Zeichen lang sein.");
+  const price = int(form, "price", 1, 1_000_000_000);
+  if (!price) back(path, "Bitte einen Preis ab 1 angeben.");
+  const stock = int(form, "stock", 0, 1_000_000);
+  if (Number.isNaN(stock)) back(path, "Der Bestand muss eine ganze Zahl sein (leer = unbegrenzt).");
+  const roleId = text(form, "roleId") || null;
+  if (roleId) {
+    const one = new FormData();
+    one.set("r", roleId);
+    const { valid } = await assignableRoles(guildId, one, "r");
+    if (!valid.length) back(path, "Diese Rolle kann Libremod nicht vergeben. Schiebe die Libremod-Rolle darüber.");
+  }
+  const replyMessage = text(form, "replyMessage");
+  if (replyMessage.length > 500) back(path, "Der Text nach dem Kauf ist zu lang.");
+  return { name, description, price, stock, roleId, replyMessage, enabled: form.get("enabled") !== "off" };
+}
+
+export async function createShopItem(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = ECONOMY(guildId);
+  const values = await readShopItem(guildId, form, path);
+  const { db } = database();
+  const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(shopItems).where(eq(shopItems.guildId, guildId));
+  if (n >= MAX_SHOP_ITEMS) back(path, `Ein Shop kann höchstens ${MAX_SHOP_ITEMS} Artikel haben.`);
+  await db.insert(shopItems).values({ guildId, ...values });
+  back(path);
+}
+
+export async function updateShopItem(guildId: string, id: number, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `${ECONOMY(guildId)}/items/${id}`;
+  const values = await readShopItem(guildId, form, path);
+  const { db } = database();
+  const done = await db.update(shopItems).set(values).where(and(eq(shopItems.id, id), eq(shopItems.guildId, guildId))).returning();
+  if (!done.length) back(ECONOMY(guildId), "Diesen Artikel gibt es nicht mehr.");
+  back(path);
+}
+
+export async function toggleShopItem(guildId: string, id: number) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  const [item] = await db.select().from(shopItems).where(and(eq(shopItems.id, id), eq(shopItems.guildId, guildId)));
+  if (item) await db.update(shopItems).set({ enabled: !item.enabled }).where(eq(shopItems.id, id));
+  back(ECONOMY(guildId));
+}
+
+export async function deleteShopItem(guildId: string, id: number) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  await db.delete(shopItems).where(and(eq(shopItems.id, id), eq(shopItems.guildId, guildId)));
+  back(ECONOMY(guildId));
 }

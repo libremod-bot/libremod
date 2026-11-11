@@ -23,6 +23,13 @@ export async function onInteractionCreate(interaction: Interaction, ctx: Command
     });
     return;
   }
+  if (interaction.isAutocomplete()) {
+    await commands
+      .get(interaction.commandName)
+      ?.autocomplete?.(interaction, ctx)
+      .catch((err) => logger.warn({ err, command: interaction.commandName }, "Autovervollständigung fehlgeschlagen"));
+    return;
+  }
   if (!interaction.isChatInputCommand()) return;
   const command = commands.get(interaction.commandName);
   if (!command) {

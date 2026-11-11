@@ -71,6 +71,13 @@
       "when": 1794401093580,
       "tag": "0009_tickets",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794410077105,
+      "tag": "0010_economy",
+      "breakpoints": true
     }
   ]
 }

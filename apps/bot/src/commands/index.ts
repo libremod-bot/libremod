@@ -13,8 +13,9 @@ import { ban, unban } from "./moderation/ban.js";
 import { purge } from "./moderation/purge.js";
 import { cases, caseCommand } from "./moderation/cases.js";
 import { ticket } from "./tickets.js";
+import { balance, buy, coins, daily, inventory, payCommand, richlist, shop, work } from "./economy.js";
 
 /** Neue Befehle hier eintragen. */
-const all: Command[] = [ping, config, automod, logging, welcome, rank, leaderboard, xp, warn, timeout, untimeout, kick, ban, unban, purge, cases, caseCommand, ticket];
+const all: Command[] = [ping, config, automod, logging, welcome, rank, leaderboard, xp, warn, timeout, untimeout, kick, ban, unban, purge, cases, caseCommand, ticket, balance, daily, work, payCommand, shop, buy, inventory, richlist, coins];
 
 export const commands = new Collection<string, Command>(all.map((c) => [c.data.name, c]));

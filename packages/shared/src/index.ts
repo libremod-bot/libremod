@@ -10,3 +10,4 @@ export * from "./notifications.js";
 export * from "./netguard.js";
 export * from "./channeltools.js";
 export * from "./tickets.js";
+export * from "./economy.js";

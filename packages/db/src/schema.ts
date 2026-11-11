@@ -576,3 +576,92 @@ export const tickets = pgTable(
 );
 
 export type Ticket = typeof tickets.$inferSelect;
+
+// --- Server-Währung ---
+
+export const economySettings = pgTable("economy_settings", {
+  guildId: varchar("guild_id", { length: 32 }).primaryKey(),
+  enabled: boolean("enabled").notNull().default(false),
+  currencyName: varchar("currency_name", { length: 32 }).notNull().default("Münzen"),
+  /** Emoji oder kurzes Zeichen vor Beträgen. */
+  currencySymbol: varchar("currency_symbol", { length: 64 }).notNull().default("🪙"),
+  startBalance: integer("start_balance").notNull().default(0),
+  dailyAmount: integer("daily_amount").notNull().default(100),
+  /** Zusätzlich pro Tag in Folge (höchstens 7 Tage). */
+  dailyStreakBonus: integer("daily_streak_bonus").notNull().default(10),
+  workMin: integer("work_min").notNull().default(20),
+  workMax: integer("work_max").notNull().default(60),
+  workCooldownMinutes: integer("work_cooldown_minutes").notNull().default(60),
+  /** Für Nachrichten im Chat, höchstens einmal pro Minute. 0 = aus. */
+  chatReward: integer("chat_reward").notNull().default(0),
+  /** Überweisungen zwischen Mitgliedern erlauben. */
+  allowPay: boolean("allow_pay").notNull().default(true),
+});
+
+export type EconomySettings = typeof economySettings.$inferSelect;
+
+export const memberBalances = pgTable(
+  "member_balances",
+  {
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    userId: varchar("user_id", { length: 32 }).notNull(),
+    balance: integer("balance").notNull().default(0),
+    /** Insgesamt verdient (für Statistiken). */
+    earned: integer("earned").notNull().default(0),
+    lastDailyAt: timestamp("last_daily_at", { withTimezone: true }),
+    dailyStreak: integer("daily_streak").notNull().default(0),
+    lastWorkAt: timestamp("last_work_at", { withTimezone: true }),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.userId] }), index("member_balances_ranking").on(t.guildId, t.balance)],
+);
+
+export type MemberBalance = typeof memberBalances.$inferSelect;
+
+export const shopItems = pgTable(
+  "shop_items",
+  {
+    id: serial("id").primaryKey(),
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    name: varchar("name", { length: 60 }).notNull(),
+    description: varchar("description", { length: 200 }).notNull().default(""),
+    price: integer("price").notNull(),
+    /** Rolle, die man beim Kauf bekommt (optional). */
+    roleId: varchar("role_id", { length: 32 }),
+    /** Verbleibende Anzahl; null = unbegrenzt. */
+    stock: integer("stock"),
+    /** Text, den man nach dem Kauf sieht, z. B. wie man den Gewinn einlöst. */
+    replyMessage: varchar("reply_message", { length: 500 }).notNull().default(""),
+    enabled: boolean("enabled").notNull().default(true),
+  },
+  (t) => [index("shop_items_guild").on(t.guildId)],
+);
+
+export type ShopItem = typeof shopItems.$inferSelect;
+
+export const purchases = pgTable(
+  "purchases",
+  {
+    id: serial("id").primaryKey(),
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    userId: varchar("user_id", { length: 32 }).notNull(),
+    itemId: integer("item_id"),
+    itemName: varchar("item_name", { length: 60 }).notNull(),
+    price: integer("price").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("purchases_member").on(t.guildId, t.userId)],
+);
+
+/** Kontobewegungen, damit das Team im Dashboard nachvollziehen kann, was passiert ist. */
+export const economyLog = pgTable(
+  "economy_log",
+  {
+    id: serial("id").primaryKey(),
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    userId: varchar("user_id", { length: 32 }).notNull(),
+    amount: integer("amount").notNull(),
+    reason: varchar("reason", { length: 100 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("economy_log_guild").on(t.guildId, t.createdAt)],
+);
