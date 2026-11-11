@@ -34,6 +34,8 @@ import {
   countingChannels,
   wordChainChannels,
   quotes,
+  appealSettings,
+  banAppeals,
   channelLocks,
   sql,
   warnEscalations,
@@ -72,7 +74,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
 
   const { db } = database();
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const [[settings], rules, escalations, [weekStats], recent, channels, logs, [welcome], autoRoleRows, panels, [levels], [cmdCount], [schedCount], [counterCount], [hubCount], [feedCount], [hl], [purgeCount], [slowCount], [openTickets], [panelCount], [eco], [itemCount], [gwCount], [bday], [bdayCount], [verify], [lockCount], [sugg], [openSugg], [countRow], [chainRow], [quoteCount]] = await Promise.all([
+  const [[settings], rules, escalations, [weekStats], recent, channels, logs, [welcome], autoRoleRows, panels, [levels], [cmdCount], [schedCount], [counterCount], [hubCount], [feedCount], [hl], [purgeCount], [slowCount], [openTickets], [panelCount], [eco], [itemCount], [gwCount], [bday], [bdayCount], [verify], [lockCount], [sugg], [openSugg], [countRow], [chainRow], [quoteCount], [appealCfg], [openAppeals]] = await Promise.all([
     db.select().from(guildSettings).where(eq(guildSettings.guildId, guildId)),
     db.select().from(automodRules).where(and(eq(automodRules.guildId, guildId), eq(automodRules.enabled, true))),
     db.select({ n: count() }).from(warnEscalations).where(eq(warnEscalations.guildId, guildId)),
@@ -112,6 +114,8 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
     db.select({ current: countingChannels.current, record: countingChannels.record }).from(countingChannels).where(eq(countingChannels.guildId, guildId)).limit(1),
     db.select({ length: wordChainChannels.length, record: wordChainChannels.record }).from(wordChainChannels).where(eq(wordChainChannels.guildId, guildId)).limit(1),
     db.select({ n: count() }).from(quotes).where(eq(quotes.guildId, guildId)),
+    db.select({ enabled: appealSettings.enabled }).from(appealSettings).where(eq(appealSettings.guildId, guildId)),
+    db.select({ n: count() }).from(banAppeals).where(and(eq(banAppeals.guildId, guildId), eq(banAppeals.status, "open"))),
   ]);
   const countBadge = (n: number | undefined, one: string, many: string) =>
     n ? <span className="badge on">{n === 1 ? one : `${n} ${many}`}</span> : <span className="badge">Keine</span>;
@@ -143,6 +147,13 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
       ) : (
         <span className="badge">Aus</span>
       ),
+    },
+    {
+      icon: "mail",
+      title: "Einsprüche",
+      text: "Gebannte können über eine eigene Seite Einspruch einlegen, das Team entscheidet hier.",
+      href: `${base}/appeals`,
+      status: appealCfg?.enabled ? <span className={`badge ${openAppeals?.n ? "warn" : "on"}`}>{openAppeals?.n ? `${openAppeals.n} offen` : "Aktiv"}</span> : <span className="badge">Aus</span>,
     },
     {
       icon: "usercheck",

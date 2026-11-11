@@ -21,8 +21,10 @@ export async function GET(request: NextRequest) {
     session.user = { id: user.id, username: user.global_name ?? user.username, avatar: user.avatar };
     session.accessToken = token.access_token;
     session.expiresAt = Date.now() + token.expires_in * 1000;
+    const returnTo = session.returnTo && /^\/appeal\/\d{17,20}$/.test(session.returnTo) ? session.returnTo : "/servers";
+    session.returnTo = undefined;
     await session.save();
-    return NextResponse.redirect(`${env.dashboardUrl}/servers`);
+    return NextResponse.redirect(`${env.dashboardUrl}${returnTo}`);
   } catch {
     await session.save();
     return NextResponse.redirect(`${env.dashboardUrl}/?fehler=login`);

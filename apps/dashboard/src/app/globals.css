@@ -1287,3 +1287,43 @@ ul.season-list li {
   white-space: pre-wrap;
   margin-bottom: 0.25rem;
 }
+.card.appeal {
+  max-width: 640px;
+  margin: 2rem auto;
+  display: grid;
+  gap: 1rem;
+}
+.appeal-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.appeal-head img,
+.appeal-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  flex: none;
+}
+.appeal-icon {
+  display: grid;
+  place-items: center;
+  background: var(--surface-2);
+  font-weight: 700;
+}
+.appeal-head h1 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+.appeal-head p {
+  margin: 0;
+}
+.appeal-last {
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+ul.appeal-list li {
+  padding-right: 0.9rem;
+}

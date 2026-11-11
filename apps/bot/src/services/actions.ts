@@ -4,6 +4,7 @@ import { logger } from "../logger.js";
 import { formatDuration, MAX_TIMEOUT_SECONDS } from "@libremod/shared";
 import { countActiveWarnings, createCase, deactivateBans, getSettings } from "./cases.js";
 import { CASE_LABELS, postModLog } from "./modlog.js";
+import { appealLink } from "./safety.js";
 
 export interface ModerationRequest {
   db: Db;
@@ -35,12 +36,13 @@ const DM_VERBS: Partial<Record<CaseType, string>> = {
   ban: "wurdest gebannt",
 };
 
-async function notify(target: User, guild: Guild, type: CaseType, reason?: string | null, durationSeconds?: number | null) {
+async function notify(target: User, guild: Guild, type: CaseType, reason?: string | null, durationSeconds?: number | null, appeal?: string | null) {
   const verb = DM_VERBS[type];
   if (!verb) return false;
   const lines = [`Du ${verb} auf **${guild.name}**.`];
   if (durationSeconds) lines.push(`Dauer: ${formatDuration(durationSeconds)}`);
   lines.push(`Grund: ${reason || "Kein Grund angegeben"}`);
+  if (appeal) lines.push(`Einspruch einlegen: ${appeal}`);
   try {
     await target.send(lines.join("\n"));
     return true;
@@ -62,7 +64,8 @@ export async function moderate(req: ModerationRequest): Promise<ModerationResult
   // Vor Kick und Ban benachrichtigen, danach teilen wir keinen Server mehr.
   let dmSent = false;
   if (settings.dmOnAction && (type === "kick" || type === "ban")) {
-    dmSent = await notify(target, guild, type, reason, durationSeconds);
+    const appeal = type === "ban" ? await appealLink(db, guild.id).catch(() => null) : null;
+    dmSent = await notify(target, guild, type, reason, durationSeconds, appeal);
   }
 
   let expiresAt: Date | null = null;

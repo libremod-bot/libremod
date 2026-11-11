@@ -15,3 +15,4 @@ export * from "./fun.js";
 export * from "./protection.js";
 export * from "./community2.js";
 export * from "./extras.js";
+export * from "./safety.js";

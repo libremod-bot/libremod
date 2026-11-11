@@ -16,6 +16,8 @@ export interface SessionData {
   expiresAt?: number;
   /** Schutz gegen gefälschte Login-Rückleitungen */
   oauthState?: string;
+  /** Wohin es nach dem Login geht, z. B. zur Einspruch-Seite. */
+  returnTo?: string;
 }
 
 export async function getSession() {

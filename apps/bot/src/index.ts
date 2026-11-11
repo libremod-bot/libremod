@@ -21,6 +21,7 @@ import { handleCountMessage, handleSuggestionMessage, invalidateCounting, invali
 import { invalidateVerification, onVerifyJoin, onVerifyLeave, onLockedChannelDeleted, startProtectionJobs } from "./services/protection.js";
 import { invalidateTempVoice, loadTempChannels, onTempVoiceState } from "./services/tempvoice.js";
 import { handleWordChainMessage, invalidateVoiceRoles, invalidateWordChains, onVoiceRoleState } from "./services/extras.js";
+import { checkMemberName, invalidateNameGuard, onNameGuardUpdate } from "./services/safety.js";
 import { invalidateWelcome, onWelcomeJoin, onWelcomeLeave, onWelcomeMemberUpdate } from "./services/welcome.js";
 
 await runMigrations(config.DATABASE_URL);
@@ -40,6 +41,7 @@ await onSettingsChanged((guildId) => {
   invalidateCounting();
   invalidateWordChains();
   invalidateVoiceRoles(guildId);
+  invalidateNameGuard(guildId);
   scheduleCommandSync(client, db, guildId);
 });
 const ctx = { db };
@@ -113,6 +115,7 @@ client.on(Events.GuildMemberAdd, (m) => {
   void log.onMemberJoin(m, db).catch(logError("Logging"));
   void onWelcomeJoin(m, db).catch(logError("Begrüßung"));
   void onVerifyJoin(m, db).catch(logError("Verifizierung"));
+  void checkMemberName(m, db).catch(logError("Namensschutz"));
 });
 client.on(Events.MessageReactionAdd, (r, u) => void onHighlightReaction(r, u, db).catch(logError("Highlights")));
 client.on(Events.MessageReactionRemove, (r, u) => void onHighlightReaction(r, u, db).catch(logError("Highlights")));
@@ -120,6 +123,7 @@ client.on(Events.GuildMemberRemove, (m) => void onWelcomeLeave(m, db).catch(logE
 client.on(Events.GuildMemberRemove, (m) => void onVerifyLeave(m, db).catch(logError("Verifizierung")));
 client.on(Events.GuildMemberRemove, (m) => void onTempRoleMemberLeave(m, db).catch(logError("Rollen auf Zeit")));
 client.on(Events.GuildMemberUpdate, (a, b) => void onWelcomeMemberUpdate(a, b, db).catch(logError("Auto-Rollen")));
+client.on(Events.GuildMemberUpdate, (a, b) => void onNameGuardUpdate(a, b, db).catch(logError("Namensschutz")));
 
 // Logging
 const logged =

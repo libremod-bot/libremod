@@ -12,6 +12,7 @@ import {
   index,
   primaryKey,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 /**
  * Einstellungen pro Discord-Server. Alles, was im Dashboard einstellbar ist,
@@ -86,7 +87,7 @@ export const warnEscalations = pgTable(
 
 export type WarnEscalation = typeof warnEscalations.$inferSelect;
 
-export const automodFilter = pgEnum("automod_filter", ["spam", "invites", "links", "words", "caps", "mentions"]);
+export const automodFilter = pgEnum("automod_filter", ["spam", "invites", "links", "words", "caps", "mentions", "phishing"]);
 export type AutomodFilter = (typeof automodFilter.enumValues)[number];
 
 export const automodAction = pgEnum("automod_action", ["delete", "warn", "timeout", "kick", "ban"]);
@@ -100,6 +101,8 @@ export interface AutomodConfig {
   words?: string[];
   /** links: erlaubte Domains inkl. Subdomains */
   allowedDomains?: string[];
+  /** phishing: zusätzlich gesperrte Domains inkl. Subdomains */
+  blockedDomains?: string[];
   /** Hinweis, den die Person nach dem Löschen kurz im Kanal sieht. Platzhalter wie {user}. */
   notice?: string;
 }
@@ -1032,3 +1035,54 @@ export const quotes = pgTable(
 );
 
 export type Quote = typeof quotes.$inferSelect;
+
+// =============== 0.14: Namensschutz und Einsprüche ===============
+
+/** Schutz vor Namen, die Team, Bot oder Server nachahmen. */
+export const nameGuardSettings = pgTable("name_guard_settings", {
+  guildId: varchar("guild_id", { length: 32 }).primaryKey(),
+  enabled: boolean("enabled").notNull().default(false),
+  /** log = nur melden, rename = Spitzname ändern, kick, ban */
+  action: varchar("action", { length: 16 }).notNull().default("rename"),
+  /** Wessen Namen geschützt sind: Mitglieder mit diesen Rollen. Besitzer und Bot immer. */
+  roleIds: jsonb("role_ids").$type<string[]>().notNull().default([]),
+  /** Weitere geschützte Namen, z. B. der Servername. */
+  names: jsonb("names").$type<string[]>().notNull().default([]),
+});
+
+export type NameGuardSettings = typeof nameGuardSettings.$inferSelect;
+
+export const appealSettings = pgTable("appeal_settings", {
+  guildId: varchar("guild_id", { length: 32 }).primaryKey(),
+  enabled: boolean("enabled").notNull().default(false),
+  /** Hier meldet Libremod neue Einsprüche. */
+  channelId: varchar("channel_id", { length: 32 }),
+  question: varchar("question", { length: 300 }).notNull().default("Warum sollten wir deinen Ban aufheben?"),
+  /** Wartezeit nach einer Ablehnung. */
+  cooldownDays: integer("cooldown_days").notNull().default(30),
+});
+
+export type AppealSettings = typeof appealSettings.$inferSelect;
+
+export const banAppeals = pgTable(
+  "ban_appeals",
+  {
+    id: serial("id").primaryKey(),
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    userId: varchar("user_id", { length: 32 }).notNull(),
+    userName: varchar("user_name", { length: 100 }).notNull(),
+    text: varchar("text", { length: 2000 }).notNull(),
+    /** open, accepted, denied */
+    status: varchar("status", { length: 16 }).notNull().default("open"),
+    reviewerId: varchar("reviewer_id", { length: 32 }),
+    reviewReason: varchar("review_reason", { length: 500 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("ban_appeals_one_open").on(t.guildId, t.userId).where(sql`status = 'open'`),
+    index("ban_appeals_guild").on(t.guildId, t.createdAt),
+  ],
+);
+
+export type BanAppeal = typeof banAppeals.$inferSelect;

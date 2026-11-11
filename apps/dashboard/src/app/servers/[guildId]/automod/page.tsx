@@ -1,5 +1,5 @@
-import { automodExemptions, automodFilter, automodRules, eq, guildSettings, type AutomodFilter } from "@libremod/db";
-import { DEFAULT_THRESHOLDS, formatDuration } from "@libremod/shared";
+import { automodExemptions, automodFilter, automodRules, eq, guildSettings, nameGuardSettings, type AutomodFilter } from "@libremod/db";
+import { DEFAULT_THRESHOLDS, formatDuration, NAME_GUARD_ACTIONS } from "@libremod/shared";
 import { Icon, type IconName } from "@/components/Icon";
 import { Notice } from "@/components/Notice";
 import { PageHeader } from "@/components/PageHeader";
@@ -7,11 +7,16 @@ import { Switch } from "@/components/Switch";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
 import { CHANNEL_CATEGORY, getGuildChannels, getGuildRoles } from "@/lib/discord";
-import { saveAutomod } from "../actions";
+import { saveAutomod, saveNameGuard } from "../actions";
 
 export const metadata = { title: "Auto-Mod · Libremod" };
 
 const FILTERS: Record<AutomodFilter, { label: string; description: string; icon: IconName; threshold?: string }> = {
+  phishing: {
+    label: "Anti-Phishing",
+    description: "Betrugslinks, die Discord, Steam & Co. nachahmen, etwa „dlscord-gift.com“. Am besten mit Kick oder Ban.",
+    icon: "shield",
+  },
   spam: {
     label: "Spam",
     description: "Zu viele Nachrichten in kurzer Zeit oder dreimal derselbe Text.",
@@ -58,12 +63,13 @@ export default async function AutomodPage({
   const { gespeichert, fehler } = await searchParams;
 
   const { db } = database();
-  const [[settings], rules, exemptions, channels, roles] = await Promise.all([
+  const [[settings], rules, exemptions, channels, roles, [guard]] = await Promise.all([
     db.select().from(guildSettings).where(eq(guildSettings.guildId, guildId)),
     db.select().from(automodRules).where(eq(automodRules.guildId, guildId)),
     db.select().from(automodExemptions).where(eq(automodExemptions.guildId, guildId)),
     getGuildChannels(guildId),
     getGuildRoles(guildId),
+    db.select().from(nameGuardSettings).where(eq(nameGuardSettings.guildId, guildId)),
   ]);
   const byFilter = new Map(rules.map((r) => [r.filter, r]));
   const exemptRoles = exemptions.filter((e) => e.kind === "role").map((e) => e.targetId);
@@ -91,7 +97,7 @@ export default async function AutomodPage({
         <section>
           <h2 style={{ marginBottom: "0.85rem" }}>Filter</h2>
           <div className="filters">
-            {(automodFilter.enumValues as readonly AutomodFilter[]).map((f) => {
+            {(["phishing", ...automodFilter.enumValues.filter((x) => x !== "phishing")] as AutomodFilter[]).map((f) => {
               const rule = byFilter.get(f);
               const info = FILTERS[f];
               const defaultThreshold = DEFAULT_THRESHOLDS[f as keyof typeof DEFAULT_THRESHOLDS];
@@ -128,6 +134,19 @@ export default async function AutomodPage({
                         placeholder={"ein Wort pro Zeile\nidiot*"}
                       />
                       <div className="hint">Ein * am Ende trifft auch Endungen (idiot* → idioten).</div>
+                    </div>
+                  )}
+                  {f === "phishing" && (
+                    <div className="field">
+                      <label htmlFor="phishing.blockedDomains">Zusätzlich gesperrte Domains</label>
+                      <textarea
+                        id="phishing.blockedDomains"
+                        name="phishing.blockedDomains"
+                        defaultValue={(rule?.config.blockedDomains ?? []).join("\n")}
+                        placeholder={"beispiel-betrug.com"}
+                        style={{ minHeight: 60 }}
+                      />
+                      <div className="hint">Eine Domain pro Zeile. Echte Discord-, Steam- und andere bekannte Seiten bleiben immer erlaubt.</div>
                     </div>
                   )}
                   {f === "links" && (
@@ -268,6 +287,48 @@ export default async function AutomodPage({
         <div className="savebar">
           <span className="small muted">Änderungen gelten sofort nach dem Speichern.</span>
           <button type="submit">Speichern</button>
+        </div>
+      </form>
+
+      <form action={saveNameGuard.bind(null, guildId)} className="card" id="namensschutz">
+        <Switch
+          name="nameGuard.enabled"
+          defaultChecked={guard?.enabled ?? false}
+          label="Namensschutz"
+          description="Greift ein, wenn jemand heißt wie dein Team, der Server-Inhaber oder Libremod, auch mit Tricks wie „Mlchel“ oder „Max | Support“."
+        />
+        <div className="grid-2" style={{ marginTop: "1rem", alignItems: "start" }}>
+          <div>
+            <label htmlFor="nameGuard.roles">Team-Rollen, deren Namen geschützt sind</label>
+            <select id="nameGuard.roles" name="nameGuard.roles" multiple defaultValue={guard?.roleIds ?? []}>
+              {roles
+                .filter((r) => r.id !== guildId)
+                .map((r) => (
+                  <option key={r.id} value={r.id}>
+                    @{r.name}
+                  </option>
+                ))}
+            </select>
+            <div className="hint">Inhaber und Libremod sind immer geschützt. Wer selbst eine dieser Rollen hat, wird nicht geprüft.</div>
+          </div>
+          <div>
+            <label htmlFor="nameGuard.action">Was passiert?</label>
+            <select id="nameGuard.action" name="nameGuard.action" defaultValue={guard?.action ?? "rename"}>
+              {NAME_GUARD_ACTIONS.map((a) => (
+                <option key={a.value} value={a.value}>
+                  {a.label}
+                </option>
+              ))}
+            </select>
+            <label htmlFor="nameGuard.names" style={{ marginTop: "1rem" }}>
+              Weitere geschützte Namen
+            </label>
+            <textarea id="nameGuard.names" name="nameGuard.names" defaultValue={(guard?.names ?? []).join("\n")} placeholder={"Servername\nSupport"} style={{ minHeight: 80 }} />
+            <div className="hint">Einer pro Zeile. Alles landet im Mod-Log.</div>
+          </div>
+        </div>
+        <div style={{ marginTop: "1rem" }}>
+          <button type="submit">Namensschutz speichern</button>
         </div>
       </form>
     </>

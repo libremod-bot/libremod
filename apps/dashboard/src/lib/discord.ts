@@ -271,3 +271,40 @@ export function avatarUrl(u: { id: string; avatar: string | null }) {
     ? `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=64`
     : `https://cdn.discordapp.com/embed/avatars/${Number((BigInt(u.id) >> 22n) % 6n)}.png`;
 }
+
+// --- Einsprüche gegen Bans ---
+
+/** Name und Bild eines Servers, auf dem der Bot ist. */
+export function getGuildInfo(guildId: string) {
+  return cached(`guild-info:${guildId}`, 5 * 60_000, () => discord<{ id: string; name: string; icon: string | null }>(`/guilds/${guildId}`, bot()));
+}
+
+/** Ist diese Person auf dem Server gebannt? Liefert den Ban-Grund oder null. */
+export async function getBan(guildId: string, userId: string): Promise<{ reason: string | null } | null> {
+  try {
+    const ban = await discord<{ reason: string | null }>(`/guilds/${guildId}/bans/${userId}`, bot());
+    return { reason: ban.reason };
+  } catch (err) {
+    if (err instanceof DiscordError && err.status === 404) return null;
+    throw err;
+  }
+}
+
+export async function unbanUser(guildId: string, userId: string, reason: string) {
+  try {
+    await discord(`/guilds/${guildId}/bans/${userId}`, bot(), { method: "DELETE", headers: { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 400)) } });
+  } catch (err) {
+    if (!(err instanceof DiscordError && err.status === 404)) throw err; // schon entbannt
+  }
+}
+
+/** Direktnachricht vom Bot. Geschlossene Direktnachrichten sind kein Fehler. */
+export async function sendDirectMessage(userId: string, body: unknown) {
+  try {
+    const dm = await discord<{ id: string }>(`/users/@me/channels`, bot(), jsonInit("POST", { recipient_id: userId }));
+    await sendBotMessage(dm.id, body);
+    return true;
+  } catch {
+    return false;
+  }
+}

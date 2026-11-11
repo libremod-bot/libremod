@@ -96,14 +96,14 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 - Wortketten-Kanal mit Rekord, ohne doppelte Wörter
 - Zitate speichern per Rechtsklick oder `/quote add`, zufällig wieder hervorholen, im Dashboard durchsuchen
 
+## 0.14 Mehr Moderation
+
+- Anti-Phishing als Auto-Mod-Filter: erkennt nachgemachte Discord-, Steam- und andere Links, eigene Sperrliste
+- Namensschutz: greift ein, wenn jemand heißt wie Team, Inhaber oder Bot (auch mit Tricks wie „Mlchel“)
+- Massenaktionen `/massban`, `/masskick`, `/masstimeout` per Liste oder „alle, die in den letzten X Minuten beigetreten sind“, mit Bestätigung
+- Einspruch gegen Bans über eine eigene Seite im Dashboard, Link in der Ban-Nachricht, Entscheidung durch das Team
+
 ## Später
-
-### Moderation und Sicherheit
-
-- Massenaktionen: mehrere Mitglieder auf einmal bannen oder stummschalten
-- Schutz vor Konten mit verdächtigen Namen (z. B. Nachahmung von Teammitgliedern)
-- Anti-Phishing: bekannte Betrugslinks automatisch entfernen
-- Einspruch gegen Bans über ein Formular im Dashboard
 
 ### Community
 

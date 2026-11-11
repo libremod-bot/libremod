@@ -16,11 +16,12 @@ import { ticket } from "./tickets.js";
 import { suggest, suggestion, temprole } from "./community2.js";
 import { lockdown, modstats, note, unlock, verify } from "./protection.js";
 import { birthday, giveaway, poll, remind } from "./fun.js";
+import { massban, masskick, masstimeout } from "./safety.js";
 import { quote, saveQuoteMenu, type ContextMenu } from "./extras.js";
 import { balance, buy, coins, daily, inventory, payCommand, richlist, shop, work } from "./economy.js";
 
 /** Neue Befehle hier eintragen. */
-const all: Command[] = [ping, config, automod, logging, welcome, rank, leaderboard, xp, warn, timeout, untimeout, kick, ban, unban, purge, cases, caseCommand, ticket, balance, daily, work, payCommand, shop, buy, inventory, richlist, coins, giveaway, poll, remind, birthday, verify, lockdown, unlock, note, modstats, suggest, suggestion, temprole, quote];
+const all: Command[] = [ping, config, automod, logging, welcome, rank, leaderboard, xp, warn, timeout, untimeout, kick, ban, unban, purge, cases, caseCommand, ticket, balance, daily, work, payCommand, shop, buy, inventory, richlist, coins, giveaway, poll, remind, birthday, verify, lockdown, unlock, note, modstats, suggest, suggestion, temprole, quote, massban, masskick, masstimeout];
 
 export const commands = new Collection<string, Command>(all.map((c) => [c.data.name, c]));
 

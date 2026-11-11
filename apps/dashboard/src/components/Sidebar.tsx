@@ -20,6 +20,7 @@ export function SidebarLinks({ guildId }: { guildId: string }) {
         { href: `${base}/logging`, label: "Logging", icon: "log" },
         { href: `${base}/cases`, label: "Fallakte", icon: "list" },
         { href: `${base}/tickets`, label: "Tickets", icon: "ticket" },
+        { href: `${base}/appeals`, label: "Einsprüche", icon: "mail" },
       ],
     },
     {

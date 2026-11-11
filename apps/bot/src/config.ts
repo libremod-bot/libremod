@@ -6,6 +6,8 @@ const schema = z.object({
   DISCORD_CLIENT_ID: z.string().min(1, "DISCORD_CLIENT_ID fehlt"),
   DISCORD_DEV_GUILD_ID: z.string().optional().transform((v) => v || undefined),
   DATABASE_URL: z.string().min(1, "DATABASE_URL fehlt"),
+  /** Für Links ins Dashboard, z. B. zum Einspruch gegen einen Ban. */
+  DASHBOARD_URL: z.string().url().optional().or(z.literal("").transform(() => undefined)),
   LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error"]).default("info"),
 });
 

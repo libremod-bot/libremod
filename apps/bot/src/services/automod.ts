@@ -26,6 +26,7 @@ import {
   JoinTracker,
   renderTemplate,
   SpamTracker,
+  checkPhishing,
 } from "@libremod/shared";
 import { moderate } from "./actions.js";
 import { getSettings } from "./cases.js";
@@ -46,7 +47,7 @@ const RAID_MODE_MS = 5 * 60_000;
 const RAID_TIMEOUT_SECONDS = 60 * 60;
 
 /** Reihenfolge der Prüfung: die erste Regel, die anschlägt, gewinnt. */
-const FILTER_ORDER: AutomodFilter[] = ["words", "invites", "links", "mentions", "caps", "spam"];
+const FILTER_ORDER: AutomodFilter[] = ["phishing", "words", "invites", "links", "mentions", "caps", "spam"];
 
 export const FILTER_LABELS: Record<AutomodFilter, string> = {
   spam: "Spam",
@@ -55,6 +56,7 @@ export const FILTER_LABELS: Record<AutomodFilter, string> = {
   words: "Wortfilter",
   caps: "Großbuchstaben",
   mentions: "Massen-Erwähnungen",
+  phishing: "Anti-Phishing",
 };
 
 const cache = new Map<string, GuildAutomod>();
@@ -118,6 +120,8 @@ function evaluate(filter: AutomodFilter, message: Message<true>, rule: AutomodRu
       const everyone = /@(everyone|here)/.test(content) && !message.member?.permissions.has(PermissionFlagsBits.MentionEveryone);
       return checkMentions(count, everyone, rule.config.threshold);
     }
+    case "phishing":
+      return checkPhishing(content, rule.config.blockedDomains);
     case "spam":
       return spam.check(`${message.guildId}:${message.author.id}`, content, rule.config.threshold);
   }

@@ -25,6 +25,7 @@ Website: [libremod.dev](https://libremod.dev) · Geplante Funktionen: [ROADMAP.m
 | `/modstats`                           | Wer im Team wie viele Fälle bearbeitet hat                   |
 | `/suggest`, `/suggestion status/delete` | Vorschläge einreichen, abstimmen, als Team entscheiden    |
 | `/temprole add/remove/list`           | Rollen auf Zeit, z. B. 30 Tage VIP                           |
+| `/massban`, `/masskick`, `/masstimeout` | Mehrere Personen auf einmal, z. B. alle, die in den letzten 10 Minuten beigetreten sind (mit Bestätigung) |
 | `/quote add/random/show/delete`       | Zitate speichern und hervorholen, auch per Rechtsklick auf eine Nachricht → Apps → Als Zitat speichern |
 | `/verify`                             | Mitglied von Hand verifizieren (Verifizierung im Dashboard einrichten) |
 | `/config modlog/dm/escalation/show`   | Mod-Log-Kanal, Direktnachrichten, Verwarnungsstufen          |

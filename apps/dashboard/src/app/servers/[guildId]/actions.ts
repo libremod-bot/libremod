@@ -56,6 +56,9 @@ import {
   wordChainChannels,
   wordChainWords,
   quotes,
+  nameGuardSettings,
+  appealSettings,
+  banAppeals,
 } from "@libremod/db";
 import {
   buildPanelMessage,
@@ -102,6 +105,7 @@ import {
   SEASON_MODES,
   seasonEndMessage,
   ANY_VOICE_CHANNEL,
+  NAME_GUARD_ACTIONS,
 } from "@libremod/shared";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
@@ -122,6 +126,9 @@ import {
   getGuildRoles,
   getMembers,
   sendBotMessage,
+  sendDirectMessage,
+  unbanUser,
+  getGuildInfo,
 } from "@/lib/discord";
 
 const SNOWFLAKE = /^\d{17,20}$/;
@@ -239,6 +246,11 @@ export async function saveAutomod(guildId: string, form: FormData) {
       const words = list(form, "words.list");
       if (words.length > 1000) back(path, "Die Wortliste kann höchstens 1000 Einträge haben.");
       config.words = [...new Set(words)];
+    }
+    if (filter === "phishing") {
+      const domains = list(form, "phishing.blockedDomains").map((d) => d.toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, ""));
+      if (domains.length > 500) back(path, "Höchstens 500 gesperrte Domains.");
+      config.blockedDomains = [...new Set(domains.filter((d) => /^[a-z0-9.-]+\.[a-z0-9-]+$/.test(d)))];
     }
     if (filter === "links") {
       config.allowedDomains = [
@@ -1761,4 +1773,73 @@ export async function deleteQuote(guildId: string, id: number) {
   const { db } = database();
   await db.delete(quotes).where(and(eq(quotes.guildId, guildId), eq(quotes.id, id)));
   back(`/servers/${guildId}/quotes`);
+}
+
+// --- Namensschutz ---
+
+export async function saveNameGuard(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/automod`;
+  const action = text(form, "nameGuard.action");
+  if (!NAME_GUARD_ACTIONS.some((a) => a.value === action)) back(path, "Unbekannte Aktion beim Namensschutz.");
+  const roles = new Set((await getGuildRoles(guildId)).map((r) => r.id));
+  const roleIds = [...new Set(form.getAll("nameGuard.roles").filter((v): v is string => typeof v === "string" && roles.has(v) && v !== guildId))];
+  const names = [...new Set(text(form, "nameGuard.names").split(/[,\n]/).map((n) => n.trim().slice(0, 64)).filter(Boolean))];
+  if (names.length > 50) back(path, "Höchstens 50 zusätzliche Namen.");
+  const values = { enabled: form.get("nameGuard.enabled") === "on", action, roleIds, names };
+  const { db, notifySettingsChanged } = database();
+  await db.insert(nameGuardSettings).values({ guildId, ...values }).onConflictDoUpdate({ target: nameGuardSettings.guildId, set: values });
+  await notifySettingsChanged(guildId);
+  back(path);
+}
+
+// --- Einsprüche ---
+
+const APPEALS = (g: string) => `/servers/${g}/appeals`;
+
+export async function saveAppealSettings(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId);
+  const path = APPEALS(guildId);
+  const channelId = text(form, "channelId") || null;
+  if (channelId && !(await textChannelIds(guildId)).text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  const question = text(form, "question") || "Warum sollten wir deinen Ban aufheben?";
+  if (question.length > 300) back(path, "Die Frage darf höchstens 300 Zeichen lang sein.");
+  const cooldownDays = int(form, "cooldownDays", 0, 365) ?? 30;
+  if (Number.isNaN(cooldownDays)) back(path, "Wartezeit bitte zwischen 0 und 365 Tagen.");
+  const values = { enabled: form.get("enabled") === "on", channelId, question, cooldownDays };
+  const { db } = database();
+  await db.insert(appealSettings).values({ guildId, ...values }).onConflictDoUpdate({ target: appealSettings.guildId, set: values });
+  back(path);
+}
+
+export async function decideAppeal(guildId: string, id: number, accept: boolean, form: FormData) {
+  const { user } = await requireGuildAccess(guildId);
+  const path = APPEALS(guildId);
+  const reason = text(form, "reason").slice(0, 500) || null;
+  const { db } = database();
+  // Nur offene Einsprüche entscheiden, auch wenn zwei aus dem Team gleichzeitig klicken.
+  const [row] = await db
+    .update(banAppeals)
+    .set({ status: accept ? "accepted" : "denied", reviewerId: user.id, reviewReason: reason, reviewedAt: new Date() })
+    .where(and(eq(banAppeals.guildId, guildId), eq(banAppeals.id, id), eq(banAppeals.status, "open")))
+    .returning();
+  if (!row) back(path, "Über diesen Einspruch wurde schon entschieden.");
+  const guild = await getGuildInfo(guildId).catch(() => ({ name: "dem Server" }));
+  if (accept) {
+    try {
+      await unbanUser(guildId, row!.userId, `Einspruch angenommen von ${user.username}${reason ? `: ${reason}` : ""}`);
+    } catch {
+      await db.update(banAppeals).set({ status: "open", reviewerId: null, reviewReason: null, reviewedAt: null }).where(eq(banAppeals.id, id));
+      back(path, "Der Ban konnte nicht aufgehoben werden. Hat Libremod das Recht „Mitglieder bannen“?");
+    }
+    await db
+      .update(modCases)
+      .set({ active: false })
+      .where(and(eq(modCases.guildId, guildId), eq(modCases.targetId, row!.userId), eq(modCases.type, "ban")));
+  }
+  const message = accept
+    ? `Dein Einspruch auf **${guild.name}** wurde angenommen, dein Ban ist aufgehoben. Du kannst wieder beitreten.`
+    : `Dein Einspruch auf **${guild.name}** wurde abgelehnt.`;
+  await sendDirectMessage(row!.userId, { content: `${message}${reason ? `\nBegründung: ${reason}` : ""}`.slice(0, 2000), allowed_mentions: { parse: [] } });
+  back(path);
 }
