@@ -105,11 +105,11 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 - Massenaktionen `/massban`, `/masskick`, `/masstimeout` per Liste oder „alle, die in den letzten X Minuten beigetreten sind“, mit Bestätigung
 - Einspruch gegen Bans über eine eigene Seite im Dashboard, Link in der Ban-Nachricht, Entscheidung durch das Team
 
+## 0.15 Events
+
+- Event-Planer: `/event create/cancel/list` und Dashboard-Seite, Zu-, Ab- und Vielleicht-Antworten per Knopf, begrenzte Plätze mit Warteliste und automatischem Nachrücken, Event-Rolle für alle Zusagen (danach wieder entfernt), Erinnerung per DM vor Beginn, Absage mit Benachrichtigung
+
 ## Später
-
-### Community
-
-- Event-Planer mit Zu- und Absagen und Erinnerung vor Beginn
 
 ### Dashboard und Bedienung
 

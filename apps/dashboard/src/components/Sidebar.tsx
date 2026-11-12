@@ -31,6 +31,7 @@ export function SidebarLinks({ guildId }: { guildId: string }) {
         { href: `${base}/levels`, label: "Level", icon: "steps" },
         { href: `${base}/economy`, label: "Währung & Shop", icon: "coin" },
         { href: `${base}/giveaways`, label: "Gewinnspiele", icon: "gift" },
+        { href: `${base}/events`, label: "Events", icon: "calendar" },
         { href: `${base}/birthdays`, label: "Geburtstage", icon: "cake" },
         { href: `${base}/suggestions`, label: "Vorschläge", icon: "bulb" },
         { href: `${base}/counting`, label: "Zähl-Kanal", icon: "hash" },

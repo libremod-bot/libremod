@@ -1088,3 +1088,51 @@ export const banAppeals = pgTable(
 );
 
 export type BanAppeal = typeof banAppeals.$inferSelect;
+
+// --- Event-Planer ---
+
+export const eventState = pgEnum("event_state", ["open", "done", "cancelled"]);
+export const rsvpStatus = pgEnum("rsvp_status", ["yes", "maybe", "no", "waitlist"]);
+
+export const guildEvents = pgTable(
+  "guild_events",
+  {
+    id: serial("id").primaryKey(),
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    channelId: varchar("channel_id", { length: 32 }).notNull(),
+    messageId: varchar("message_id", { length: 32 }),
+    title: varchar("title", { length: 100 }).notNull(),
+    description: varchar("description", { length: 2000 }).notNull().default(""),
+    location: varchar("location", { length: 200 }).notNull().default(""),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    /** Höchstzahl an Zusagen, 0 = unbegrenzt. Weitere landen auf der Warteliste. */
+    slots: integer("slots").notNull().default(0),
+    hostId: varchar("host_id", { length: 32 }).notNull(),
+    /** Rolle für alle mit Zusage, wird nach dem Event wieder entfernt. */
+    roleId: varchar("role_id", { length: 32 }),
+    /** Erinnerung per DM so viele Minuten vor Beginn, 0 = aus. */
+    remindMinutes: integer("remind_minutes").notNull().default(30),
+    reminded: boolean("reminded").notNull().default(false),
+    /** Im Dashboard abgesagt: Der Bot erledigt den Rest (Nachricht, Rollen, DMs). */
+    cancelRequested: boolean("cancel_requested").notNull().default(false),
+    state: eventState("state").notNull().default("open"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("guild_events_due").on(t.state, t.startsAt), index("guild_events_guild").on(t.guildId)],
+);
+
+export type GuildEvent = typeof guildEvents.$inferSelect;
+
+export const eventRsvps = pgTable(
+  "event_rsvps",
+  {
+    eventId: integer("event_id")
+      .notNull()
+      .references(() => guildEvents.id, { onDelete: "cascade" }),
+    userId: varchar("user_id", { length: 32 }).notNull(),
+    status: rsvpStatus("status").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.eventId, t.userId] }), index("event_rsvps_status").on(t.eventId, t.status, t.updatedAt)],
+);

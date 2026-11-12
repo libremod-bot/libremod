@@ -59,6 +59,8 @@ import {
   nameGuardSettings,
   appealSettings,
   banAppeals,
+  guildEvents,
+  ne,
 } from "@libremod/db";
 import {
   buildPanelMessage,
@@ -106,6 +108,16 @@ import {
   seasonEndMessage,
   ANY_VOICE_CHANNEL,
   NAME_GUARD_ACTIONS,
+  buildEventMessage,
+  DEFAULT_EVENT_MINUTES,
+  EVENT_REMINDERS,
+  MAX_ACTIVE_EVENTS,
+  MAX_EVENT_DESCRIPTION,
+  MAX_EVENT_LOCATION,
+  MAX_EVENT_SLOTS,
+  MAX_EVENT_TITLE,
+  parseEventStart,
+  validateEventTime,
 } from "@libremod/shared";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
@@ -1412,6 +1424,93 @@ export async function deleteGiveaway(guildId: string, giveawayId: number) {
     if (g.messageId && !g.ended) await deleteBotMessage(g.channelId, g.messageId).catch(() => {});
   }
   back(GIVEAWAYS(guildId));
+}
+
+// --- Events ---
+
+const EVENTS = (guildId: string) => `/servers/${guildId}/events`;
+
+export async function createEvent(guildId: string, form: FormData) {
+  const { user } = await requireGuildAccess(guildId);
+  const path = EVENTS(guildId);
+  const title = text(form, "title");
+  if (!title || title.length > MAX_EVENT_TITLE) back(path, `Bitte einen Titel mit höchstens ${MAX_EVENT_TITLE} Zeichen angeben.`);
+  const description = text(form, "description");
+  if (description.length > MAX_EVENT_DESCRIPTION) back(path, `Die Beschreibung darf höchstens ${MAX_EVENT_DESCRIPTION} Zeichen lang sein.`);
+  const location = text(form, "location");
+  if (location.length > MAX_EVENT_LOCATION) back(path, `Der Ort darf höchstens ${MAX_EVENT_LOCATION} Zeichen lang sein.`);
+  const startsAt = parseEventStart(text(form, "startsAt").replace("T", " "));
+  if (!startsAt) back(path, "Bitte Datum und Uhrzeit für den Start angeben.");
+  const durationText = text(form, "duration");
+  const seconds = durationText ? parseDuration(durationText) : DEFAULT_EVENT_MINUTES * 60;
+  if (!seconds) back(path, "Die Dauer wurde nicht verstanden. Beispiele: 90m, 3h, 2d.");
+  const minutes = Math.round(seconds! / 60);
+  const invalid = validateEventTime(startsAt!, minutes);
+  if (invalid) back(path, invalid);
+  const slots = int(form, "slots", 0, MAX_EVENT_SLOTS);
+  if (Number.isNaN(slots)) back(path, `Die Plätze müssen zwischen 0 und ${MAX_EVENT_SLOTS} liegen (0 = unbegrenzt).`);
+  const remindMinutes = Number(text(form, "remindMinutes") || 30);
+  if (!EVENT_REMINDERS.some((r) => r.value === remindMinutes)) back(path, "Bitte eine Erinnerung aus der Liste wählen.");
+  const channelId = text(form, "channelId");
+  if (!(await textChannelIds(guildId)).text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  const roleId = text(form, "roleId") || null;
+  if (roleId) {
+    const { invalid: badRole } = await assignableRoles(guildId, form, "roleId");
+    if (badRole.length) back(path, "Diese Rolle kann Libremod nicht vergeben. Sie muss unter der Rolle von Libremod stehen.");
+  }
+
+  const { db } = database();
+  const [active] = await db.select({ n: count() }).from(guildEvents).where(and(eq(guildEvents.guildId, guildId), eq(guildEvents.state, "open")));
+  if ((active?.n ?? 0) >= MAX_ACTIVE_EVENTS) back(path, `Es sind schon ${MAX_ACTIVE_EVENTS} Events geplant. Sag erst eins ab.`);
+
+  const [e] = await db
+    .insert(guildEvents)
+    .values({
+      guildId,
+      channelId,
+      title,
+      description,
+      location,
+      startsAt: startsAt!,
+      endsAt: new Date(startsAt!.getTime() + minutes * 60_000),
+      slots: slots ?? 0,
+      hostId: user.id,
+      roleId,
+      remindMinutes,
+    })
+    .returning();
+  try {
+    const msg = await sendBotMessage(channelId, buildEventMessage(e!, { yes: [], maybe: [], no: [], waitlist: [] }));
+    await db.update(guildEvents).set({ messageId: msg.id }).where(eq(guildEvents.id, e!.id));
+  } catch (err) {
+    await db.delete(guildEvents).where(eq(guildEvents.id, e!.id));
+    back(
+      path,
+      err instanceof DiscordError && (err.status === 403 || err.status === 404)
+        ? "Libremod konnte im Kanal nicht posten. Prüfe dort die Rechte „Nachrichten senden“ und „Links einbetten“."
+        : "Die Nachricht konnte nicht gepostet werden. Bitte später nochmal versuchen.",
+    );
+  }
+  back(path);
+}
+
+/** Markiert das Event als abgesagt. Der Bot passt die Nachricht an, entfernt Rollen und schreibt allen. */
+export async function cancelEventRequest(guildId: string, eventId: number) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  await db
+    .update(guildEvents)
+    .set({ cancelRequested: true })
+    .where(and(eq(guildEvents.id, eventId), eq(guildEvents.guildId, guildId), eq(guildEvents.state, "open")));
+  back(EVENTS(guildId));
+}
+
+/** Entfernt ein vergangenes oder abgesagtes Event aus der Liste (die Discord-Nachricht bleibt). */
+export async function deleteEvent(guildId: string, eventId: number) {
+  await requireGuildAccess(guildId);
+  const { db } = database();
+  await db.delete(guildEvents).where(and(eq(guildEvents.id, eventId), eq(guildEvents.guildId, guildId), ne(guildEvents.state, "open")));
+  back(EVENTS(guildId));
 }
 
 // --- Geburtstage ---

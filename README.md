@@ -39,6 +39,7 @@ Website: [libremod.dev](https://libremod.dev) · Geplante Funktionen: [ROADMAP.m
 | `/shop`, `/buy`, `/inventory`, `/richlist` | Shop, Kaufen (mit Vorschlägen), gekaufte Artikel, Rangliste |
 | `/coins add/remove/set`               | Guthaben von Mitgliedern verwalten (Team)                     |
 | `/giveaway start/end/reroll/list`     | Gewinnspiele mit Mitmach-Knopf, Bedingungen und Neu-Auslosen (Team) |
+| `/event create/cancel/list`          | Events mit Zu- und Absagen, Warteliste, Event-Rolle und Erinnerung (Team) |
 | `/poll`                               | Umfrage mit bis zu 10 Antworten, Laufzeit und Mehrfachauswahl |
 | `/remind set/list/delete`             | Erinnerungen im Kanal oder per Direktnachricht               |
 | `/birthday set/remove/show/list`      | Geburtstag eintragen und die nächsten Geburtstage ansehen    |
