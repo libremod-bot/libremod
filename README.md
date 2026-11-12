@@ -3,7 +3,7 @@
 Kostenloser, quelloffener Moderations- und Administrations-Bot für Discord.
 
 - **Keine Paywall.** Jede Funktion ist für jeden Server frei nutzbar, ohne Premium-Stufen.
-- **Selbst hostbar.** Mit Docker in wenigen Minuten auf dem eigenen Server.
+- **Selbst gehostet.** Läuft auf deinem eigenen Server, mit Install-Skript in wenigen Minuten eingerichtet. Deine Daten bleiben bei dir.
 - **Open Source.** Lizenziert unter der [AGPL-3.0](LICENSE): Wer Libremod verändert und öffentlich betreibt, muss seinen Code ebenfalls offenlegen.
 
 Website: [libremod.dev](https://libremod.dev) · Geplante Funktionen: [ROADMAP.md](ROADMAP.md)
@@ -60,54 +60,30 @@ Der Bot braucht auf dem Server die Rechte **Mitglieder kicken**, **Mitglieder ba
 | `packages/shared`| Gemeinsame Logik (Dauer-Angaben, Auto-Mod-Filter)     |
 | `packages/db`    | Datenbankschema und Migrationen (PostgreSQL, Drizzle) |
 
-## Selbst hosten mit Docker
+## Selbst hosten
 
-Voraussetzungen: Docker mit Compose und eine Anwendung im [Discord Developer Portal](https://discord.com/developers/applications).
+Libremod läuft auf deinem eigenen Server. Am einfachsten geht es mit dem Install-Skript (Debian oder Ubuntu, 1 GB RAM reichen):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/libremod-bot/libremod/main/deploy/install.sh -o install.sh
+sudo bash install.sh
+```
+
+Das Skript fragt Bot-Token und Client Secret ab, prüft sie bei Discord, installiert bei Bedarf Docker und richtet Datenbank, Dashboard, HTTPS und tägliche Sicherungen ein. Danach verwaltest du alles mit dem Befehl `libremod` (`libremod status`, `libremod update`, `libremod backup` …).
+
+Die ausführliche Anleitung mit allen Schritten, Umzug, eigenem Webserver und Hilfe bei Problemen: **[docs/SELBSTHOSTEN.md](docs/SELBSTHOSTEN.md)**
+
+### Aus dem Quellcode mit Docker Compose
 
 ```bash
 git clone https://github.com/libremod-bot/libremod.git
 cd libremod
-cp .env.example .env        # Token, Client-ID und ein Datenbank-Passwort eintragen
+cp .env.example .env        # Token, Client-ID, Client Secret, Dashboard-Adresse und Passwörter eintragen
 docker compose up -d --build
+docker compose run --rm bot node dist/deploy-commands.js   # Slash-Befehle registrieren
 ```
 
-Die Datenbank-Migrationen laufen beim Start des Bots automatisch.
-
-Slash-Befehle bei Discord registrieren (einmalig und nach jeder Änderung an den Befehlen):
-
-```bash
-docker compose run --rm bot node dist/deploy-commands.js
-```
-
-## Dashboard einrichten
-
-Das Dashboard startet mit `docker compose up -d` automatisch mit und lauscht nur lokal auf Port 3000 (`DASHBOARD_PORT`).
-
-1. Im Discord Developer Portal unter **OAuth2** das **Client Secret** kopieren und unter **Redirects** `https://dashboard.libremod.xyz/api/auth/callback` eintragen (bzw. deine eigene Adresse).
-2. In der `.env` `DISCORD_CLIENT_SECRET`, `DASHBOARD_URL` und `SESSION_SECRET` setzen. Ein passendes Secret erzeugt `openssl rand -hex 32`.
-3. Einen Reverse Proxy mit HTTPS davorschalten, zum Beispiel mit Caddy:
-
-```
-dashboard.libremod.xyz {
-    reverse_proxy 127.0.0.1:3000
-}
-```
-
-oder mit nginx (Zertifikat z. B. über certbot):
-
-```nginx
-server {
-    server_name dashboard.libremod.xyz;
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
-}
-```
-
-Änderungen im Dashboard übernimmt der Bot sofort.
+Die Datenbank-Migrationen laufen beim Start des Bots automatisch. Das Dashboard lauscht nur lokal auf Port 3000 (`DASHBOARD_PORT`), davor gehört ein Reverse Proxy mit HTTPS (Beispiele in der Anleitung). Im Discord Developer Portal muss unter **OAuth2 → Redirects** `<DASHBOARD_URL>/api/auth/callback` eingetragen sein.
 
 ## Benachrichtigungen für Twitch und Kick
 

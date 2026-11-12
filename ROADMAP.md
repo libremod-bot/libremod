@@ -121,17 +121,20 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 - Karten (Embeds) gestalten mit Live-Vorschau im Discord-Stil: Überschrift, Farbe, Zeile darüber, Fußzeile, Uhrzeit, Felder, kleines und großes Bild
 - Für Begrüßung, Abschied, geplante Nachrichten und eigene Befehle, Platzhalter in allen Texten
 
+## 0.18 Selbsthosten
+
+- Install-Skript für Debian und Ubuntu: fragt alles ab, prüft die Discord-Zugangsdaten, richtet Docker, Datenbank und HTTPS ein
+- Fertige Docker-Images auf GitHub (amd64 und arm64)
+- Befehl `libremod` auf dem Server: Status, Update mit einem Befehl, Logs, Sicherung, Wiederherstellung, Deinstallation
+- Tägliche Datenbank-Sicherung mit Aufbewahrungsdauer
+- Statusseite im Dashboard für die Besitzer der Installation, Gesundheitsprüfung für Docker, Neustart bei Verbindungsverlust
+- Anleitung: [docs/SELBSTHOSTEN.md](docs/SELBSTHOSTEN.md)
+
 ## Später
 
 ### Dashboard und Bedienung
 
 - Mehrsprachigkeit: Bot und Dashboard auch auf Englisch
-
-### Betrieb und Selbsthosten
-
-- Fertiges Docker-Image auf GitHub, Update mit einem Befehl
-- Automatische Datenbank-Sicherungen mit Aufbewahrungsdauer
-- Statusseite und Gesundheitsprüfung für Selbsthoster
 
 ## Dashboard
 

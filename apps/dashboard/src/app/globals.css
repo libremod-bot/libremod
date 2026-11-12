@@ -1585,3 +1585,12 @@ details.card > summary {
   border-radius: 50%;
   background: radial-gradient(circle at 50% 38%, #9aa3b2 0 22%, transparent 23%), radial-gradient(circle at 50% 100%, #9aa3b2 0 42%, transparent 43%), #4e5058;
 }
+
+.stats.stats-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 900px) {
+  .stats.stats-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

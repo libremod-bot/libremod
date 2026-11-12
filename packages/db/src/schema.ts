@@ -1229,3 +1229,22 @@ export const statsHours = pgTable(
   },
   (t) => [primaryKey({ columns: [t.guildId, t.day, t.hour] })],
 );
+
+// --- Betrieb ---
+
+/** Zustand der Installation (eine Zeile). Der Bot meldet sich hier regelmäßig, Sicherungen tragen sich ein. */
+export const instanceStatus = pgTable("instance_status", {
+  id: integer("id").primaryKey().default(1),
+  version: varchar("version", { length: 32 }).notNull().default(""),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  heartbeatAt: timestamp("heartbeat_at", { withTimezone: true }),
+  guilds: integer("guilds").notNull().default(0),
+  pingMs: integer("ping_ms").notNull().default(0),
+  phishingDomains: integer("phishing_domains").notNull().default(0),
+  lastBackupAt: timestamp("last_backup_at", { withTimezone: true }),
+  lastBackupBytes: integer("last_backup_bytes"),
+  /** Discord-IDs der Bot-Besitzer (Anwendung bzw. Team), dürfen die Statusseite sehen */
+  ownerIds: text("owner_ids").array().notNull().default([]),
+});
+
+export type InstanceStatus = typeof instanceStatus.$inferSelect;

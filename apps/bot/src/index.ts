@@ -16,6 +16,7 @@ import { startNotifications } from "./services/notifications.js";
 import { handleMessageCoins, invalidateEconomy } from "./services/economy.js";
 import { startPhishingLists } from "./services/phishlists.js";
 import { startEventJobs } from "./services/events.js";
+import { startHeartbeat, VERSION } from "./services/heartbeat.js";
 import { countJoin, countLeave, countMessage, flushStats, startStats } from "./services/stats.js";
 import { onTicketChannelDeleted, startTicketJobs, trackTicketMessage } from "./services/tickets.js";
 import { invalidateHighlights, onHighlightReaction, startChannelTools, trackSlowmodeMessage } from "./services/channeltools.js";
@@ -58,6 +59,7 @@ let ticketTimer: NodeJS.Timeout | undefined;
 let phishListTimer: NodeJS.Timeout | undefined;
 let eventTimer: NodeJS.Timeout | undefined;
 let statsTimers: NodeJS.Timeout[] = [];
+let heartbeatTimer: NodeJS.Timeout | undefined;
 let channelToolTimers: NodeJS.Timeout[] = [];
 let funTimers: NodeJS.Timeout[] = [];
 let protectionTimers: NodeJS.Timeout[] = [];
@@ -79,7 +81,7 @@ const client = new Client({
 });
 
 client.once(Events.ClientReady, (c) => {
-  logger.info({ user: c.user.tag, guilds: c.guilds.cache.size }, "Libremod ist online");
+  logger.info({ user: c.user.tag, guilds: c.guilds.cache.size, version: VERSION }, "Libremod ist online");
   tempBanTimer ??= startTempBanScheduler(c, db);
   voiceXpTimer ??= startVoiceXp(c, db);
   seasonTimer ??= startSeasonJob(c, db);
@@ -94,6 +96,7 @@ client.once(Events.ClientReady, (c) => {
   phishListTimer ??= startPhishingLists();
   eventTimer ??= startEventJobs(c, db);
   if (!statsTimers.length) statsTimers = startStats(c, db);
+  heartbeatTimer ??= startHeartbeat(c, db);
   void loadTempChannels(c, db).catch(logError("Temporäre Kanäle"));
   void syncAllCommands(c, db).catch(logError("Eigene Befehle"));
 });
@@ -177,6 +180,7 @@ async function shutdown(signal: string) {
   clearInterval(phishListTimer);
   clearInterval(eventTimer);
   statsTimers.forEach(clearInterval);
+  clearInterval(heartbeatTimer);
   await flushStats(client, db).catch(() => {});
   channelToolTimers.forEach(clearInterval);
   funTimers.forEach(clearInterval);
