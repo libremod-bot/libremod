@@ -20,7 +20,7 @@ export default async function EditCategoryPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId, categoryId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "tickets");
   const { gespeichert, fehler } = await searchParams;
   const id = Number(categoryId);
   if (!Number.isInteger(id) || id <= 0) notFound();

@@ -21,7 +21,7 @@ export default async function ToolsPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "tools");
   const { gespeichert, fehler } = await searchParams;
   const { db } = database();
   const [[hl], purges, slows, channels] = await Promise.all([

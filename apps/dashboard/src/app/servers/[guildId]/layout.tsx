@@ -10,7 +10,7 @@ export default async function GuildLayout({
   params: Promise<{ guildId: string }>;
 }) {
   const { guildId } = await params;
-  const { guild } = await requireGuildAccess(guildId);
+  const { guild, access } = await requireGuildAccess(guildId);
 
   return (
     <div className="layout">
@@ -19,7 +19,7 @@ export default async function GuildLayout({
           <GuildIcon guild={guild} />
           <strong>{guild.name}</strong>
         </div>
-        <SidebarLinks guildId={guildId} />
+        <SidebarLinks guildId={guildId} allowed={access.full ? null : access.areas} />
       </nav>
       <div className="stack">{children}</div>
     </div>

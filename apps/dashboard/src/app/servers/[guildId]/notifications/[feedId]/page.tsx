@@ -21,7 +21,7 @@ export default async function EditFeedPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId, feedId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "notifications");
   const { gespeichert, fehler } = await searchParams;
   const id = Number(feedId);
   if (!Number.isInteger(id) || id <= 0) notFound();

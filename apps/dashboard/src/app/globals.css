@@ -1328,3 +1328,97 @@ ul.season-list li {
 ul.appeal-list li {
   padding-right: 0.9rem;
 }
+
+/* Team-Zugänge */
+.team-group {
+  border: 0;
+  padding: 0;
+  margin: 0.75rem 0 0;
+}
+.team-group legend {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+.team-group .checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  column-gap: 1rem;
+}
+
+/* Statistik */
+.chart {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.chart-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.chart-axis {
+  fill: var(--muted);
+  font-size: 11px;
+}
+.chart-bar {
+  fill: var(--accent);
+}
+.chart-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.chart-dot {
+  fill: var(--accent);
+  stroke: var(--surface);
+  stroke-width: 2;
+  opacity: 0;
+}
+.chart-hit:hover .chart-bar {
+  opacity: 0.75;
+}
+.chart-hit:hover .chart-dot {
+  opacity: 1;
+}
+.rank-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.rank-bars li {
+  display: grid;
+  grid-template-columns: minmax(0, 9rem) 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+}
+.rank-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rank-track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.rank-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.rank-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+details.card > summary {
+  cursor: pointer;
+  font-weight: 600;
+}

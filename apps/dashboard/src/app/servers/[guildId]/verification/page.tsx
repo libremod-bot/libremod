@@ -19,7 +19,7 @@ export default async function VerificationPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "verification");
   const { gespeichert, fehler } = await searchParams;
   const { db } = database();
   const [[s], [pending], channels, roles, botTop] = await Promise.all([

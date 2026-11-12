@@ -127,6 +127,20 @@
       "when": 1794513812506,
       "tag": "0017_events",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794514519559,
+      "tag": "0018_team",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794514729775,
+      "tag": "0019_stats",
+      "breakpoints": true
     }
   ]
 }

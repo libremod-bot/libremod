@@ -20,7 +20,7 @@ export default async function RolesPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "roles");
   const { gespeichert, fehler } = await searchParams;
 
   const { db } = database();

@@ -23,7 +23,7 @@ export default async function EconomyPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "economy");
   const { gespeichert, fehler } = await searchParams;
   const { db } = database();
   const [[s], items, top, log, roles, botTop] = await Promise.all([

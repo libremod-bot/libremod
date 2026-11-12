@@ -20,7 +20,7 @@ export default async function GiveawaysPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "giveaways");
   const { gespeichert, fehler } = await searchParams;
   const { db } = database();
   const [running, finished, channels, roles] = await Promise.all([

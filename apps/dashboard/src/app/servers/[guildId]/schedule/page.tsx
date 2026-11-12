@@ -20,7 +20,7 @@ export default async function SchedulePage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "schedule");
   const { gespeichert, fehler } = await searchParams;
   const { db } = database();
   const [items, channels] = await Promise.all([

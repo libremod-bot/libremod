@@ -111,15 +111,19 @@ export function getCurrentUser(accessToken: string) {
   );
 }
 
+/** Alle Server des Nutzers (aus dem Login). */
+export function getUserGuilds(userId: string, accessToken: string) {
+  return cached(`user-guilds:${userId}`, 60_000, () => discord<PartialGuild[]>("/users/@me/guilds", `Bearer ${accessToken}`));
+}
+
+export const canManage = (g: PartialGuild) => {
+  const perms = BigInt(g.permissions);
+  return g.owner || (perms & ADMINISTRATOR) !== 0n || (perms & MANAGE_GUILD) !== 0n;
+};
+
 /** Server, die der Nutzer verwalten darf (Inhaber, Administrator oder „Server verwalten“). */
-export function getManageableGuilds(userId: string, accessToken: string) {
-  return cached(`user-guilds:${userId}`, 60_000, async () => {
-    const guilds = await discord<PartialGuild[]>("/users/@me/guilds", `Bearer ${accessToken}`);
-    return guilds.filter((g) => {
-      const perms = BigInt(g.permissions);
-      return g.owner || (perms & ADMINISTRATOR) !== 0n || (perms & MANAGE_GUILD) !== 0n;
-    });
-  });
+export async function getManageableGuilds(userId: string, accessToken: string) {
+  return (await getUserGuilds(userId, accessToken)).filter(canManage);
 }
 
 // --- Bot-Anfragen ---
@@ -172,6 +176,18 @@ export interface MemberInfo {
   id: string;
   name: string;
   avatar: string;
+}
+
+/** Rollen eines Mitglieds (leer, wenn es nicht auf dem Server ist). */
+export function getMemberRoles(guildId: string, userId: string): Promise<string[]> {
+  return cached(`member-roles:${guildId}:${userId}`, 60_000, async () => {
+    try {
+      return (await discord<{ roles: string[] }>(`/guilds/${guildId}/members/${userId}`, bot())).roles;
+    } catch (err) {
+      if (err instanceof DiscordError && err.status === 404) return [];
+      throw err;
+    }
+  });
 }
 
 /** Namen und Avatare für eine Liste von Nutzer-IDs (z. B. Rangliste). Unbekannte bekommen ihre ID als Namen. */

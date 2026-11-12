@@ -35,7 +35,7 @@ export default async function CountingPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "counting");
   const { gespeichert, fehler } = await searchParams;
   const { db } = database();
   const [rows, chains, channels] = await Promise.all([

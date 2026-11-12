@@ -138,6 +138,8 @@ Vor einem Pull Request: `pnpm typecheck && pnpm build && pnpm test`.
 
 ## Datenschutz
 
+Die Server-Statistik im Dashboard zählt nur Nachrichten, Beitritte und Abgänge pro Tag, Kanal und Stunde. Wer was geschrieben hat, wird nicht gespeichert. Die Zahlen werden nach 400 Tagen gelöscht, das Änderungsprotokoll des Dashboards nach einem Jahr.
+
 Libremod hat keine Telemetrie und meldet nichts an die Entwickler oder an libremod.xyz. Der Bot verbindet sich nur mit Discord, mit Kurzlink-Diensten (um zu prüfen, wohin ein Kurzlink führt), mit den Feeds, die ein Server-Team selbst einträgt, und mit den Betrugslink-Listen unten. Bilder und Videos lädt er nie herunter.
 
 ## Betrugslink-Listen

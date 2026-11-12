@@ -20,7 +20,7 @@ export default async function EditItemPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId, itemId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "economy");
   const { gespeichert, fehler } = await searchParams;
   const id = Number(itemId);
   if (!Number.isInteger(id) || id <= 0) notFound();

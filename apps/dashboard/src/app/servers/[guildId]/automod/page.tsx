@@ -59,7 +59,7 @@ export default async function AutomodPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "automod");
   const { gespeichert, fehler } = await searchParams;
 
   const { db } = database();

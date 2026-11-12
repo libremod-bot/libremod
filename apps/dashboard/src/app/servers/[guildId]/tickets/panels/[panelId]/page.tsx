@@ -20,7 +20,7 @@ export default async function EditTicketPanelPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId, panelId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "tickets");
   const { gespeichert, fehler } = await searchParams;
   const id = Number(panelId);
   if (!Number.isInteger(id) || id <= 0) notFound();

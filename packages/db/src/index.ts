@@ -4,7 +4,9 @@ import * as schema from "./schema.js";
 
 export * from "./schema.js";
 export { schema };
-export { and, or, eq, asc, desc, gt, gte, lte, ne, sql, count, isNotNull, inArray, ilike } from "drizzle-orm";
+export { and, or, eq, asc, desc, gt, gte, lt, lte, ne, sql, count, isNotNull, inArray, ilike } from "drizzle-orm";
+export type { SQL } from "drizzle-orm";
+export { getTableColumns } from "drizzle-orm";
 
 const SETTINGS_CHANNEL = "libremod_settings";
 

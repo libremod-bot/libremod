@@ -3,6 +3,7 @@ import {
   pgEnum,
   varchar,
   boolean,
+  date,
   timestamp,
   integer,
   serial,
@@ -1135,4 +1136,78 @@ export const eventRsvps = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.eventId, t.userId] }), index("event_rsvps_status").on(t.eventId, t.status, t.updatedAt)],
+);
+
+// --- Dashboard: Team-Zugänge und Änderungsprotokoll ---
+
+/** Discord-Rollen, deren Mitglieder einzelne Dashboard-Bereiche bearbeiten dürfen. */
+export const dashboardTeamAccess = pgTable(
+  "dashboard_team_access",
+  {
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    roleId: varchar("role_id", { length: 32 }).notNull(),
+    areas: jsonb("areas").$type<string[]>().notNull().default([]),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.roleId] })],
+);
+
+export type DashboardTeamAccess = typeof dashboardTeamAccess.$inferSelect;
+
+/** Wer hat wann im Dashboard was geändert. */
+export const dashboardAudit = pgTable(
+  "dashboard_audit",
+  {
+    id: serial("id").primaryKey(),
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    userId: varchar("user_id", { length: 32 }).notNull(),
+    userName: varchar("user_name", { length: 100 }).notNull(),
+    area: varchar("area", { length: 32 }).notNull(),
+    action: varchar("action", { length: 200 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("dashboard_audit_guild").on(t.guildId, t.createdAt)],
+);
+
+export type DashboardAudit = typeof dashboardAudit.$inferSelect;
+
+// --- Server-Statistik (nur Zahlen, keine Nutzer-IDs oder Inhalte) ---
+
+/** Tageswerte pro Server. `day` ist das Datum in deutscher Zeit. */
+export const statsDaily = pgTable(
+  "stats_daily",
+  {
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    day: date("day").notNull(),
+    joins: integer("joins").notNull().default(0),
+    leaves: integer("leaves").notNull().default(0),
+    messages: integer("messages").notNull().default(0),
+    /** Mitgliederzahl beim letzten Speichern an diesem Tag. */
+    members: integer("members").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.day] })],
+);
+
+/** Nachrichten pro Kanal und Tag. */
+export const statsChannels = pgTable(
+  "stats_channels",
+  {
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    day: date("day").notNull(),
+    channelId: varchar("channel_id", { length: 32 }).notNull(),
+    messages: integer("messages").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.day, t.channelId] })],
+);
+
+/** Nachrichten pro Wochentag (1 = Montag) und Stunde (deutsche Zeit) und Tag. */
+export const statsHours = pgTable(
+  "stats_hours",
+  {
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    day: date("day").notNull(),
+    hour: integer("hour").notNull(),
+    messages: integer("messages").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.day, t.hour] })],
 );

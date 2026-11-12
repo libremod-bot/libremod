@@ -61,6 +61,7 @@ import {
   banAppeals,
   guildEvents,
   ne,
+  dashboardTeamAccess,
 } from "@libremod/db";
 import {
   buildPanelMessage,
@@ -119,7 +120,9 @@ import {
   parseEventStart,
   validateEventTime,
 } from "@libremod/shared";
-import { requireGuildAccess } from "@/lib/access";
+import { recordChange, requireGuildAccess } from "@/lib/access";
+import { isTeamArea } from "@/lib/areas";
+import { importSettings, MAX_BACKUP_BYTES, parseBackup, type BackupFile } from "@/lib/backup";
 import { database } from "@/lib/db";
 import {
   CHANNEL_ANNOUNCEMENT,
@@ -152,6 +155,7 @@ function back(path: string, error?: string): never {
   // Ein Sprungziel wie #sprachrollen muss hinter die Parameter.
   const [base, anchor] = path.split("#");
   const query = error ? `?fehler=${encodeURIComponent(error)}` : "?gespeichert=1";
+  if (!error) recordChange();
   redirect(`${base}${query}${anchor ? `#${anchor}` : ""}`);
 }
 
@@ -182,7 +186,7 @@ async function ensureSettings(guildId: string) {
 // --- Moderation ---
 
 export async function saveModeration(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "moderation", "Moderation gespeichert");
   const path = `/servers/${guildId}/moderation`;
   const channel = text(form, "modLogChannelId");
   if (channel && !SNOWFLAKE.test(channel)) back(path, "Ungültiger Kanal.");
@@ -198,7 +202,7 @@ export async function saveModeration(guildId: string, form: FormData) {
 }
 
 export async function addEscalation(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "moderation", "Verwarn-Stufe hinzugefügt");
   const path = `/servers/${guildId}/moderation`;
   const warnCount = int(form, "warnCount", 1, 100);
   const action = text(form, "action") as EscalationAction;
@@ -222,7 +226,7 @@ export async function addEscalation(guildId: string, form: FormData) {
 }
 
 export async function removeEscalation(guildId: string, warnCount: number) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "moderation", "Verwarn-Stufe entfernt");
   const { db, notifySettingsChanged } = database();
   await db.delete(warnEscalations).where(and(eq(warnEscalations.guildId, guildId), eq(warnEscalations.warnCount, warnCount)));
   await notifySettingsChanged(guildId);
@@ -232,7 +236,7 @@ export async function removeEscalation(guildId: string, warnCount: number) {
 // --- Auto-Mod ---
 
 export async function saveAutomod(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "automod", "Auto-Mod gespeichert");
   const path = `/servers/${guildId}/automod`;
   const { db, notifySettingsChanged } = database();
   await ensureSettings(guildId);
@@ -332,7 +336,7 @@ async function textChannelIds(guildId: string) {
 }
 
 export async function saveLogging(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "logging", "Logging gespeichert");
   const path = `/servers/${guildId}/logging`;
   const { db, notifySettingsChanged } = database();
   const known = await textChannelIds(guildId);
@@ -363,7 +367,7 @@ export async function saveLogging(guildId: string, form: FormData) {
 }
 
 export async function quickLogging(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "logging", "Logging schnell eingerichtet");
   const path = `/servers/${guildId}/logging`;
   const channelId = text(form, "channelId");
   const known = await textChannelIds(guildId);
@@ -381,7 +385,7 @@ export async function quickLogging(guildId: string, form: FormData) {
 // --- Begrüßung ---
 
 export async function saveWelcome(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "welcome", "Begrüßung gespeichert");
   const path = `/servers/${guildId}/welcome`;
   const known = await textChannelIds(guildId);
 
@@ -431,7 +435,7 @@ async function assignableRoles(guildId: string, form: FormData, key: string) {
 }
 
 export async function saveAutoRoles(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "roles", "Automatische Rollen gespeichert");
   const path = `/servers/${guildId}/roles`;
   const humans = await assignableRoles(guildId, form, "humanRoles");
   const bots = await assignableRoles(guildId, form, "botRoles");
@@ -477,7 +481,7 @@ const postError = (err: unknown) =>
     : "Gespeichert, aber die Nachricht konnte nicht gepostet werden. Bitte später nochmal speichern.";
 
 export async function createPanel(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "roles", "Rollen-Auswahl erstellt");
   const path = `/servers/${guildId}/roles`;
   const { roleNames, ...values } = await readPanelForm(guildId, form, path);
   const { db } = database();
@@ -494,7 +498,7 @@ export async function createPanel(guildId: string, form: FormData) {
 }
 
 export async function updatePanel(guildId: string, panelId: number, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "roles", "Rollen-Auswahl geändert");
   const path = `/servers/${guildId}/roles/${panelId}`;
   const { db } = database();
   const [old] = await db.select().from(rolePanels).where(and(eq(rolePanels.id, panelId), eq(rolePanels.guildId, guildId)));
@@ -525,7 +529,7 @@ export async function updatePanel(guildId: string, panelId: number, form: FormDa
 }
 
 export async function deletePanel(guildId: string, panelId: number) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "roles", "Rollen-Auswahl gelöscht");
   const { db } = database();
   const [panel] = await db.delete(rolePanels).where(and(eq(rolePanels.id, panelId), eq(rolePanels.guildId, guildId))).returning();
   if (panel?.messageId) await deleteBotMessage(panel.channelId, panel.messageId).catch(() => {});
@@ -537,7 +541,7 @@ export async function deletePanel(guildId: string, panelId: number) {
 const ANNOUNCE = ["off", "same", "channel", "dm"] as const;
 
 export async function saveLevels(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "levels", "Level-Einstellungen gespeichert");
   const path = `/servers/${guildId}/levels`;
   const textXpMin = int(form, "textXpMin", 0, 1000) ?? 15;
   const textXpMax = int(form, "textXpMax", 0, 1000) ?? 25;
@@ -599,7 +603,7 @@ export async function saveLevels(guildId: string, form: FormData) {
 }
 
 export async function addLevelMultiplier(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "levels", "XP-Bonus hinzugefügt");
   const path = `/servers/${guildId}/levels`;
   const percent = int(form, "percent", 0, MAX_XP_PERCENT);
   if (percent === null || Number.isNaN(percent)) back(path, `Bitte einen Wert zwischen 0 und ${MAX_XP_PERCENT} % angeben.`);
@@ -618,7 +622,7 @@ export async function addLevelMultiplier(guildId: string, form: FormData) {
 }
 
 export async function removeLevelMultiplier(guildId: string, roleId: string) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "levels", "XP-Bonus entfernt");
   const { db, notifySettingsChanged } = database();
   await db.delete(levelMultipliers).where(and(eq(levelMultipliers.guildId, guildId), eq(levelMultipliers.roleId, roleId)));
   await notifySettingsChanged(guildId);
@@ -626,7 +630,7 @@ export async function removeLevelMultiplier(guildId: string, roleId: string) {
 }
 
 export async function endSeasonNow(guildId: string, number: number) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "levels", "Saison beendet");
   const path = `/servers/${guildId}/levels`;
   const { db, notifySettingsChanged } = database();
   const season = await endLevelSeason(db, guildId, new Date(), number);
@@ -638,7 +642,7 @@ export async function endSeasonNow(guildId: string, number: number) {
 }
 
 export async function addLevelReward(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "levels", "Level-Belohnung hinzugefügt");
   const path = `/servers/${guildId}/levels`;
   const level = int(form, "level", 1, 500);
   if (!level) back(path, "Bitte ein Level zwischen 1 und 500 angeben.");
@@ -654,7 +658,7 @@ export async function addLevelReward(guildId: string, form: FormData) {
 }
 
 export async function removeLevelReward(guildId: string, level: number) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "levels", "Level-Belohnung entfernt");
   const { db, notifySettingsChanged } = database();
   await db.delete(levelRewards).where(and(eq(levelRewards.guildId, guildId), eq(levelRewards.level, level)));
   await notifySettingsChanged(guildId);
@@ -693,7 +697,7 @@ const isUniqueViolation = (err: unknown) =>
   typeof err === "object" && err !== null && ("code" in err ? err.code : (err as { cause?: { code?: string } }).cause?.code) === "23505";
 
 export async function createCommand(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "commands", "Eigener Befehl erstellt");
   const path = `/servers/${guildId}/commands`;
   const values = readCommandForm(form, path);
   const { db, notifySettingsChanged } = database();
@@ -710,7 +714,7 @@ export async function createCommand(guildId: string, form: FormData) {
 }
 
 export async function updateCommand(guildId: string, id: number, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "commands", "Eigener Befehl geändert");
   const path = `/servers/${guildId}/commands/${id}`;
   const values = readCommandForm(form, path);
   const { db, notifySettingsChanged } = database();
@@ -725,7 +729,7 @@ export async function updateCommand(guildId: string, id: number, form: FormData)
 }
 
 export async function deleteCommand(guildId: string, id: number) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "commands", "Eigener Befehl gelöscht");
   const { db, notifySettingsChanged } = database();
   await db.delete(customCommands).where(and(eq(customCommands.id, id), eq(customCommands.guildId, guildId)));
   await notifySettingsChanged(guildId);
@@ -737,7 +741,7 @@ export async function deleteCommand(guildId: string, id: number) {
 const UNIT_MINUTES = { minutes: 1, hours: 60, days: 1440 } as const;
 
 export async function createScheduled(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "schedule", "Geplante Nachricht erstellt");
   const path = `/servers/${guildId}/schedule`;
   const channelId = text(form, "channelId");
   const content = text(form, "content");
@@ -785,7 +789,7 @@ export async function createScheduled(guildId: string, form: FormData) {
 }
 
 export async function toggleScheduled(guildId: string, id: number) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "schedule", "Geplante Nachricht an/aus");
   const { db } = database();
   const [m] = await db.select().from(scheduledMessages).where(and(eq(scheduledMessages.id, id), eq(scheduledMessages.guildId, guildId)));
   if (m) {
@@ -800,7 +804,7 @@ export async function toggleScheduled(guildId: string, id: number) {
 }
 
 export async function deleteScheduled(guildId: string, id: number) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "schedule", "Geplante Nachricht gelöscht");
   const { db } = database();
   await db.delete(scheduledMessages).where(and(eq(scheduledMessages.id, id), eq(scheduledMessages.guildId, guildId)));
   back(`/servers/${guildId}/schedule`);
@@ -832,7 +836,7 @@ function readHubSettings(form: FormData, path: string) {
 }
 
 export async function createTempHub(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "channels", "Sprachkanal-Generator erstellt");
   const path = `/servers/${guildId}/channels`;
   const hubName = text(form, "hubName") || "➕ Kanal erstellen";
   if (hubName.length > 100) back(path, "Der Kanalname darf höchstens 100 Zeichen lang sein.");
@@ -851,7 +855,7 @@ export async function createTempHub(guildId: string, form: FormData) {
 }
 
 export async function updateTempHub(guildId: string, channelId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "channels", "Sprachkanal-Generator geändert");
   const path = `/servers/${guildId}/channels`;
   const settings = readHubSettings(form, path);
   const { db, notifySettingsChanged } = database();
@@ -861,7 +865,7 @@ export async function updateTempHub(guildId: string, channelId: string, form: Fo
 }
 
 export async function deleteTempHub(guildId: string, channelId: string) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "channels", "Sprachkanal-Generator gelöscht");
   const { db, notifySettingsChanged } = database();
   const [hub] = await db.delete(tempVoiceHubs).where(and(eq(tempVoiceHubs.channelId, channelId), eq(tempVoiceHubs.guildId, guildId))).returning();
   if (hub) await deleteGuildChannel(guildId, channelId).catch(() => {});
@@ -870,7 +874,7 @@ export async function deleteTempHub(guildId: string, channelId: string) {
 }
 
 export async function createCounter(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "channels", "Zähler-Kanal erstellt");
   const path = `/servers/${guildId}/channels`;
   const template = text(form, "template");
   if (!template || template.length > 90) back(path, "Bitte einen Namen mit höchstens 90 Zeichen angeben.");
@@ -900,7 +904,7 @@ export async function createCounter(guildId: string, form: FormData) {
 }
 
 export async function deleteCounter(guildId: string, channelId: string) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "channels", "Zähler-Kanal gelöscht");
   const { db } = database();
   const [row] = await db.delete(counterChannels).where(and(eq(counterChannels.channelId, channelId), eq(counterChannels.guildId, guildId))).returning();
   if (row) await deleteGuildChannel(guildId, channelId).catch(() => {});
@@ -910,7 +914,7 @@ export async function deleteCounter(guildId: string, channelId: string) {
 // --- Fallakte ---
 
 export async function revokeWarning(guildId: string, caseNumber: number) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "cases", "Verwarnung zurückgenommen");
   const { db } = database();
   await db
     .update(modCases)
@@ -938,7 +942,7 @@ async function readFeedForm(guildId: string, form: FormData, path: string) {
 }
 
 export async function createFeed(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "notifications", "Benachrichtigung erstellt");
   const path = `/servers/${guildId}/notifications`;
   const platform = text(form, "platform") as NotifyPlatform;
   if (!NOTIFY_PLATFORMS.includes(platform)) back(path, "Bitte eine Plattform wählen.");
@@ -973,7 +977,7 @@ export async function createFeed(guildId: string, form: FormData) {
 }
 
 export async function updateFeed(guildId: string, id: number, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "notifications", "Benachrichtigung geändert");
   const path = `/servers/${guildId}/notifications/${id}`;
   const { channelId, mentionRoleId, message } = await readFeedForm(guildId, form, path);
   const { db } = database();
@@ -987,7 +991,7 @@ export async function updateFeed(guildId: string, id: number, form: FormData) {
 }
 
 export async function toggleFeed(guildId: string, id: number) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "notifications", "Benachrichtigung an/aus");
   const { db } = database();
   const [f] = await db.select().from(notificationFeeds).where(and(eq(notificationFeeds.id, id), eq(notificationFeeds.guildId, guildId)));
   // Beim Einschalten Fehlerzähler zurücksetzen; gesehene Einträge bleiben, damit nichts Altes nachkommt.
@@ -996,7 +1000,7 @@ export async function toggleFeed(guildId: string, id: number) {
 }
 
 export async function deleteFeed(guildId: string, id: number) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "notifications", "Benachrichtigung gelöscht");
   const { db } = database();
   await db.delete(notificationFeeds).where(and(eq(notificationFeeds.id, id), eq(notificationFeeds.guildId, guildId)));
   back(`/servers/${guildId}/notifications`);
@@ -1005,7 +1009,7 @@ export async function deleteFeed(guildId: string, id: number) {
 // --- Highlights und Kanal-Pflege ---
 
 export async function saveHighlights(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "tools", "Highlights gespeichert");
   const path = `/servers/${guildId}/tools`;
   const enabled = form.get("enabled") === "on";
   const channelId = text(form, "channelId") || null;
@@ -1024,7 +1028,7 @@ export async function saveHighlights(guildId: string, form: FormData) {
 }
 
 export async function createPurge(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "tools", "Auto-Aufräumen hinzugefügt");
   const path = `/servers/${guildId}/tools`;
   const channelId = text(form, "purgeChannelId");
   const known = await textChannelIds(guildId);
@@ -1040,14 +1044,14 @@ export async function createPurge(guildId: string, form: FormData) {
 }
 
 export async function deletePurge(guildId: string, channelId: string) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "tools", "Auto-Aufräumen entfernt");
   const { db } = database();
   await db.delete(autoPurgeChannels).where(and(eq(autoPurgeChannels.channelId, channelId), eq(autoPurgeChannels.guildId, guildId)));
   back(`/servers/${guildId}/tools`);
 }
 
 export async function createSlowmode(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "tools", "Auto-Slowmode hinzugefügt");
   const path = `/servers/${guildId}/tools`;
   const channelId = text(form, "slowChannelId");
   const known = await textChannelIds(guildId);
@@ -1069,7 +1073,7 @@ export async function createSlowmode(guildId: string, form: FormData) {
 }
 
 export async function deleteSlowmode(guildId: string, channelId: string) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "tools", "Auto-Slowmode entfernt");
   const { db } = database();
   await db.delete(autoSlowmodeChannels).where(and(eq(autoSlowmodeChannels.channelId, channelId), eq(autoSlowmodeChannels.guildId, guildId)));
   back(`/servers/${guildId}/tools`);
@@ -1080,7 +1084,7 @@ export async function deleteSlowmode(guildId: string, channelId: string) {
 const TICKETS = (guildId: string) => `/servers/${guildId}/tickets`;
 
 export async function saveTicketSettings(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "tickets", "Ticket-Einstellungen gespeichert");
   const path = TICKETS(guildId);
   const logChannelId = text(form, "logChannelId") || null;
   const known = await textChannelIds(guildId);
@@ -1153,7 +1157,7 @@ async function refreshTicketPanels(guildId: string) {
 }
 
 export async function createTicketCategory(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "tickets", "Ticket-Kategorie erstellt");
   const path = `${TICKETS(guildId)}/categories/new`;
   const values = await readCategoryForm(guildId, form, path);
   const { db } = database();
@@ -1164,7 +1168,7 @@ export async function createTicketCategory(guildId: string, form: FormData) {
 }
 
 export async function updateTicketCategory(guildId: string, id: number, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "tickets", "Ticket-Kategorie geändert");
   const path = `${TICKETS(guildId)}/categories/${id}`;
   const values = await readCategoryForm(guildId, form, path);
   const { db } = database();
@@ -1175,7 +1179,7 @@ export async function updateTicketCategory(guildId: string, id: number, form: Fo
 }
 
 export async function deleteTicketCategory(guildId: string, id: number) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "tickets", "Ticket-Kategorie gelöscht");
   const { db } = database();
   await db.delete(ticketCategories).where(and(eq(ticketCategories.id, id), eq(ticketCategories.guildId, guildId)));
   // Aus Panels austragen; leere Panels bleiben, bis sie bearbeitet oder gelöscht werden.
@@ -1206,7 +1210,7 @@ async function readTicketPanelForm(guildId: string, form: FormData, path: string
 }
 
 export async function createTicketPanel(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "tickets", "Ticket-Panel erstellt");
   const path = `${TICKETS(guildId)}/panels/new`;
   const { values, categories } = await readTicketPanelForm(guildId, form, path);
   const { db } = database();
@@ -1224,7 +1228,7 @@ export async function createTicketPanel(guildId: string, form: FormData) {
 }
 
 export async function updateTicketPanel(guildId: string, panelId: number, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "tickets", "Ticket-Panel geändert");
   const path = `${TICKETS(guildId)}/panels/${panelId}`;
   const { db } = database();
   const [old] = await db.select().from(ticketPanels).where(and(eq(ticketPanels.id, panelId), eq(ticketPanels.guildId, guildId)));
@@ -1254,7 +1258,7 @@ export async function updateTicketPanel(guildId: string, panelId: number, form: 
 }
 
 export async function deleteTicketPanel(guildId: string, panelId: number) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "tickets", "Ticket-Panel gelöscht");
   const { db } = database();
   const [panel] = await db.delete(ticketPanels).where(and(eq(ticketPanels.id, panelId), eq(ticketPanels.guildId, guildId))).returning();
   if (panel?.messageId) await deleteBotMessage(panel.channelId, panel.messageId).catch(() => {});
@@ -1266,7 +1270,7 @@ export async function deleteTicketPanel(guildId: string, panelId: number) {
 const ECONOMY = (guildId: string) => `/servers/${guildId}/economy`;
 
 export async function saveEconomy(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "economy", "Währung gespeichert");
   const path = ECONOMY(guildId);
   const currencyName = text(form, "currencyName") || "Münzen";
   if (currencyName.length > 32) back(path, "Der Name der Währung darf höchstens 32 Zeichen lang sein.");
@@ -1323,7 +1327,7 @@ async function readShopItem(guildId: string, form: FormData, path: string) {
 }
 
 export async function createShopItem(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "economy", "Shop-Artikel erstellt");
   const path = ECONOMY(guildId);
   const values = await readShopItem(guildId, form, path);
   const { db } = database();
@@ -1334,7 +1338,7 @@ export async function createShopItem(guildId: string, form: FormData) {
 }
 
 export async function updateShopItem(guildId: string, id: number, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "economy", "Shop-Artikel geändert");
   const path = `${ECONOMY(guildId)}/items/${id}`;
   const values = await readShopItem(guildId, form, path);
   const { db } = database();
@@ -1344,7 +1348,7 @@ export async function updateShopItem(guildId: string, id: number, form: FormData
 }
 
 export async function toggleShopItem(guildId: string, id: number) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "economy", "Shop-Artikel an/aus");
   const { db } = database();
   const [item] = await db.select().from(shopItems).where(and(eq(shopItems.id, id), eq(shopItems.guildId, guildId)));
   if (item) await db.update(shopItems).set({ enabled: !item.enabled }).where(eq(shopItems.id, id));
@@ -1352,7 +1356,7 @@ export async function toggleShopItem(guildId: string, id: number) {
 }
 
 export async function deleteShopItem(guildId: string, id: number) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "economy", "Shop-Artikel gelöscht");
   const { db } = database();
   await db.delete(shopItems).where(and(eq(shopItems.id, id), eq(shopItems.guildId, guildId)));
   back(ECONOMY(guildId));
@@ -1363,7 +1367,7 @@ export async function deleteShopItem(guildId: string, id: number) {
 const GIVEAWAYS = (guildId: string) => `/servers/${guildId}/giveaways`;
 
 export async function createGiveaway(guildId: string, form: FormData) {
-  const { user } = await requireGuildAccess(guildId);
+  const { user } = await requireGuildAccess(guildId, "giveaways", "Gewinnspiel gestartet");
   const path = GIVEAWAYS(guildId);
   const prize = text(form, "prize");
   if (!prize || prize.length > 200) back(path, "Bitte einen Preis mit höchstens 200 Zeichen angeben.");
@@ -1406,7 +1410,7 @@ export async function createGiveaway(guildId: string, form: FormData) {
 
 /** Setzt das Ende auf jetzt. Der Bot lost innerhalb weniger Sekunden aus. */
 export async function endGiveawayNow(guildId: string, giveawayId: number) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "giveaways", "Gewinnspiel vorzeitig ausgelost");
   const { db } = database();
   await db
     .update(giveaways)
@@ -1416,7 +1420,7 @@ export async function endGiveawayNow(guildId: string, giveawayId: number) {
 }
 
 export async function deleteGiveaway(guildId: string, giveawayId: number) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "giveaways", "Gewinnspiel gelöscht");
   const { db } = database();
   const [g] = await db.delete(giveaways).where(and(eq(giveaways.id, giveawayId), eq(giveaways.guildId, guildId))).returning();
   if (g) {
@@ -1431,7 +1435,7 @@ export async function deleteGiveaway(guildId: string, giveawayId: number) {
 const EVENTS = (guildId: string) => `/servers/${guildId}/events`;
 
 export async function createEvent(guildId: string, form: FormData) {
-  const { user } = await requireGuildAccess(guildId);
+  const { user } = await requireGuildAccess(guildId, "events", "Event geplant");
   const path = EVENTS(guildId);
   const title = text(form, "title");
   if (!title || title.length > MAX_EVENT_TITLE) back(path, `Bitte einen Titel mit höchstens ${MAX_EVENT_TITLE} Zeichen angeben.`);
@@ -1496,7 +1500,7 @@ export async function createEvent(guildId: string, form: FormData) {
 
 /** Markiert das Event als abgesagt. Der Bot passt die Nachricht an, entfernt Rollen und schreibt allen. */
 export async function cancelEventRequest(guildId: string, eventId: number) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "events", "Event abgesagt");
   const { db } = database();
   await db
     .update(guildEvents)
@@ -1507,7 +1511,7 @@ export async function cancelEventRequest(guildId: string, eventId: number) {
 
 /** Entfernt ein vergangenes oder abgesagtes Event aus der Liste (die Discord-Nachricht bleibt). */
 export async function deleteEvent(guildId: string, eventId: number) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "events", "Event entfernt");
   const { db } = database();
   await db.delete(guildEvents).where(and(eq(guildEvents.id, eventId), eq(guildEvents.guildId, guildId), ne(guildEvents.state, "open")));
   back(EVENTS(guildId));
@@ -1516,7 +1520,7 @@ export async function deleteEvent(guildId: string, eventId: number) {
 // --- Geburtstage ---
 
 export async function saveBirthdays(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "birthdays", "Geburtstage gespeichert");
   const path = `/servers/${guildId}/birthdays`;
   const enabled = form.get("enabled") === "on";
   const channelId = text(form, "channelId") || null;
@@ -1543,7 +1547,7 @@ export async function saveBirthdays(guildId: string, form: FormData) {
 const VERIFY_MODES = ["button", "code", "question"] as const;
 
 export async function saveVerification(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "verification", "Verifizierung gespeichert");
   const path = `/servers/${guildId}/verification`;
   const { db, notifySettingsChanged } = database();
   const [old] = await db.select().from(verificationSettings).where(eq(verificationSettings.guildId, guildId));
@@ -1620,7 +1624,7 @@ export async function saveVerification(guildId: string, form: FormData) {
 
 /** Setzt das Ende auf jetzt. Der Bot öffnet den Kanal innerhalb weniger Sekunden. */
 export async function unlockFromDashboard(guildId: string, channelId: string | null) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "verification", "Kanal entsperrt");
   const { db } = database();
   await db
     .update(channelLocks)
@@ -1632,10 +1636,13 @@ export async function unlockFromDashboard(guildId: string, channelId: string | n
 // --- Team-Notizen ---
 
 export async function addMemberNote(guildId: string, userId: string, form: FormData) {
-  const { user } = await requireGuildAccess(guildId);
+  const { user } = await requireGuildAccess(guildId, "cases", "Notiz hinzugefügt");
   const path = `/servers/${guildId}/cases`;
   if (!SNOWFLAKE.test(userId)) back(path, "Ungültige Nutzer-ID.");
-  const back2 = (e?: string) => redirect(`${path}?nutzer=${userId}&${e ? `fehler=${encodeURIComponent(e)}` : "gespeichert=1"}`);
+  const back2 = (e?: string) => {
+    if (!e) recordChange();
+    return redirect(`${path}?nutzer=${userId}&${e ? `fehler=${encodeURIComponent(e)}` : "gespeichert=1"}`);
+  };
   const note = text(form, "note");
   if (!note || note.length > 1000) back2("Bitte eine Notiz mit höchstens 1000 Zeichen schreiben.");
   const { db } = database();
@@ -1646,9 +1653,10 @@ export async function addMemberNote(guildId: string, userId: string, form: FormD
 }
 
 export async function deleteMemberNote(guildId: string, noteId: number) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "cases", "Notiz gelöscht");
   const { db } = database();
   const [gone] = await db.delete(memberNotes).where(and(eq(memberNotes.guildId, guildId), eq(memberNotes.id, noteId))).returning();
+  recordChange();
   redirect(`/servers/${guildId}/cases?${gone ? `nutzer=${gone.userId}&` : ""}gespeichert=1`);
 }
 
@@ -1657,7 +1665,7 @@ export async function deleteMemberNote(guildId: string, noteId: number) {
 const SUGGESTIONS = (guildId: string) => `/servers/${guildId}/suggestions`;
 
 export async function saveSuggestions(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "suggestions", "Vorschläge gespeichert");
   const path = SUGGESTIONS(guildId);
   const { db, notifySettingsChanged } = database();
   const [old] = await db.select().from(suggestionSettings).where(eq(suggestionSettings.guildId, guildId));
@@ -1679,7 +1687,7 @@ export async function saveSuggestions(guildId: string, form: FormData) {
 }
 
 export async function setSuggestionStatusFromDashboard(guildId: string, suggestionId: number, form: FormData) {
-  const { user } = await requireGuildAccess(guildId);
+  const { user } = await requireGuildAccess(guildId, "suggestions", "Vorschlag entschieden");
   const path = SUGGESTIONS(guildId);
   const status = text(form, "status") as SuggestionStatus;
   if (!(status in SUGGESTION_STATUS)) back(path, "Unbekannter Status.");
@@ -1710,7 +1718,7 @@ export async function setSuggestionStatusFromDashboard(guildId: string, suggesti
 }
 
 export async function deleteSuggestion(guildId: string, suggestionId: number) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "suggestions", "Vorschlag gelöscht");
   const { db } = database();
   const [gone] = await db.delete(suggestions).where(and(eq(suggestions.id, suggestionId), eq(suggestions.guildId, guildId))).returning();
   if (gone) {
@@ -1724,7 +1732,7 @@ export async function deleteSuggestion(guildId: string, suggestionId: number) {
 
 /** Setzt das Ende auf jetzt. Der Bot nimmt die Rolle innerhalb einer Minute weg. */
 export async function endTempRole(guildId: string, userId: string, roleId: string) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "roles", "Zeitrolle beendet");
   const { db } = database();
   await db
     .update(tempRoles)
@@ -1746,7 +1754,7 @@ function countingOptions(form: FormData) {
 }
 
 export async function addCountingChannel(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "counting", "Zähl-Kanal hinzugefügt");
   const path = COUNTING(guildId);
   const channelId = text(form, "channelId");
   if (!(await textChannelIds(guildId)).text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
@@ -1762,21 +1770,21 @@ export async function addCountingChannel(guildId: string, form: FormData) {
 }
 
 export async function updateCountingChannel(guildId: string, channelId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "counting", "Zähl-Kanal geändert");
   const { db } = database();
   await db.update(countingChannels).set(countingOptions(form)).where(and(eq(countingChannels.guildId, guildId), eq(countingChannels.channelId, channelId)));
   back(COUNTING(guildId));
 }
 
 export async function resetCountingChannel(guildId: string, channelId: string) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "counting", "Zähl-Kanal zurückgesetzt");
   const { db } = database();
   await db.update(countingChannels).set({ current: 0, lastUserId: null }).where(and(eq(countingChannels.guildId, guildId), eq(countingChannels.channelId, channelId)));
   back(COUNTING(guildId));
 }
 
 export async function deleteCountingChannel(guildId: string, channelId: string) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "counting", "Zähl-Kanal entfernt");
   const { db, notifySettingsChanged } = database();
   await db.delete(countingChannels).where(and(eq(countingChannels.guildId, guildId), eq(countingChannels.channelId, channelId)));
   await notifySettingsChanged(guildId);
@@ -1786,7 +1794,7 @@ export async function deleteCountingChannel(guildId: string, channelId: string) 
 // --- Sprachkanal-Rollen ---
 
 export async function addVoiceRole(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "roles", "Sprachkanal-Rolle hinzugefügt");
   const path = `/servers/${guildId}/roles`;
   const channelId = text(form, "voiceChannelId");
   const channels = await getGuildChannels(guildId);
@@ -1804,7 +1812,7 @@ export async function addVoiceRole(guildId: string, form: FormData) {
 }
 
 export async function removeVoiceRole(guildId: string, channelId: string, roleId: string) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "roles", "Sprachkanal-Rolle entfernt");
   const { db, notifySettingsChanged } = database();
   await db.delete(voiceRoles).where(and(eq(voiceRoles.guildId, guildId), eq(voiceRoles.channelId, channelId), eq(voiceRoles.roleId, roleId)));
   await notifySettingsChanged(guildId);
@@ -1816,7 +1824,7 @@ export async function removeVoiceRole(guildId: string, channelId: string, roleId
 const WORDCHAIN = (g: string) => `/servers/${g}/wordchain`;
 
 export async function addWordChain(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "wordchain", "Wortkette hinzugefügt");
   const path = WORDCHAIN(guildId);
   const channelId = text(form, "channelId");
   if (!(await textChannelIds(guildId)).text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
@@ -1837,7 +1845,7 @@ export async function addWordChain(guildId: string, form: FormData) {
 }
 
 export async function updateWordChain(guildId: string, channelId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "wordchain", "Wortkette geändert");
   const { db } = database();
   await db
     .update(wordChainChannels)
@@ -1847,7 +1855,7 @@ export async function updateWordChain(guildId: string, channelId: string, form: 
 }
 
 export async function resetWordChain(guildId: string, channelId: string) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "wordchain", "Wortkette zurückgesetzt");
   const { db } = database();
   await db.transaction(async (tx) => {
     const done = await tx
@@ -1861,7 +1869,7 @@ export async function resetWordChain(guildId: string, channelId: string) {
 }
 
 export async function deleteWordChain(guildId: string, channelId: string) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "wordchain", "Wortkette entfernt");
   const { db, notifySettingsChanged } = database();
   const gone = await db.delete(wordChainChannels).where(and(eq(wordChainChannels.guildId, guildId), eq(wordChainChannels.channelId, channelId))).returning();
   if (gone.length) await db.delete(wordChainWords).where(eq(wordChainWords.channelId, channelId));
@@ -1872,7 +1880,7 @@ export async function deleteWordChain(guildId: string, channelId: string) {
 // --- Zitate ---
 
 export async function deleteQuote(guildId: string, id: number) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "quotes", "Zitat gelöscht");
   const { db } = database();
   await db.delete(quotes).where(and(eq(quotes.guildId, guildId), eq(quotes.id, id)));
   back(`/servers/${guildId}/quotes`);
@@ -1881,7 +1889,7 @@ export async function deleteQuote(guildId: string, id: number) {
 // --- Namensschutz ---
 
 export async function saveNameGuard(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "automod", "Namensschutz gespeichert");
   const path = `/servers/${guildId}/automod`;
   const action = text(form, "nameGuard.action");
   if (!NAME_GUARD_ACTIONS.some((a) => a.value === action)) back(path, "Unbekannte Aktion beim Namensschutz.");
@@ -1901,7 +1909,7 @@ export async function saveNameGuard(guildId: string, form: FormData) {
 const APPEALS = (g: string) => `/servers/${g}/appeals`;
 
 export async function saveAppealSettings(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "appeals", "Einspruch-Einstellungen gespeichert");
   const path = APPEALS(guildId);
   const channelId = text(form, "channelId") || null;
   if (channelId && !(await textChannelIds(guildId)).text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
@@ -1916,7 +1924,7 @@ export async function saveAppealSettings(guildId: string, form: FormData) {
 }
 
 export async function decideAppeal(guildId: string, id: number, accept: boolean, form: FormData) {
-  const { user } = await requireGuildAccess(guildId);
+  const { user } = await requireGuildAccess(guildId, "appeals", "Einspruch entschieden");
   const path = APPEALS(guildId);
   const reason = text(form, "reason").slice(0, 500) || null;
   const { db } = database();
@@ -1945,4 +1953,68 @@ export async function decideAppeal(guildId: string, id: number, accept: boolean,
     : `Dein Einspruch auf **${guild.name}** wurde abgelehnt.`;
   await sendDirectMessage(row!.userId, { content: `${message}${reason ? `\nBegründung: ${reason}` : ""}`.slice(0, 2000), allowed_mentions: { parse: [] } });
   back(path);
+}
+
+// --- Team-Zugänge ---
+
+const TEAM = (guildId: string) => `/servers/${guildId}/team`;
+const MAX_TEAM_RULES = 25;
+
+export async function saveTeamAccess(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId, "team", "Team-Zugang gespeichert");
+  const path = TEAM(guildId);
+  const roleId = text(form, "roleId");
+  const roles = await getGuildRoles(guildId);
+  const role = roles.find((r) => r.id === roleId);
+  if (!role || role.id === guildId || role.managed) back(path, "Bitte eine normale Rolle dieses Servers wählen (nicht @everyone und keine Bot-Rolle).");
+  const areas = [...new Set(form.getAll("areas").filter((v): v is string => typeof v === "string" && isTeamArea(v)))];
+  const { db } = database();
+  if (!areas.length) {
+    await db.delete(dashboardTeamAccess).where(and(eq(dashboardTeamAccess.guildId, guildId), eq(dashboardTeamAccess.roleId, roleId)));
+    back(path);
+  }
+  const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(dashboardTeamAccess).where(eq(dashboardTeamAccess.guildId, guildId));
+  const [existing] = await db.select().from(dashboardTeamAccess).where(and(eq(dashboardTeamAccess.guildId, guildId), eq(dashboardTeamAccess.roleId, roleId)));
+  if (!existing && n >= MAX_TEAM_RULES) back(path, `Höchstens ${MAX_TEAM_RULES} Rollen mit Team-Zugang.`);
+  await db
+    .insert(dashboardTeamAccess)
+    .values({ guildId, roleId, areas })
+    .onConflictDoUpdate({ target: [dashboardTeamAccess.guildId, dashboardTeamAccess.roleId], set: { areas, updatedAt: new Date() } });
+  back(path);
+}
+
+export async function deleteTeamAccess(guildId: string, roleId: string) {
+  await requireGuildAccess(guildId, "team", "Team-Zugang entfernt");
+  const { db } = database();
+  await db.delete(dashboardTeamAccess).where(and(eq(dashboardTeamAccess.guildId, guildId), eq(dashboardTeamAccess.roleId, roleId)));
+  back(TEAM(guildId));
+}
+
+// --- Export & Import ---
+
+export async function importSettingsFile(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId, "backup", "Einstellungen importiert");
+  const path = `/servers/${guildId}/backup`;
+  if (form.get("confirm") !== "on") back(path, "Bitte bestätige, dass die bisherigen Einstellungen ersetzt werden.");
+  const file = form.get("file");
+  if (!(file instanceof File) || file.size === 0) back(path, "Bitte eine Einstellungsdatei auswählen.");
+  if ((file as File).size > MAX_BACKUP_BYTES) back(path, "Die Datei ist zu groß (höchstens 2 MB).");
+  const parsed = parseBackup(await (file as File).text());
+  if (typeof parsed === "string") back(path, parsed);
+  const [channels, roles] = await Promise.all([getGuildChannels(guildId), getGuildRoles(guildId)]);
+  const known = new Set([...channels.map((c) => c.id), ...roles.map((r) => r.id)]);
+  const { db, notifySettingsChanged } = database();
+  let result: Awaited<ReturnType<typeof importSettings>>;
+  try {
+    result = await importSettings(db, guildId, parsed as BackupFile, known);
+  } catch (err) {
+    console.error("Import fehlgeschlagen", err);
+    back(path, "Der Import ist fehlgeschlagen. Es wurde nichts geändert.");
+  }
+  await notifySettingsChanged(guildId);
+  const notes = [`${result!.rows} Einträge übernommen`];
+  if (result!.cleared) notes.push(`${result!.cleared} unbekannte Kanäle oder Rollen entfernt`);
+  if (result!.dropped) notes.push(`${result!.dropped} Einträge ohne passenden Kanal übersprungen`);
+  recordChange(`aus „${(parsed as BackupFile).guild?.name ?? "unbekannt"}“, ${notes.join(", ")}`);
+  redirect(`${path}?importiert=${encodeURIComponent(notes.join(" · "))}`);
 }

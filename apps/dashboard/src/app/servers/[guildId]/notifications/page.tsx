@@ -39,7 +39,7 @@ export default async function NotificationsPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "notifications");
   const { gespeichert, fehler } = await searchParams;
   const { db } = database();
   const [feeds, channels, roles] = await Promise.all([

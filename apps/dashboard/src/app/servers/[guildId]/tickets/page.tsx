@@ -23,7 +23,7 @@ export default async function TicketsPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "tickets");
   const { gespeichert, fehler } = await searchParams;
   const base = `/servers/${guildId}/tickets`;
   const { db } = database();

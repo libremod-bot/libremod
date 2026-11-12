@@ -31,7 +31,7 @@ export default async function LevelsPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "levels");
   const { gespeichert, fehler } = await searchParams;
 
   const { db } = database();

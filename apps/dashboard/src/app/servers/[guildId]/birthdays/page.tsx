@@ -21,7 +21,7 @@ export default async function BirthdaysPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "birthdays");
   const { gespeichert, fehler } = await searchParams;
   const { db } = database();
   const [[s], rows, channels, roles, botTop] = await Promise.all([

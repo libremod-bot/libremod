@@ -27,7 +27,7 @@ export default async function WordChainPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "wordchain");
   const { gespeichert, fehler } = await searchParams;
   const { db } = database();
   const [rows, counting, channels] = await Promise.all([

@@ -19,7 +19,7 @@ export default async function CommandsPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "commands");
   const { gespeichert, fehler } = await searchParams;
   const { db } = database();
   const commands = await db.select().from(customCommands).where(eq(customCommands.guildId, guildId)).orderBy(asc(customCommands.name));

@@ -13,7 +13,7 @@ export const metadata = { title: "Neues Ticket-Panel · Libremod" };
 
 export default async function NewTicketPanelPage({ params, searchParams }: { params: Promise<{ guildId: string }>; searchParams: Promise<{ fehler?: string }> }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "tickets");
   const { fehler } = await searchParams;
   const { db } = database();
   const [channels, categories] = await Promise.all([

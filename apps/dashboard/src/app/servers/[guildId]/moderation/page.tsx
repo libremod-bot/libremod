@@ -23,7 +23,7 @@ export default async function ModerationPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "moderation");
   const { gespeichert, fehler } = await searchParams;
 
   const { db } = database();

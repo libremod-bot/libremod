@@ -5,7 +5,7 @@ import { database } from "@/lib/db";
 /** Liefert das gespeicherte HTML-Transkript. Strenge CSP: keine Skripte, nur Bilder von außen. */
 export async function GET(_req: Request, { params }: { params: Promise<{ guildId: string; ticketId: string }> }) {
   const { guildId, ticketId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "tickets");
   const id = Number(ticketId);
   if (!Number.isInteger(id) || id <= 0) return new Response("Nicht gefunden", { status: 404 });
   const { db } = database();

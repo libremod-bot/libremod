@@ -19,7 +19,7 @@ export default async function QuotesPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string; suche?: string }>;
 }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "quotes");
   const { gespeichert, fehler, suche } = await searchParams;
   const term = suche?.trim().slice(0, 100) ?? "";
   const { db } = database();

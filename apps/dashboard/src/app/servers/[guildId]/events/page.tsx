@@ -20,7 +20,7 @@ export default async function EventsPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "events");
   const { gespeichert, fehler } = await searchParams;
   const { db } = database();
   const [upcoming, past, channels, roles] = await Promise.all([

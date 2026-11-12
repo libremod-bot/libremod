@@ -44,7 +44,9 @@ import {
 } from "@libremod/db";
 import { Icon, type IconName } from "@/components/Icon";
 import { PageHeader } from "@/components/PageHeader";
-import { requireGuildAccess } from "@/lib/access";
+import { canSee, requireGuildAccess } from "@/lib/access";
+import type { AreaKey } from "@/lib/areas";
+import { Notice } from "@/components/Notice";
 import { database } from "@/lib/db";
 import { getGuildChannels } from "@/lib/discord";
 
@@ -68,9 +70,20 @@ function ago(date: Date) {
   return relative.format(Math.round(hours / 24), "day");
 }
 
-export default async function OverviewPage({ params }: { params: Promise<{ guildId: string }> }) {
+export default async function OverviewPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ guildId: string }>;
+  searchParams: Promise<{ fehler?: string }>;
+}) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  const { fehler } = await searchParams;
+  const { access } = await requireGuildAccess(guildId);
+  const visible = (href: string) => {
+    const area = href.split("/")[3]?.split("#")[0];
+    return !area || canSee(access, area as AreaKey);
+  };
   const base = `/servers/${guildId}`;
 
   const { db } = database();
@@ -136,6 +149,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
     { done: settings?.raidEnabled ?? false, text: "Raid-Schutz aktivieren", href: `${base}/automod#raid` },
     { done: logs.length > 0, text: "Logging einrichten", href: `${base}/logging` },
   ];
+  if (!access.full) steps.length = 0;
   const doneCount = steps.filter((s) => s.done).length;
 
   const modules: { icon: IconName; title: string; text: string; href?: string; status: React.ReactNode }[] = [
@@ -321,9 +335,17 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
     },
   ];
 
+  const shownModules = modules.filter((m) => !m.href || visible(m.href));
+
   return (
     <>
       <PageHeader icon="home" title="Übersicht" description="Was Libremod auf deinem Server gerade macht und was du noch einrichten kannst." />
+      <Notice error={fehler} />
+      {!access.full && (
+        <div className="card small muted">
+          Du hast einen Team-Zugang und siehst nur die Bereiche, die das Server-Team für deine Rolle freigegeben hat.
+        </div>
+      )}
 
       <div className="stats">
         <div className="card stat">
@@ -354,7 +376,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
         </div>
       </div>
 
-      {doneCount < steps.length && (
+      {steps.length > 0 && doneCount < steps.length && (
         <section className="card">
           <div className="card-title">
             <Icon name="check" />
@@ -389,7 +411,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
       <section>
         <h2 style={{ marginBottom: "0.85rem" }}>Module</h2>
         <div className="modules">
-          {modules.map((m) => {
+          {shownModules.map((m) => {
             const inner = (
               <>
                 <div className="module-head">
@@ -420,6 +442,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
         </div>
       </section>
 
+      {canSee(access, "cases") && (
       <section className="card">
         <div className="card-title">
           <Icon name="list" />
@@ -452,6 +475,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ guild
           </div>
         )}
       </section>
+      )}
     </>
   );
 }

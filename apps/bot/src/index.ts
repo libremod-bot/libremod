@@ -16,6 +16,7 @@ import { startNotifications } from "./services/notifications.js";
 import { handleMessageCoins, invalidateEconomy } from "./services/economy.js";
 import { startPhishingLists } from "./services/phishlists.js";
 import { startEventJobs } from "./services/events.js";
+import { countJoin, countLeave, countMessage, flushStats, startStats } from "./services/stats.js";
 import { onTicketChannelDeleted, startTicketJobs, trackTicketMessage } from "./services/tickets.js";
 import { invalidateHighlights, onHighlightReaction, startChannelTools, trackSlowmodeMessage } from "./services/channeltools.js";
 import { startFunJobs } from "./services/fun.js";
@@ -56,6 +57,7 @@ let notifyTimer: NodeJS.Timeout | undefined;
 let ticketTimer: NodeJS.Timeout | undefined;
 let phishListTimer: NodeJS.Timeout | undefined;
 let eventTimer: NodeJS.Timeout | undefined;
+let statsTimers: NodeJS.Timeout[] = [];
 let channelToolTimers: NodeJS.Timeout[] = [];
 let funTimers: NodeJS.Timeout[] = [];
 let protectionTimers: NodeJS.Timeout[] = [];
@@ -91,12 +93,14 @@ client.once(Events.ClientReady, (c) => {
   if (!communityTimers.length) communityTimers = startCommunityJobs(c, db);
   phishListTimer ??= startPhishingLists();
   eventTimer ??= startEventJobs(c, db);
+  if (!statsTimers.length) statsTimers = startStats(c, db);
   void loadTempChannels(c, db).catch(logError("Temporäre Kanäle"));
   void syncAllCommands(c, db).catch(logError("Eigene Befehle"));
 });
 client.on(Events.InteractionCreate, (i) => void onInteractionCreate(i, ctx));
 const logError = (what: string) => (err: unknown) => logger.error({ err }, `${what} fehlgeschlagen`);
 client.on(Events.MessageCreate, (m) => {
+  countMessage(m);
   trackSlowmodeMessage(m);
   void trackTicketMessage(m, db).catch(logError("Tickets"));
   void handleCountMessage(m, db);
@@ -117,6 +121,7 @@ client.on(Events.MessageUpdate, (oldMessage, newMessage) => {
   void handleMessage(newMessage, db, { edited: true }).catch(logError("Auto-Mod"));
 });
 client.on(Events.GuildMemberAdd, (m) => {
+  countJoin(m);
   void handleMemberJoin(m, db).catch(logError("Raid-Schutz"));
   void log.onMemberJoin(m, db).catch(logError("Logging"));
   void onWelcomeJoin(m, db).catch(logError("Begrüßung"));
@@ -125,6 +130,7 @@ client.on(Events.GuildMemberAdd, (m) => {
 });
 client.on(Events.MessageReactionAdd, (r, u) => void onHighlightReaction(r, u, db).catch(logError("Highlights")));
 client.on(Events.MessageReactionRemove, (r, u) => void onHighlightReaction(r, u, db).catch(logError("Highlights")));
+client.on(Events.GuildMemberRemove, (m) => countLeave(m));
 client.on(Events.GuildMemberRemove, (m) => void onWelcomeLeave(m, db).catch(logError("Abschied")));
 client.on(Events.GuildMemberRemove, (m) => void onVerifyLeave(m, db).catch(logError("Verifizierung")));
 client.on(Events.GuildMemberRemove, (m) => void onTempRoleMemberLeave(m, db).catch(logError("Rollen auf Zeit")));
@@ -170,6 +176,8 @@ async function shutdown(signal: string) {
   clearInterval(ticketTimer);
   clearInterval(phishListTimer);
   clearInterval(eventTimer);
+  statsTimers.forEach(clearInterval);
+  await flushStats(client, db).catch(() => {});
   channelToolTimers.forEach(clearInterval);
   funTimers.forEach(clearInterval);
   protectionTimers.forEach(clearInterval);

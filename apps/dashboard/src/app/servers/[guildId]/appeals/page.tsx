@@ -26,7 +26,7 @@ export default async function AppealsPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string; alle?: string }>;
 }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "appeals");
   const { gespeichert, fehler, alle } = await searchParams;
   const { db } = database();
   const [[s], rows, [{ open } = { open: 0 }], channels] = await Promise.all([

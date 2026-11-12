@@ -28,7 +28,7 @@ export default async function CasesPage({
   searchParams: Promise<{ nutzer?: string; gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "cases");
   const { nutzer, gespeichert, fehler } = await searchParams;
   const userFilter = nutzer && /^\d{17,20}$/.test(nutzer.trim()) ? nutzer.trim() : undefined;
 

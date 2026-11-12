@@ -31,7 +31,7 @@ export default async function ChannelsPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "channels");
   const { gespeichert, fehler } = await searchParams;
   const { db } = database();
   const [hubs, counters, channels] = await Promise.all([

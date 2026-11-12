@@ -19,7 +19,7 @@ export default async function EditCommandPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
 }) {
   const { guildId, commandId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "commands");
   const { gespeichert, fehler } = await searchParams;
   const id = Number(commandId);
   if (!Number.isInteger(id) || id <= 0) notFound();

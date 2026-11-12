@@ -109,17 +109,19 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 
 - Event-Planer: `/event create/cancel/list` und Dashboard-Seite, Zu-, Ab- und Vielleicht-Antworten per Knopf, begrenzte Plätze mit Warteliste und automatischem Nachrücken, Event-Rolle für alle Zusagen (danach wieder entfernt), Erinnerung per DM vor Beginn, Absage mit Benachrichtigung
 
+## 0.16 Verwaltung
+
+- Team-Zugänge: Discord-Rollen bekommen Zugriff auf einzelne Dashboard-Bereiche, ohne „Server verwalten“
+- Änderungsprotokoll: wer hat wann im Dashboard was geändert, filterbar nach Bereich und Person
+- Export und Import aller Einstellungen als JSON-Datei, auch auf einen anderen Server (unbekannte Kanäle und Rollen werden entfernt)
+- Server-Statistik: Mitgliederentwicklung, Nachrichten, Beitritte und Abgänge, aktivste Kanäle und Uhrzeiten (nur Zahlen, keine Nutzerdaten)
+
 ## Später
 
 ### Dashboard und Bedienung
 
-- Änderungsprotokoll im Dashboard: wer hat wann welche Einstellung geändert
-- Team-Zugänge: Moderatoren bekommen nur Zugriff auf bestimmte Seiten
-- Einstellungen exportieren und auf einem anderen Server importieren
-- Server-Statistik: Mitgliederentwicklung, aktivste Kanäle und Uhrzeiten
 - Mehrsprachigkeit: Bot und Dashboard auch auf Englisch
 - Embed-Editor mit Live-Vorschau für alle Nachrichten
-- Eigener Name und Avatar des Bots pro Server, soweit Discord das erlaubt (beim Selbsthosten ohnehin frei wählbar)
 
 ### Betrieb und Selbsthosten
 

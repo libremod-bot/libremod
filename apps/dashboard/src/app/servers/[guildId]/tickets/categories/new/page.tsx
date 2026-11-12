@@ -11,7 +11,7 @@ export const metadata = { title: "Neue Ticket-Art · Libremod" };
 
 export default async function NewCategoryPage({ params, searchParams }: { params: Promise<{ guildId: string }>; searchParams: Promise<{ fehler?: string }> }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "tickets");
   const { fehler } = await searchParams;
   const [channels, roles] = await Promise.all([getGuildChannels(guildId), getGuildRoles(guildId)]);
   return (

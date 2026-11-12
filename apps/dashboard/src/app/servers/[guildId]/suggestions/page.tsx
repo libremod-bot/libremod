@@ -22,7 +22,7 @@ export default async function SuggestionsPage({
   searchParams: Promise<{ gespeichert?: string; fehler?: string; status?: string }>;
 }) {
   const { guildId } = await params;
-  await requireGuildAccess(guildId);
+  await requireGuildAccess(guildId, "suggestions");
   const { gespeichert, fehler, status } = await searchParams;
   const filter = SUGGESTION_STATUSES.includes(status as SuggestionStatus) ? (status as SuggestionStatus) : undefined;
   const { db } = database();
