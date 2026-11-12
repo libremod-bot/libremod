@@ -1,14 +1,13 @@
 import { createHash } from "node:crypto";
 import {
   ApplicationCommandType,
-  EmbedBuilder,
   InteractionContextType,
   MessageFlags,
   type ChatInputCommandInteraction,
   type Client,
 } from "discord.js";
 import { and, customCommands, eq, sql, type Db } from "@libremod/db";
-import { pickResponse, renderTemplate } from "@libremod/shared";
+import { buildEmbedJson, pickResponse, renderTemplate } from "@libremod/shared";
 import { config } from "../config.js";
 import { commandBodies } from "../commands/index.js";
 import { logger } from "../logger.js";
@@ -71,16 +70,21 @@ export async function handleCustomCommand(interaction: ChatInputCommandInteracti
     await interaction.reply({ content: "Diesen Befehl gibt es nicht mehr.", flags: MessageFlags.Ephemeral });
     return true;
   }
-  const text = renderTemplate(pickResponse(cmd.responses), {
+  const vars = {
     user: `<@${interaction.user.id}>`,
     username: interaction.member.displayName,
     server: interaction.guild.name,
     membercount: interaction.guild.memberCount,
-  });
+  };
+  const text = renderTemplate(pickResponse(cmd.responses), vars);
   const flags = cmd.ephemeral ? MessageFlags.Ephemeral : undefined;
   if (cmd.embed) {
-    const embed = new EmbedBuilder().setColor(cmd.embedColor ?? 0x4cb4ff).setDescription(text.slice(0, 4000) || "​");
-    if (cmd.embedTitle) embed.setTitle(cmd.embedTitle);
+    const render = (s: string) => renderTemplate(s, vars);
+    const embed = buildEmbedJson(cmd.design, text, {
+      render,
+      avatarUrl: interaction.user.displayAvatarURL({ size: 256 }),
+      defaults: { title: cmd.embedTitle ?? undefined, color: cmd.embedColor ?? undefined },
+    });
     await interaction.reply({ embeds: [embed], flags, allowedMentions: { parse: [] } });
   } else {
     await interaction.reply({ content: text.slice(0, 2000) || "​", flags, allowedMentions: { parse: [] } });

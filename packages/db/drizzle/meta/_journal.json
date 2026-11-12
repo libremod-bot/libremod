@@ -141,6 +141,13 @@
       "when": 1794514729775,
       "tag": "0019_stats",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794515187541,
+      "tag": "0020_embeds",
+      "breakpoints": true
     }
   ]
 }

@@ -110,6 +110,8 @@ import {
   ANY_VOICE_CHANNEL,
   NAME_GUARD_ACTIONS,
   buildEventMessage,
+  cleanEmbedDesign,
+  type EmbedDesign,
   DEFAULT_EVENT_MINUTES,
   EVENT_REMINDERS,
   MAX_ACTIVE_EVENTS,
@@ -162,6 +164,13 @@ function back(path: string, error?: string): never {
 function text(form: FormData, key: string) {
   const value = form.get(key);
   return typeof value === "string" ? value.trim() : "";
+}
+
+/** Karten-Gestaltung aus dem Embed-Editor. Leer = null. */
+function design(path: string, form: FormData, key: string): EmbedDesign | null {
+  const d = cleanEmbedDesign(text(form, key));
+  if (typeof d === "string") back(path, d);
+  return Object.keys(d as object).length ? (d as EmbedDesign) : null;
 }
 
 function list(form: FormData, key: string) {
@@ -394,12 +403,14 @@ export async function saveWelcome(guildId: string, form: FormData) {
     welcomeChannelId: text(form, "welcomeChannelId") || null,
     welcomeMessage: text(form, "welcomeMessage"),
     welcomeEmbed: form.get("welcomeEmbed") === "on",
+    welcomeDesign: design(path, form, "welcomeDesign"),
     dmEnabled: form.get("dmEnabled") === "on",
     dmMessage: text(form, "dmMessage"),
     goodbyeEnabled: form.get("goodbyeEnabled") === "on",
     goodbyeChannelId: text(form, "goodbyeChannelId") || null,
     goodbyeMessage: text(form, "goodbyeMessage"),
     goodbyeEmbed: form.get("goodbyeEmbed") === "on",
+    goodbyeDesign: design(path, form, "goodbyeDesign"),
     welcomeImage: form.get("welcomeImage") === "on",
     welcomeImageTitle: text(form, "welcomeImageTitle").slice(0, 40) || "Willkommen!",
     welcomeImageColor: /^#[0-9a-f]{6}$/i.test(text(form, "welcomeImageColor")) ? parseInt(text(form, "welcomeImageColor").slice(1), 16) : 0x4cb4ff,
@@ -672,8 +683,8 @@ function readCommandForm(form: FormData, path: string) {
   const description = text(form, "description");
   const responses = splitResponses(text(form, "responses"));
   const embed = form.get("embed") === "on";
-  const embedTitle = text(form, "embedTitle") || null;
-  const color = /^#[0-9a-f]{6}$/i.exec(text(form, "embedColor"));
+  const cardDesign = design(path, form, "design");
+  const embedTitle = cardDesign?.title ?? null;
   if (!COMMAND_NAME.test(name)) back(path, "Der Name darf nur Kleinbuchstaben, Zahlen, - und _ enthalten (höchstens 32 Zeichen).");
   if (RESERVED_COMMANDS.includes(name)) back(path, `/${name} ist ein eingebauter Befehl von Libremod. Bitte einen anderen Namen wählen.`);
   if (!description || description.length > 100) back(path, "Bitte eine Beschreibung mit höchstens 100 Zeichen angeben.");
@@ -688,7 +699,8 @@ function readCommandForm(form: FormData, path: string) {
     responses,
     embed,
     embedTitle,
-    embedColor: color ? parseInt(color[0].slice(1), 16) : null,
+    embedColor: cardDesign?.color ?? null,
+    design: cardDesign,
     ephemeral: form.get("ephemeral") === "on",
   };
 }
@@ -746,7 +758,8 @@ export async function createScheduled(guildId: string, form: FormData) {
   const channelId = text(form, "channelId");
   const content = text(form, "content");
   const embed = form.get("embed") === "on";
-  const embedTitle = text(form, "embedTitle") || null;
+  const cardDesign = embed ? design(path, form, "design") : null;
+  const embedTitle = cardDesign?.title ?? null;
   const kind = text(form, "kind");
   const known = await textChannelIds(guildId);
   if (!known.text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
@@ -782,6 +795,7 @@ export async function createScheduled(guildId: string, form: FormData) {
     content,
     embed,
     embedTitle,
+    design: cardDesign,
     ...row,
     nextRunAt: nextRun(toSchedule(row), new Date()),
   });

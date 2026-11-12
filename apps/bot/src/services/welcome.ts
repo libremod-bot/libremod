@@ -1,6 +1,6 @@
 import { AttachmentBuilder, EmbedBuilder, type Guild, type MessageCreateOptions, type GuildMember, type PartialGuildMember, type User } from "discord.js";
-import { autoRoles, eq, welcomeSettings, type Db, type WelcomeSettings } from "@libremod/db";
-import { renderTemplate } from "@libremod/shared";
+import { autoRoles, eq, welcomeSettings, type Db, type EmbedDesign, type WelcomeSettings } from "@libremod/db";
+import { buildEmbedJson, renderTemplate } from "@libremod/shared";
 import { logger } from "../logger.js";
 import { renderWelcomeCard } from "../lib/welcomecard.js";
 
@@ -43,20 +43,27 @@ const vars = (user: User, guild: Guild) => ({
 });
 
 /** Baut die Nachricht als Text oder als Embed mit Avatar. */
-export function welcomePayload(template: string, asEmbed: boolean, user: User, guild: Guild, color = 0x4cb4ff): MessageCreateOptions {
-  const text = renderTemplate(template, vars(user, guild)).slice(0, asEmbed ? 4000 : 2000);
+export function welcomePayload(
+  template: string,
+  asEmbed: boolean,
+  user: User,
+  guild: Guild,
+  color = 0x4cb4ff,
+  design?: EmbedDesign | null,
+): MessageCreateOptions {
+  const render = (s: string) => renderTemplate(s, vars(user, guild));
   // Erwähnung der neuen Person erlauben, sonst niemanden anpingen.
   const allowedMentions = { users: [user.id] };
-  if (!asEmbed) return { content: text, allowedMentions };
+  if (!asEmbed) return { content: render(template).slice(0, 2000), allowedMentions };
   return {
-    embeds: [new EmbedBuilder().setColor(color).setDescription(text).setThumbnail(user.displayAvatarURL({ size: 256 }))],
+    embeds: [buildEmbedJson(design, template, { render, avatarUrl: user.displayAvatarURL({ size: 256 }), defaults: { color, thumbnail: "avatar" } })],
     allowedMentions,
   };
 }
 
 /** Begrüßung samt Bild, falls eingeschaltet. Klappt das Bild nicht, kommt die Nachricht ohne. */
 export async function fullWelcomePayload(s: WelcomeSettings, user: User, guild: Guild, displayName?: string): Promise<MessageCreateOptions> {
-  const payload = welcomePayload(s.welcomeMessage, s.welcomeEmbed, user, guild, s.welcomeImageColor);
+  const payload = welcomePayload(s.welcomeMessage, s.welcomeEmbed, user, guild, s.welcomeImageColor, s.welcomeDesign);
   if (!s.welcomeImage) return payload;
   try {
     const png = await renderWelcomeCard({
@@ -67,7 +74,11 @@ export async function fullWelcomePayload(s: WelcomeSettings, user: User, guild: 
       color: s.welcomeImageColor,
     });
     const files = [new AttachmentBuilder(png, { name: "willkommen.png" })];
-    const embeds = payload.embeds?.map((e) => EmbedBuilder.from(e).setThumbnail(null).setImage("attachment://willkommen.png"));
+    const embeds = payload.embeds?.map((e) => {
+      // Das Begrüßungsbild ersetzt das Profilbild. Ein eigenes großes Bild hat Vorrang.
+      const b = EmbedBuilder.from(e);
+      return "image" in b.data && b.data.image ? b : b.setThumbnail(s.welcomeDesign?.thumbnail === "url" ? (b.data.thumbnail?.url ?? null) : null).setImage("attachment://willkommen.png");
+    });
     return { ...payload, ...(embeds ? { embeds } : {}), files };
   } catch (err) {
     logger.warn({ err, guildId: guild.id }, "Begrüßungsbild konnte nicht gezeichnet werden");
@@ -125,7 +136,7 @@ export async function onWelcomeLeave(member: GuildMember | PartialGuildMember, d
   const s = (await load(db, member.guild.id)).settings;
   if (!s?.goodbyeEnabled || member.user.bot) return;
   await sendTo(member.guild, s.goodbyeChannelId, {
-    ...welcomePayload(s.goodbyeMessage, s.goodbyeEmbed, member.user, member.guild, 0xf59e42),
+    ...welcomePayload(s.goodbyeMessage, s.goodbyeEmbed, member.user, member.guild, 0xf59e42, s.goodbyeDesign),
     allowedMentions: { parse: [] }, // Wer weg ist, wird nicht mehr angepingt
   });
 }

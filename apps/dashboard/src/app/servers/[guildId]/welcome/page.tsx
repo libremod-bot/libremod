@@ -1,5 +1,6 @@
 import { eq, welcomeSettings } from "@libremod/db";
 import { PLACEHOLDERS } from "@libremod/shared";
+import { EmbedEditor } from "@/components/EmbedEditor";
 import { Icon } from "@/components/Icon";
 import { Notice } from "@/components/Notice";
 import { PageHeader } from "@/components/PageHeader";
@@ -94,13 +95,14 @@ export default async function WelcomePage({
             </div>
             <label className="check-inline">
               <input type="checkbox" name="welcomeEmbed" defaultChecked={s?.welcomeEmbed ?? true} />
-              Als Karte mit Profilbild anzeigen
+              Als Karte (Embed) anzeigen
             </label>
           </div>
           <div className="field">
             <label htmlFor="welcomeMessage">Text</label>
             <textarea id="welcomeMessage" name="welcomeMessage" maxLength={1500} defaultValue={s?.welcomeMessage ?? DEFAULTS.welcomeMessage} />
           </div>
+          <EmbedEditor name="welcomeDesign" textareaId="welcomeMessage" toggleName="welcomeEmbed" initial={s?.welcomeDesign} defaults={{ thumbnail: "avatar", color: s?.welcomeImageColor ?? 0x4cb4ff }} />
           <label className="check-inline" style={{ marginTop: ".5rem" }}>
             <input type="checkbox" name="welcomeImage" defaultChecked={s?.welcomeImage ?? false} />
             Begrüßungsbild mit Profilbild, Name und Mitgliedsnummer anhängen
@@ -159,13 +161,21 @@ export default async function WelcomePage({
             </div>
             <label className="check-inline">
               <input type="checkbox" name="goodbyeEmbed" defaultChecked={s?.goodbyeEmbed ?? false} />
-              Als Karte mit Profilbild anzeigen
+              Als Karte (Embed) anzeigen
             </label>
           </div>
           <div className="field">
             <label htmlFor="goodbyeMessage">Text</label>
             <textarea id="goodbyeMessage" name="goodbyeMessage" maxLength={1500} defaultValue={s?.goodbyeMessage ?? DEFAULTS.goodbyeMessage} />
           </div>
+          <EmbedEditor
+            name="goodbyeDesign"
+            textareaId="goodbyeMessage"
+            toggleName="goodbyeEmbed"
+            initial={s?.goodbyeDesign}
+            defaults={{ thumbnail: "avatar", color: 0xf59e42 }}
+            sample={{ user: "@Ehemaliges Mitglied", username: "Ehemaliges Mitglied" }}
+          />
         </section>
 
         <div className="savebar">

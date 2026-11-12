@@ -22,7 +22,7 @@ export const welcome: Command = {
       `Abschied: ${s.goodbyeEnabled && s.goodbyeChannelId ? `an, in <#${s.goodbyeChannelId}>` : "aus"}`,
     ].join("\n");
     const welcomeMsg = await fullWelcomePayload(s, interaction.user, interaction.guild, interaction.member.displayName);
-    const goodbyeMsg = welcomePayload(s.goodbyeMessage, s.goodbyeEmbed, interaction.user, interaction.guild, 0xf59e42);
+    const goodbyeMsg = welcomePayload(s.goodbyeMessage, s.goodbyeEmbed, interaction.user, interaction.guild, 0xf59e42, s.goodbyeDesign);
     await replyPrivate(interaction, `${status}\n\n**So sieht die Begrüßung aus:**`);
     const preview = (m: MessageCreateOptions) =>
       interaction.followUp({ content: m.content, embeds: m.embeds, files: m.files, flags: MessageFlags.Ephemeral, allowedMentions: { parse: [] } });

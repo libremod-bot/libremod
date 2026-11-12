@@ -116,12 +116,16 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 - Export und Import aller Einstellungen als JSON-Datei, auch auf einen anderen Server (unbekannte Kanäle und Rollen werden entfernt)
 - Server-Statistik: Mitgliederentwicklung, Nachrichten, Beitritte und Abgänge, aktivste Kanäle und Uhrzeiten (nur Zahlen, keine Nutzerdaten)
 
+## 0.17 Embed-Editor
+
+- Karten (Embeds) gestalten mit Live-Vorschau im Discord-Stil: Überschrift, Farbe, Zeile darüber, Fußzeile, Uhrzeit, Felder, kleines und großes Bild
+- Für Begrüßung, Abschied, geplante Nachrichten und eigene Befehle, Platzhalter in allen Texten
+
 ## Später
 
 ### Dashboard und Bedienung
 
 - Mehrsprachigkeit: Bot und Dashboard auch auf Englisch
-- Embed-Editor mit Live-Vorschau für alle Nachrichten
 
 ### Betrieb und Selbsthosten
 

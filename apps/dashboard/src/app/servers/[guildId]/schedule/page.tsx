@@ -1,5 +1,6 @@
 import { asc, eq, scheduledMessages } from "@libremod/db";
 import { describeSchedule, toSchedule, WEEKDAY_NAMES } from "@libremod/shared";
+import { EmbedEditor } from "@/components/EmbedEditor";
 import { Icon } from "@/components/Icon";
 import { Notice } from "@/components/Notice";
 import { PageHeader } from "@/components/PageHeader";
@@ -96,16 +97,11 @@ export default async function SchedulePage({
             <label htmlFor="content">Nachricht</label>
             <textarea id="content" name="content" required maxLength={2000} placeholder="Denkt an den Spieleabend heute um 20 Uhr!" />
           </div>
-          <div className="grid-2">
-            <label className="check-inline">
-              <input type="checkbox" name="embed" />
-              Als Embed (Karte) posten
-            </label>
-            <div className="field">
-              <label htmlFor="embedTitle">Embed-Überschrift</label>
-              <input id="embedTitle" name="embedTitle" type="text" maxLength={256} placeholder="optional" />
-            </div>
-          </div>
+          <label className="check-inline">
+            <input type="checkbox" name="embed" />
+            Als Karte (Embed) posten
+          </label>
+          <EmbedEditor name="design" textareaId="content" toggleName="embed" defaults={{ thumbnail: "none" }} placeholders={false} />
 
           <div className="field">
             <label htmlFor="kind">Wie oft?</label>

@@ -15,6 +15,19 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
+/** Gestaltung einer Karte (gleicher Aufbau wie EmbedDesign in @libremod/shared). */
+export interface EmbedDesign {
+  title?: string;
+  color?: number;
+  authorName?: string;
+  footer?: string;
+  imageUrl?: string;
+  thumbnail?: "avatar" | "none" | "url";
+  thumbnailUrl?: string;
+  fields?: { name: string; value: string; inline?: boolean }[];
+  timestamp?: boolean;
+}
+
 /**
  * Einstellungen pro Discord-Server. Alles, was im Dashboard einstellbar ist,
  * landet hier oder in eigenen Tabellen, die über guildId verknüpft sind.
@@ -186,6 +199,9 @@ export const welcomeSettings = pgTable("welcome_settings", {
   goodbyeChannelId: varchar("goodbye_channel_id", { length: 32 }),
   goodbyeMessage: text("goodbye_message").notNull().default("**{username}** hat den Server verlassen."),
   goodbyeEmbed: boolean("goodbye_embed").notNull().default(false),
+  /** Gestaltung der Karten (Embed-Editor). Leer = Standard. */
+  welcomeDesign: jsonb("welcome_design").$type<EmbedDesign>(),
+  goodbyeDesign: jsonb("goodbye_design").$type<EmbedDesign>(),
   /** Begrüßungsbild mit Avatar unter der Nachricht. */
   welcomeImage: boolean("welcome_image").notNull().default(false),
   welcomeImageTitle: varchar("welcome_image_title", { length: 40 }).notNull().default("Willkommen!"),
@@ -323,6 +339,7 @@ export const customCommands = pgTable(
     embed: boolean("embed").notNull().default(false),
     embedTitle: varchar("embed_title", { length: 256 }),
     embedColor: integer("embed_color"),
+    design: jsonb("design").$type<EmbedDesign>(),
     /** Antwort nur für die aufrufende Person sichtbar. */
     ephemeral: boolean("ephemeral").notNull().default(false),
     uses: integer("uses").notNull().default(0),
@@ -346,6 +363,7 @@ export const scheduledMessages = pgTable(
     content: text("content").notNull(),
     embed: boolean("embed").notNull().default(false),
     embedTitle: varchar("embed_title", { length: 256 }),
+    design: jsonb("design").$type<EmbedDesign>(),
     kind: scheduleKind("kind").notNull(),
     /** interval: Minuten zwischen zwei Nachrichten. */
     intervalMinutes: integer("interval_minutes"),

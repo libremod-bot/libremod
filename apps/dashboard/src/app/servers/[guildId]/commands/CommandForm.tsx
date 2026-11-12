@@ -1,6 +1,6 @@
 import type { CustomCommand } from "@libremod/db";
+import { EmbedEditor } from "@/components/EmbedEditor";
 
-const hex = (n: number | null | undefined) => `#${(n ?? 0x4cb4ff).toString(16).padStart(6, "0")}`;
 
 /** Formular für einen eigenen Befehl. */
 export function CommandForm({ action, command, submitLabel }: { action: (form: FormData) => Promise<void>; command?: CustomCommand; submitLabel: string }) {
@@ -55,20 +55,18 @@ export function CommandForm({ action, command, submitLabel }: { action: (form: F
           {"{username}"}, {"{server}"}, {"{membercount}"}.
         </div>
       </div>
-      <div className="grid-3" style={{ alignItems: "end" }}>
-        <label className="check-inline">
-          <input type="checkbox" name="embed" defaultChecked={command?.embed ?? false} />
-          Als Embed (Karte) antworten
-        </label>
-        <div>
-          <label htmlFor="embedTitle">Embed-Überschrift</label>
-          <input id="embedTitle" name="embedTitle" type="text" maxLength={256} defaultValue={command?.embedTitle ?? ""} placeholder="optional" />
-        </div>
-        <div>
-          <label htmlFor="embedColor">Embed-Farbe</label>
-          <input id="embedColor" name="embedColor" type="color" defaultValue={hex(command?.embedColor)} />
-        </div>
-      </div>
+      <label className="check-inline">
+        <input type="checkbox" name="embed" defaultChecked={command?.embed ?? false} />
+        Als Karte (Embed) antworten
+      </label>
+      <EmbedEditor
+        name="design"
+        textareaId="responses"
+        toggleName="embed"
+        initial={{ title: command?.embedTitle ?? undefined, color: command?.embedColor ?? undefined, ...(command?.design ?? {}) }}
+        defaults={{ thumbnail: "none" }}
+        sample={{ user: "@Mitglied", username: "Mitglied" }}
+      />
       <label className="check-inline" style={{ marginTop: "0.5rem" }}>
         <input type="checkbox" name="ephemeral" defaultChecked={command?.ephemeral ?? false} />
         Antwort nur für die Person sichtbar, die den Befehl nutzt

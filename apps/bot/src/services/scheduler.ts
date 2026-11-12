@@ -1,6 +1,6 @@
-import { DiscordAPIError, EmbedBuilder, RESTJSONErrorCodes, type Client } from "discord.js";
+import { DiscordAPIError, RESTJSONErrorCodes, type Client } from "discord.js";
 import { and, eq, lte, scheduledMessages, type Db } from "@libremod/db";
-import { nextRun, toSchedule } from "@libremod/shared";
+import { buildEmbedJson, nextRun, toSchedule } from "@libremod/shared";
 import { logger } from "../logger.js";
 
 class ChannelGone extends Error {}
@@ -27,9 +27,7 @@ export async function runDueMessages(client: Client, db: Db, now = new Date()) {
       const channel = await client.channels.fetch(m.channelId);
       if (!channel?.isSendable() || !("guildId" in channel) || channel.guildId !== m.guildId) throw new ChannelGone();
       if (m.embed) {
-        const embed = new EmbedBuilder().setColor(0x4cb4ff).setDescription(m.content.slice(0, 4000));
-        if (m.embedTitle) embed.setTitle(m.embedTitle);
-        await channel.send({ embeds: [embed] });
+        await channel.send({ embeds: [buildEmbedJson(m.design, m.content, { defaults: { title: m.embedTitle ?? undefined } })] });
       } else {
         await channel.send({ content: m.content.slice(0, 2000) });
       }
