@@ -8,8 +8,12 @@ import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
 import { createCommand, deleteCommand } from "../actions";
 import { CommandForm } from "./CommandForm";
+import { t, initLocale } from "@/lib/i18n";
 
-export const metadata = { title: "Eigene Befehle · Libremod" };
+export async function generateMetadata() {
+  await initLocale();
+  return { title: t("{n0} · Libremod", { n0: t("Eigene Befehle") }) };
+}
 
 export default async function CommandsPage({
   params,
@@ -28,8 +32,8 @@ export default async function CommandsPage({
     <>
       <PageHeader
         icon="slash"
-        title="Eigene Befehle"
-        description="Eigene Slash-Befehle wie /regeln oder /discord, die mit deinem Text antworten. Sie erscheinen nach wenigen Sekunden in Discord."
+        title={t("Eigene Befehle")}
+        description={t("Eigene Slash-Befehle wie /regeln oder /discord, die mit deinem Text antworten. Sie erscheinen nach wenigen Sekunden in Discord.")}
       />
       <Notice saved={gespeichert} error={fehler} />
 
@@ -47,19 +51,17 @@ export default async function CommandsPage({
                 </div>
               </div>
               <div className="panel-roles">
-                <span className="badge">{c.responses.length === 1 ? "1 Antwort" : `${c.responses.length} Antworten`}</span>
-                {c.embed && <span className="badge info">Embed</span>}
-                {c.ephemeral && <span className="badge">Nur sichtbar für Nutzer</span>}
-                <span className="badge">{c.uses}× genutzt</span>
+                <span className="badge">{c.responses.length === 1 ? t("1 Antwort") : t("{length} Antworten", { length: c.responses.length })}</span>
+                {c.embed && <span className="badge info">{t("Embed")}</span>}
+                {c.ephemeral && <span className="badge">{t("Nur sichtbar für Nutzer")}</span>}
+                <span className="badge">{c.uses}{t("× genutzt")}</span>
               </div>
               <div className="panel-actions">
                 <Link className="button secondary small" href={`/servers/${guildId}/commands/${c.id}`}>
-                  <Icon name="edit" size={15} /> Bearbeiten
-                </Link>
+                  <Icon name="edit" size={15} /> {" "}{t("Bearbeiten")}</Link>
                 <form action={deleteCommand.bind(null, guildId, c.id)} style={{ marginLeft: "auto" }}>
                   <button className="danger small" type="submit">
-                    <Icon name="trash" size={15} /> Löschen
-                  </button>
+                    <Icon name="trash" size={15} /> {" "}{t("Löschen")}</button>
                 </form>
               </div>
             </div>
@@ -70,12 +72,12 @@ export default async function CommandsPage({
       <section className="card">
         <div className="card-title">
           <Icon name="plus" />
-          <h2>Neuer Befehl</h2>
+          <h2>{t("Neuer Befehl")}</h2>
           <span className="badge" style={{ marginLeft: "auto" }}>
-            {commands.length} von {MAX_CUSTOM_COMMANDS}
+            {commands.length} {" "}{t("von")}{" "}{MAX_CUSTOM_COMMANDS}
           </span>
         </div>
-        <CommandForm action={createCommand.bind(null, guildId)} submitLabel="Befehl anlegen" />
+        <CommandForm action={createCommand.bind(null, guildId)} submitLabel={t("Befehl anlegen")} />
       </section>
     </>
   );

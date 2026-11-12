@@ -2,6 +2,7 @@
 
 import { parseDuration } from "./duration.js";
 import { berlinParts, berlinToDate } from "./schedule.js";
+import { t } from "./i18n.js";
 
 export const EVENT_COLOR = 0x4f9dff;
 export const EVENT_DONE_COLOR = 0x80848e;
@@ -92,10 +93,10 @@ export function parseEventStart(input: string, now = new Date()): Date | null {
 
 /** Prüft Start und Dauer. Gibt eine Fehlermeldung oder null zurück. */
 export function validateEventTime(startsAt: Date, minutes: number, now = new Date()): string | null {
-  if (Number.isNaN(startsAt.getTime())) return "Der Startzeitpunkt wurde nicht verstanden.";
-  if (startsAt.getTime() < now.getTime() + 60_000) return "Das Event muss in der Zukunft liegen.";
-  if (startsAt.getTime() > now.getTime() + MAX_EVENT_AHEAD_MS) return "Events können höchstens ein Jahr im Voraus geplant werden.";
-  if (!Number.isInteger(minutes) || minutes < 5 || minutes > MAX_EVENT_MINUTES) return "Die Dauer muss zwischen 5 Minuten und 14 Tagen liegen.";
+  if (Number.isNaN(startsAt.getTime())) return t("Der Startzeitpunkt wurde nicht verstanden.");
+  if (startsAt.getTime() < now.getTime() + 60_000) return t("Das Event muss in der Zukunft liegen.");
+  if (startsAt.getTime() > now.getTime() + MAX_EVENT_AHEAD_MS) return t("Events können höchstens ein Jahr im Voraus geplant werden.");
+  if (!Number.isInteger(minutes) || minutes < 5 || minutes > MAX_EVENT_MINUTES) return t("Die Dauer muss zwischen 5 Minuten und 14 Tagen liegen.");
   return null;
 }
 
@@ -141,7 +142,7 @@ export function mentionList(ids: string[], max = 1024): string {
     const m = `<@${id}>`;
     const rest = ids.length - i;
     if (len + m.length + 2 + 24 > max) {
-      out.push(`… und ${rest} weitere`);
+      out.push(t("… und {rest} weitere", { rest }));
       break;
     }
     out.push(m);
@@ -154,22 +155,22 @@ export function mentionList(ids: string[], max = 1024): string {
 export function buildEventMessage(e: EventView, r: EventRsvps) {
   const lines: string[] = [];
   if (e.description.trim()) lines.push(e.description.trim(), "");
-  if (e.state === "cancelled") lines.push("❌ **Abgesagt**");
-  else if (e.state === "done") lines.push(`✅ Vorbei seit <t:${unix(e.endsAt)}:R>`);
+  if (e.state === "cancelled") lines.push(t("❌ **Abgesagt**"));
+  else if (e.state === "done") lines.push(t("✅ Vorbei seit <t:{endsAt}:R>", { endsAt: unix(e.endsAt) }));
   lines.push(`🕒 <t:${unix(e.startsAt)}:F> (<t:${unix(e.startsAt)}:R>)`);
-  lines.push(`⏳ bis <t:${unix(e.endsAt)}:t>`);
+  lines.push(t("⏳ bis <t:{endsAt}:t>", { endsAt: unix(e.endsAt) }));
   if (e.location.trim()) lines.push(`📍 ${clip(e.location.trim(), MAX_EVENT_LOCATION)}`);
-  if (e.roleId) lines.push(`Zusagen bekommen die Rolle <@&${e.roleId}>.`);
-  if (e.state === "open" && e.remindMinutes > 0) lines.push("Wer zusagt, bekommt vorher eine Erinnerung per Direktnachricht.");
-  lines.push(`Geplant von <@${e.hostId}>`);
+  if (e.roleId) lines.push(t("Zusagen bekommen die Rolle <@&{roleId}>.", { roleId: e.roleId }));
+  if (e.state === "open" && e.remindMinutes > 0) lines.push(t("Wer zusagt, bekommt vorher eine Erinnerung per Direktnachricht."));
+  lines.push(t("Geplant von <@{hostId}>", { hostId: e.hostId }));
 
-  const yesLabel = e.slots > 0 ? `✅ Zusagen (${r.yes.length}/${e.slots})` : `✅ Zusagen (${r.yes.length})`;
+  const yesLabel = e.slots > 0 ? t("✅ Zusagen ({length}/{slots})", { length: r.yes.length, slots: e.slots }) : t("✅ Zusagen ({length})", { length: r.yes.length });
   const fields = [
     { name: yesLabel, value: mentionList(r.yes), inline: true },
-    { name: `🤔 Vielleicht (${r.maybe.length})`, value: mentionList(r.maybe), inline: true },
-    { name: `❌ Absagen (${r.no.length})`, value: mentionList(r.no), inline: true },
+    { name: t("🤔 Vielleicht ({length})", { length: r.maybe.length }), value: mentionList(r.maybe), inline: true },
+    { name: t("❌ Absagen ({length})", { length: r.no.length }), value: mentionList(r.no), inline: true },
   ];
-  if (r.waitlist.length) fields.push({ name: `⏸️ Warteliste (${r.waitlist.length})`, value: mentionList(r.waitlist), inline: false });
+  if (r.waitlist.length) fields.push({ name: t("⏸️ Warteliste ({length})", { length: r.waitlist.length }), value: mentionList(r.waitlist), inline: false });
 
   const open = e.state === "open";
   const button = (choice: RsvpChoice, label: string, emoji: string, style: number) => ({
@@ -187,14 +188,14 @@ export function buildEventMessage(e: EventView, r: EventRsvps) {
         description: clip(lines.join("\n"), 4000),
         color: e.state === "cancelled" ? EVENT_CANCELLED_COLOR : e.state === "done" ? EVENT_DONE_COLOR : EVENT_COLOR,
         fields,
-        footer: { text: `Event #${e.id}` },
+        footer: { text: t("Event #{id}", { id: e.id }) },
         timestamp: e.startsAt.toISOString(),
       },
     ],
     components: [
       {
         type: 1,
-        components: [button("yes", "Dabei", "✅", 3), button("maybe", "Vielleicht", "🤔", 2), button("no", "Nicht dabei", "❌", 2)],
+        components: [button("yes", "Dabei", "✅", 3), button("maybe", "Vielleicht", "🤔", 2), button("no", t("Nicht dabei"), "❌", 2)],
       },
     ],
     allowed_mentions: { parse: [] as string[] },
@@ -203,7 +204,7 @@ export function buildEventMessage(e: EventView, r: EventRsvps) {
 
 /** Text der Erinnerung per Direktnachricht. */
 export function eventReminderText(e: Pick<EventView, "title" | "startsAt" | "location">, guildName: string, link: string | null): string {
-  const lines = [`⏰ Gleich geht's los: **${clip(e.title, 200)}** auf **${clip(guildName, 100)}** <t:${unix(e.startsAt)}:R>.`];
+  const lines = [t("⏰ Gleich geht's los: **{n0}** auf **{n1}** <t:{startsAt}:R>.", { n0: clip(e.title, 200), n1: clip(guildName, 100), startsAt: unix(e.startsAt) })];
   if (e.location.trim()) lines.push(`📍 ${clip(e.location.trim(), MAX_EVENT_LOCATION)}`);
   if (link) lines.push(link);
   return lines.join("\n");

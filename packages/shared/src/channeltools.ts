@@ -4,6 +4,7 @@
  * Erkennt ein Emoji aus dem Dashboard: Unicode-Emoji, `<:name:id>`, `<a:name:id>` oder eine reine ID.
  * Gespeichert wird das Unicode-Zeichen bzw. die ID des Server-Emojis.
  */
+import { t } from "./i18n.js";
 export function parseEmojiInput(raw: string): string | null {
   const input = raw.trim();
   if (!input) return null;
@@ -38,7 +39,7 @@ export const PURGE_INTERVALS: { hours: number; label: string }[] = [
 ];
 
 export function purgeIntervalLabel(hours: number) {
-  return PURGE_INTERVALS.find((i) => i.hours === hours)?.label ?? `alle ${hours} Stunden`;
+  return t(PURGE_INTERVALS.find((i) => i.hours === hours)?.label) || t("alle {hours} Stunden", { hours });
 }
 
 /** Discord löscht nur Nachrichten, die jünger als 14 Tage sind, gesammelt. */
@@ -77,6 +78,6 @@ export function nextSlowmode(current: number, messagesLastMinute: number, cfg: S
 
 export function formatSeconds(s: number) {
   if (s === 0) return "aus";
-  if (s < 60) return `${s} Sek.`;
-  return `${s / 60} Min.`;
+  if (s < 60) return t("{s} Sek.", { s });
+  return t("{n0} Min.", { n0: s / 60 });
 }

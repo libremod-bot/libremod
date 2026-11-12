@@ -5,6 +5,7 @@
 // --- Gemeinsame Hilfen ---
 
 /** Zeichen, die sich zum Verwechseln ähnlich sehen, auf ein Grundzeichen bringen. */
+import { t } from "./i18n.js";
 const LOOKALIKE: Record<string, string> = {
   "0": "o", "1": "i", l: "i", "|": "i", "!": "i", "3": "e", "4": "a", "@": "a", "5": "s", $: "s", "7": "t", "8": "b", "9": "g",
   // Kyrillische und griechische Doppelgänger
@@ -22,9 +23,9 @@ export function skeleton(text: string): string {
   let mapped = "";
   for (const ch of text) mapped += LOOKALIKE_UPPER[ch] ?? ch;
   // Buchstabenpaare, die wie ein Buchstabe aussehen: rn = m, vv = w, cl = d
-  const t = mapped.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").replace(/rn/g, "m").replace(/vv/g, "w").replace(/cl/g, "d");
+  const tItem = mapped.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").replace(/rn/g, "m").replace(/vv/g, "w").replace(/cl/g, "d");
   let out = "";
-  for (const ch of t) out += LOOKALIKE[ch] ?? ch;
+  for (const ch of tItem) out += LOOKALIKE[ch] ?? ch;
   return out.replace(/[^\p{L}]/gu, "");
 }
 
@@ -111,9 +112,9 @@ export function punycodeDecode(input: string): string | null {
       const digit = c >= 48 && c <= 57 ? c - 22 : c >= 65 && c <= 90 ? c - 65 : c >= 97 && c <= 122 ? c - 97 : 36;
       if (digit >= 36) return null;
       i += digit * w;
-      const t = k <= bias ? 1 : k >= bias + 26 ? 26 : k - bias;
-      if (digit < t) break;
-      w *= 36 - t;
+      const tItem = k <= bias ? 1 : k >= bias + 26 ? 26 : k - bias;
+      if (digit < tItem) break;
+      w *= 36 - tItem;
       if (w > 1e12) return null;
     }
     const len = out.length + 1;
@@ -183,12 +184,12 @@ export const isOfficialDomain = isOfficial;
 /** Bewertet einen Link. Gibt den Grund zurück oder null, wenn er unauffällig ist. */
 export function phishingReason(host: string, path = "", opts: PhishingOptions | string[] = {}): string | null {
   const o = Array.isArray(opts) ? { blocked: opts } : opts;
-  if (clean(o.blocked).some((d) => endsWithDomain(host, d))) return `gesperrte Domain ${host}`;
+  if (clean(o.blocked).some((d) => endsWithDomain(host, d))) return t("gesperrte Domain {host}", { host });
   if (clean(o.allowed).some((d) => endsWithDomain(host, d))) return null;
   if (isOfficial(host)) return null;
 
   const shown = unicodeHost(host);
-  if (o.listed?.has(host)) return `bekannte Betrugsdomain ${shown}`;
+  if (o.listed?.has(host)) return t("bekannte Betrugsdomain {shown}", { shown });
   // Beide Schreibweisen prüfen: kaputtes Punycode soll den Rohtext nicht verstecken.
   return lookalikeReason(host, path, shown) ?? (shown !== host ? lookalikeReason(shown, path, shown) : null);
 }
@@ -200,23 +201,23 @@ function lookalikeReason(form: string, path: string, shown: string): string | nu
   const hasBait = BAIT.some((w) => form.includes(w) || path.includes(w));
   for (const brand of BRANDS) {
     // Echte Domain nur vorne im Namen versteckt: discord.com.free-gift.ru
-    if (brand.official.some((d) => host.includes(`${d}.`) || host.includes(`${d}-`))) return `getarnter Link ${host}`;
+    if (brand.official.some((d) => host.includes(`${d}.`) || host.includes(`${d}-`))) return t("getarnter Link {host}", { host });
     const brandSkel = skeleton(brand.name);
     for (const raw of [...body, body.join("")]) {
       const plain = raw.replace(/[^a-z]/g, "");
       const skel = skeleton(raw);
       if (!skel) continue;
-      if (skel === brandSkel && plain !== brand.name) return `Nachahmung von ${brand.name}: ${shown}`;
-      if (skel.includes(brandSkel) && skel !== brandSkel && hasBait) return `verdächtiger ${brand.name}-Link ${shown}`;
-      if (skel === brandSkel && hasBait && plain === brand.name && raw !== brand.name) return `verdächtiger ${brand.name}-Link ${shown}`;
+      if (skel === brandSkel && plain !== brand.name) return t("Nachahmung von {name}: {shown}", { name: brand.name, shown });
+      if (skel.includes(brandSkel) && skel !== brandSkel && hasBait) return t("verdächtiger {name}-Link {shown}", { name: brand.name, shown });
+      if (skel === brandSkel && hasBait && plain === brand.name && raw !== brand.name) return t("verdächtiger {name}-Link {shown}", { name: brand.name, shown });
       // Tippfehler-Domains: gleich lang oder ein Zeichen kürzer, höchstens ein (bei langen Namen zwei) Fehler
       const max = brandSkel.length >= 10 ? 2 : 1;
       if (skel.length <= brandSkel.length && skel.length >= brandSkel.length - 1 && skel !== brandSkel) {
-        if (editDistance(skel, brandSkel) <= max) return `Nachahmung von ${brand.name}: ${shown}`;
+        if (editDistance(skel, brandSkel) <= max) return t("Nachahmung von {name}: {shown}", { name: brand.name, shown });
       }
     }
   }
-  if (form.includes("nitro") && /free|gift|claim|drop/.test(form + path)) return `verdächtiger Nitro-Link ${shown}`;
+  if (form.includes("nitro") && /free|gift|claim|drop/.test(form + path)) return t("verdächtiger Nitro-Link {shown}", { shown });
   return null;
 }
 
@@ -227,7 +228,7 @@ export function maskedLinkReason(content: string): string | null {
     const target = extractLinks(m[2]!)[0];
     const shown = extractLinks(label)[0];
     if (!target || !shown) continue;
-    if (baseDomain(shown.host) !== baseDomain(target.host)) return `getarnter Link: zeigt „${shown.host}“, führt aber zu ${target.host}`;
+    if (baseDomain(shown.host) !== baseDomain(target.host)) return t("getarnter Link: zeigt „{host}“, führt aber zu {host2}", { host: shown.host, host2: target.host });
   }
   return null;
 }
@@ -245,8 +246,8 @@ const SCAM_TEXT: [RegExp, string][] = [
 ];
 
 export function scamTextReason(content: string): string | null {
-  const t = content.toLowerCase();
-  for (const [re, label] of SCAM_TEXT) if (re.test(t)) return label;
+  const tItem = content.toLowerCase();
+  for (const [re, label] of SCAM_TEXT) if (re.test(tItem)) return label;
   return null;
 }
 
@@ -257,14 +258,14 @@ export function checkPhishing(content: string, opts: PhishingOptions | string[] 
   if (!links.length) return null;
   for (const { host, path } of links) {
     const reason = phishingReason(host, path, o);
-    if (reason) return `Betrugsverdacht: ${reason}`;
+    if (reason) return t("Betrugsverdacht: {reason}", { reason });
   }
   const masked = maskedLinkReason(content);
-  if (masked) return `Betrugsverdacht: ${masked}`;
+  if (masked) return t("Betrugsverdacht: {masked}", { masked });
   const allowed = clean(o.allowed);
   const unknown = links.filter((l) => !isOfficial(l.host) && !allowed.some((d) => endsWithDomain(l.host, d)));
   const text = unknown.length ? scamTextReason(content) : null;
-  if (text) return `Betrugsverdacht: ${text} mit Link zu ${unicodeHost(unknown[0]!.host)}`;
+  if (text) return t("Betrugsverdacht: {text} mit Link zu {host}", { text, host: unicodeHost(unknown[0]!.host) });
   return null;
 }
 
@@ -316,14 +317,14 @@ export function appealBlocker(
   cooldownDays: number,
   now = new Date(),
 ): string | null {
-  if (previous.some((p) => p.status === "open")) return "Dein Einspruch liegt dem Team schon vor.";
+  if (previous.some((p) => p.status === "open")) return t("Dein Einspruch liegt dem Team schon vor.");
   const lastDenied = previous
     .filter((p) => p.status === "denied")
     .map((p) => (p.reviewedAt ?? p.createdAt).getTime())
     .sort((a, b) => b - a)[0];
   if (lastDenied && now.getTime() - lastDenied < cooldownDays * 86_400_000) {
     const until = new Date(lastDenied + cooldownDays * 86_400_000);
-    return `Dein letzter Einspruch wurde abgelehnt. Einen neuen kannst du ab ${until.toLocaleDateString("de-DE", { timeZone: "Europe/Berlin" })} stellen.`;
+    return t("Dein letzter Einspruch wurde abgelehnt. Einen neuen kannst du ab {n0} stellen.", { n0: until.toLocaleDateString("de-DE", { timeZone: "Europe/Berlin" }) });
   }
   return null;
 }
@@ -361,10 +362,10 @@ function listEntryDomain(raw: string): string | null {
 /** Liest eine Liste als Text (eine Domain oder URL pro Zeile) oder als JSON ({ domains: [...] } bzw. [...]). */
 export function parseDomainList(text: string): string[] {
   let entries: unknown[] | null = null;
-  const t = text.trimStart();
-  if (t.startsWith("{") || t.startsWith("[")) {
+  const tItem = text.trimStart();
+  if (tItem.startsWith("{") || tItem.startsWith("[")) {
     try {
-      const json = JSON.parse(t) as unknown;
+      const json = JSON.parse(tItem) as unknown;
       entries = Array.isArray(json) ? json : Array.isArray((json as { domains?: unknown })?.domains) ? (json as { domains: unknown[] }).domains : [];
     } catch {
       entries = [];

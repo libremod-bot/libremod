@@ -33,7 +33,12 @@ import { moderate } from "./actions.js";
 import { getSettings } from "./cases.js";
 import { markAutomodDeleted } from "./logging.js";
 import { externalPhishingList } from "./phishlists.js";
-import { LinkSpreadTracker, postPhishingNotice, shortLinkTargets } from "./phishing.js";
+import {
+  LinkSpreadTracker,
+  postPhishingNotice,
+  shortLinkTargets,
+} from "./phishing.js";
+import { t } from "@libremod/shared";
 
 interface GuildAutomod {
   enabled: boolean;
@@ -50,7 +55,15 @@ const RAID_MODE_MS = 5 * 60_000;
 const RAID_TIMEOUT_SECONDS = 60 * 60;
 
 /** Reihenfolge der Prüfung: die erste Regel, die anschlägt, gewinnt. */
-const FILTER_ORDER: AutomodFilter[] = ["phishing", "words", "invites", "links", "mentions", "caps", "spam"];
+const FILTER_ORDER: AutomodFilter[] = [
+  "phishing",
+  "words",
+  "invites",
+  "links",
+  "mentions",
+  "caps",
+  "spam",
+];
 
 export const FILTER_LABELS: Record<AutomodFilter, string> = {
   spam: "Spam",
@@ -71,7 +84,8 @@ const raidUntil = new Map<string, number>();
 setInterval(() => {
   spam.sweep();
   const now = Date.now();
-  for (const [k, t] of lastPunished) if (now - t > PUNISH_COOLDOWN_MS) lastPunished.delete(k);
+  for (const [k, tItem] of lastPunished)
+    if (now - tItem > PUNISH_COOLDOWN_MS) lastPunished.delete(k);
 }, 60_000).unref();
 
 /** Nach Änderungen an den Einstellungen aufrufen, damit sie sofort gelten. */
@@ -86,28 +100,51 @@ async function load(db: Db, guildId: string): Promise<GuildAutomod> {
   const [settings, rules, exemptions] = await Promise.all([
     getSettings(db, guildId),
     db.select().from(automodRules).where(eq(automodRules.guildId, guildId)),
-    db.select().from(automodExemptions).where(eq(automodExemptions.guildId, guildId)),
+    db
+      .select()
+      .from(automodExemptions)
+      .where(eq(automodExemptions.guildId, guildId)),
   ]);
-  const ruleMap = new Map(rules.filter((r) => r.enabled).map((r) => [r.filter, r]));
+  const ruleMap = new Map(
+    rules.filter((r) => r.enabled).map((r) => [r.filter, r]),
+  );
   const entry: GuildAutomod = {
     enabled: settings.automodEnabled,
     rules: ruleMap,
     words: compileWordList(ruleMap.get("words")?.config.words ?? []),
-    exemptRoles: new Set(exemptions.filter((e) => e.kind === "role").map((e) => e.targetId)),
-    exemptChannels: new Set(exemptions.filter((e) => e.kind === "channel").map((e) => e.targetId)),
+    exemptRoles: new Set(
+      exemptions.filter((e) => e.kind === "role").map((e) => e.targetId),
+    ),
+    exemptChannels: new Set(
+      exemptions.filter((e) => e.kind === "channel").map((e) => e.targetId),
+    ),
     loadedAt: Date.now(),
   };
   cache.set(guildId, entry);
   return entry;
 }
 
-function isExempt(member: GuildMember, channelId: string, parentId: string | null, am: GuildAutomod) {
+function isExempt(
+  member: GuildMember,
+  channelId: string,
+  parentId: string | null,
+  am: GuildAutomod,
+) {
   if (member.permissions.has(PermissionFlagsBits.ManageMessages)) return true; // Moderatoren
-  if (am.exemptChannels.has(channelId) || (parentId && am.exemptChannels.has(parentId))) return true;
+  if (
+    am.exemptChannels.has(channelId) ||
+    (parentId && am.exemptChannels.has(parentId))
+  )
+    return true;
   return member.roles.cache.some((r) => am.exemptRoles.has(r.id));
 }
 
-function evaluate(filter: AutomodFilter, message: Message<true>, rule: AutomodRule, am: GuildAutomod): string | null {
+function evaluate(
+  filter: AutomodFilter,
+  message: Message<true>,
+  rule: AutomodRule,
+  am: GuildAutomod,
+): string | null {
   const content = message.content;
   switch (filter) {
     case "words":
@@ -120,26 +157,52 @@ function evaluate(filter: AutomodFilter, message: Message<true>, rule: AutomodRu
       return checkCaps(content, rule.config.threshold);
     case "mentions": {
       const count = message.mentions.users.size + message.mentions.roles.size;
-      const everyone = /@(everyone|here)/.test(content) && !message.member?.permissions.has(PermissionFlagsBits.MentionEveryone);
+      const everyone =
+        /@(everyone|here)/.test(content) &&
+        !message.member?.permissions.has(PermissionFlagsBits.MentionEveryone);
       return checkMentions(count, everyone, rule.config.threshold);
     }
     case "phishing":
       return null; // eigener Schritt, siehe phishingStep
     case "spam":
-      return spam.check(`${message.guildId}:${message.author.id}`, content, rule.config.threshold);
+      return spam.check(
+        `${message.guildId}:${message.author.id}`,
+        content,
+        rule.config.threshold,
+      );
   }
 }
 
 /** Prüft eine neue oder bearbeitete Nachricht. Liefert true, wenn die Nachricht entfernt wurde. */
-export async function handleMessage(message: Message | PartialMessage, db: Db, { edited = false } = {}): Promise<boolean> {
-  if (!message.inGuild() || message.author.bot || message.webhookId || !message.member) return false;
+export async function handleMessage(
+  message: Message | PartialMessage,
+  db: Db,
+  { edited = false } = {},
+): Promise<boolean> {
+  if (
+    !message.inGuild() ||
+    message.author.bot ||
+    message.webhookId ||
+    !message.member
+  )
+    return false;
   const am = await load(db, message.guildId);
   if (!am.enabled || am.rules.size === 0) return false;
   const channel = message.channel;
-  const exempt = isExempt(message.member, channel.id, "parentId" in channel ? channel.parentId : null, am);
+  const exempt = isExempt(
+    message.member,
+    channel.id,
+    "parentId" in channel ? channel.parentId : null,
+    am,
+  );
   // Betrugslinks prüfen wir auch bei Ausnahmen und beim Team: gekaperte Konten gibt es überall. Nur der Inhaber bleibt außen vor.
   const phishing = am.rules.get("phishing");
-  if (phishing && message.author.id !== message.guild.ownerId && (await phishingStep(message, phishing, db, edited, exempt))) return true;
+  if (
+    phishing &&
+    message.author.id !== message.guild.ownerId &&
+    (await phishingStep(message, phishing, db, edited, exempt))
+  )
+    return true;
   if (exempt) return false;
 
   for (const filter of FILTER_ORDER) {
@@ -153,7 +216,15 @@ export async function handleMessage(message: Message | PartialMessage, db: Db, {
     markAutomodDeleted(message.id);
     await message.delete().catch(() => {});
     if (rule.config.notice) void sendNotice(message, rule.config.notice);
-    await punish(message, rule, `Auto-Mod (${FILTER_LABELS[filter]}): ${violation}`, db);
+    await punish(
+      message,
+      rule,
+      t("Auto-Mod ({n0}): {violation}", {
+        n0: t(FILTER_LABELS[filter]),
+        violation,
+      }),
+      db,
+    );
     return true;
   }
   return false;
@@ -164,50 +235,95 @@ setInterval(() => spread.sweep(), 60_000).unref();
 
 const HIJACK_TIMEOUT_SECONDS = 60 * 60;
 
-async function phishingStep(message: Message<true>, rule: AutomodRule, db: Db, edited: boolean, exempt: boolean): Promise<boolean> {
-  const text = [message.content, ...message.embeds.map((e) => e.url ?? "")].join("\n");
+async function phishingStep(
+  message: Message<true>,
+  rule: AutomodRule,
+  db: Db,
+  edited: boolean,
+  exempt: boolean,
+): Promise<boolean> {
+  const text = [
+    message.content,
+    ...message.embeds.map((e) => e.url ?? ""),
+  ].join("\n");
   const links = extractLinks(text);
   if (!links.length) return false;
   const opts = {
     blocked: rule.config.blockedDomains,
     allowed: rule.config.allowedDomains,
-    listed: rule.config.externalLists === false ? undefined : externalPhishingList(),
+    listed:
+      rule.config.externalLists === false ? undefined : externalPhishingList(),
   };
   let reason = checkPhishing(text, opts);
   if (!reason) {
     const targets = await shortLinkTargets(links);
     const viaShort = targets.length ? checkPhishing(text, opts, targets) : null;
-    if (viaShort) reason = `${viaShort} (hinter einem Kurzlink)`;
+    if (viaShort)
+      reason = t("{viaShort} (hinter einem Kurzlink)", { viaShort });
   }
   // Derselbe Link in mehreren Kanälen kurz hintereinander: typisch für gekaperte Konten.
-  const canSpread = !edited && !exempt && !message.member!.permissions.has(PermissionFlagsBits.ManageMessages);
-  const copies = canSpread ? spread.record(message.guildId, message.author.id, links, { channelId: message.channelId, messageId: message.id }) : null;
+  const canSpread =
+    !edited &&
+    !exempt &&
+    !message.member!.permissions.has(PermissionFlagsBits.ManageMessages);
+  const copies = canSpread
+    ? spread.record(message.guildId, message.author.id, links, {
+        channelId: message.channelId,
+        messageId: message.id,
+      })
+    : null;
   if (!reason && !copies) return false;
 
   for (const c of copies ?? []) {
     if (c.messageId === message.id) continue;
     markAutomodDeleted(c.messageId);
     const ch = message.guild.channels.cache.get(c.channelId);
-    if (ch?.isTextBased()) await ch.messages.delete(c.messageId).catch(() => {});
+    if (ch?.isTextBased())
+      await ch.messages.delete(c.messageId).catch(() => {});
   }
   markAutomodDeleted(message.id);
   await message.delete().catch(() => {});
   if (rule.config.notice) void sendNotice(message, rule.config.notice);
 
-  const why = reason ?? `Gleicher Link in ${new Set(copies!.map((c) => c.channelId)).size} Kanälen innerhalb von 2 Minuten, Konto vermutlich gekapert`;
+  const why =
+    reason ??
+    t(
+      "Gleicher Link in {size} Kanälen innerhalb von 2 Minuten, Konto vermutlich gekapert",
+      { size: new Set(copies!.map((c) => c.channelId)).size },
+    );
   if (copies) {
     await message.author
       .send(
-        `Von deinem Konto wurde auf **${message.guild.name}** derselbe Link in mehreren Kanälen gepostet. Falls du das nicht warst, ist dein Konto vermutlich gekapert: ` +
-          "Ändere sofort dein Passwort, schalte die Zwei-Faktor-Anmeldung ein und melde unter Einstellungen → Geräte alle unbekannten Geräte ab.",
+        t(
+          "Von deinem Konto wurde auf **{name}** derselbe Link in mehreren Kanälen gepostet. Falls du das nicht warst, ist dein Konto vermutlich gekapert: ",
+          { name: message.guild.name },
+        ) +
+          t(
+            "Ändere sofort dein Passwort, schalte die Zwei-Faktor-Anmeldung ein und melde unter Einstellungen → Geräte alle unbekannten Geräte ab.",
+          ),
       )
       .catch(() => {});
   }
-  await postPhishingNotice(message, db, `Auto-Mod (Anti-Phishing): ${why}`, copies ? `${copies.length} Kopien gelöscht.` : undefined);
+  await postPhishingNotice(
+    message,
+    db,
+    t("Auto-Mod (Anti-Phishing): {why}", { why }),
+    copies
+      ? t("{length} Kopien gelöscht.", { length: copies.length })
+      : undefined,
+  );
   // Bei gekaperten Konten mindestens stummschalten, damit nicht weiter gespammt wird.
   const effective: AutomodRule =
-    copies && (rule.action === "delete" || rule.action === "warn") ? { ...rule, action: "timeout", durationSeconds: HIJACK_TIMEOUT_SECONDS } : rule;
-  if (effective.action !== "delete") await punish(message, effective, `Auto-Mod (Anti-Phishing): ${why}`.slice(0, 500), db);
+    copies && (rule.action === "delete" || rule.action === "warn")
+      ? { ...rule, action: "timeout", durationSeconds: HIJACK_TIMEOUT_SECONDS }
+      : rule;
+  if (effective.action !== "delete")
+    await punish(
+      message,
+      effective,
+      t("Auto-Mod (Anti-Phishing): {why}", { why }).slice(0, 500),
+      db,
+    );
   return true;
 }
 
@@ -222,11 +338,22 @@ async function sendNotice(message: Message<true>, template: string) {
     server: message.guild.name,
     membercount: message.guild.memberCount,
   }).slice(0, 2000);
-  const sent = await message.channel.send({ content: text, allowedMentions: { users: [message.author.id] } }).catch(() => null);
-  if (sent) setTimeout(() => void sent.delete().catch(() => {}), NOTICE_LIFETIME_MS).unref();
+  const sent = await message.channel
+    .send({ content: text, allowedMentions: { users: [message.author.id] } })
+    .catch(() => null);
+  if (sent)
+    setTimeout(
+      () => void sent.delete().catch(() => {}),
+      NOTICE_LIFETIME_MS,
+    ).unref();
 }
 
-async function punish(message: Message<true>, rule: AutomodRule, reason: string, db: Db) {
+async function punish(
+  message: Message<true>,
+  rule: AutomodRule,
+  reason: string,
+  db: Db,
+) {
   const key = `${message.guildId}:${message.author.id}`;
   const now = Date.now();
   const me = message.guild.members.me;
@@ -237,19 +364,30 @@ async function punish(message: Message<true>, rule: AutomodRule, reason: string,
   if (rule.action === "delete") {
     const settings = await getSettings(db, message.guildId);
     if (!settings.modLogChannelId) return;
-    const log = await message.guild.channels.fetch(settings.modLogChannelId).catch(() => null);
+    const log = await message.guild.channels
+      .fetch(settings.modLogChannelId)
+      .catch(() => null);
     if (!log?.isSendable()) return;
     const embed = new EmbedBuilder()
       .setColor(0x95a5a6)
-      .setTitle("Nachricht entfernt (Auto-Mod)")
+      .setTitle(t("Nachricht entfernt (Auto-Mod)"))
       .addFields(
-        { name: "Mitglied", value: `${userMention(message.author.id)} (${message.author.id})`, inline: true },
-        { name: "Kanal", value: `<#${message.channelId}>`, inline: true },
-        { name: "Grund", value: reason },
-        { name: "Inhalt", value: message.content.slice(0, 1000) || "(leer)" },
+        {
+          name: t("Mitglied"),
+          value: `${userMention(message.author.id)} (${message.author.id})`,
+          inline: true,
+        },
+        { name: t("Kanal"), value: `<#${message.channelId}>`, inline: true },
+        { name: t("Grund"), value: reason },
+        {
+          name: t("Inhalt"),
+          value: message.content.slice(0, 1000) || "(leer)",
+        },
       )
       .setTimestamp();
-    await log.send({ embeds: [embed], allowedMentions: { parse: [] } }).catch(() => {});
+    await log
+      .send({ embeds: [embed], allowedMentions: { parse: [] } })
+      .catch(() => {});
     return;
   }
 
@@ -263,11 +401,17 @@ async function punish(message: Message<true>, rule: AutomodRule, reason: string,
       member: message.member,
       moderatorId: me.id,
       reason,
-      durationSeconds: rule.action === "timeout" ? (rule.durationSeconds ?? 600) : rule.durationSeconds,
+      durationSeconds:
+        rule.action === "timeout"
+          ? (rule.durationSeconds ?? 600)
+          : rule.durationSeconds,
       automatic: true,
     });
   } catch (err) {
-    logger.warn({ err, guildId: message.guildId, action: rule.action }, "Auto-Mod-Strafe fehlgeschlagen");
+    logger.warn(
+      { err, guildId: message.guildId, action: rule.action },
+      "Auto-Mod-Strafe fehlgeschlagen",
+    );
   }
 }
 
@@ -278,16 +422,28 @@ export async function handleMemberJoin(member: GuildMember, db: Db) {
 
   const now = Date.now();
   const inRaid = (raidUntil.get(member.guild.id) ?? 0) > now;
-  const triggered = joins.record(member.guild.id, settings.raidJoinThreshold, settings.raidWindowSeconds, now);
+  const triggered = joins.record(
+    member.guild.id,
+    settings.raidJoinThreshold,
+    settings.raidWindowSeconds,
+    now,
+  );
   if (!triggered && !inRaid) return;
 
   raidUntil.set(member.guild.id, now + RAID_MODE_MS);
 
   if (!inRaid && settings.modLogChannelId) {
-    const log = await member.guild.channels.fetch(settings.modLogChannelId).catch(() => null);
+    const log = await member.guild.channels
+      .fetch(settings.modLogChannelId)
+      .catch(() => null);
     if (log?.isSendable()) {
       const action =
-        settings.raidAction === "alert" ? "Nur Warnung, keine automatische Aktion." : `Neue Mitglieder erhalten 5 Minuten lang automatisch: ${settings.raidAction}.`;
+        settings.raidAction === "alert"
+          ? t("Nur Warnung, keine automatische Aktion.")
+          : t(
+              "Neue Mitglieder erhalten 5 Minuten lang automatisch: {raidAction}.",
+              { raidAction: settings.raidAction },
+            );
       await log
         .send({
           embeds: [
@@ -315,21 +471,33 @@ export async function handleMemberJoin(member: GuildMember, db: Db) {
       target: member.user,
       member,
       moderatorId: me.id,
-      reason: "Raid-Schutz: Beitritt während eines erkannten Raids",
+      reason: t("Raid-Schutz: Beitritt während eines erkannten Raids"),
       durationSeconds: type === "timeout" ? RAID_TIMEOUT_SECONDS : null,
       automatic: true,
     });
   } catch (err) {
-    logger.warn({ err, guildId: member.guild.id }, "Raid-Schutz konnte nicht eingreifen");
+    logger.warn(
+      { err, guildId: member.guild.id },
+      "Raid-Schutz konnte nicht eingreifen",
+    );
   }
 }
 
 /** Liefert die Regel eines Filters und legt sie bei Bedarf mit Standardwerten an. */
-export async function getRule(db: Db, guildId: string, filter: AutomodFilter): Promise<AutomodRule> {
-  await db.insert(automodRules).values({ guildId, filter }).onConflictDoNothing();
+export async function getRule(
+  db: Db,
+  guildId: string,
+  filter: AutomodFilter,
+): Promise<AutomodRule> {
+  await db
+    .insert(automodRules)
+    .values({ guildId, filter })
+    .onConflictDoNothing();
   const [row] = await db
     .select()
     .from(automodRules)
-    .where(and(eq(automodRules.guildId, guildId), eq(automodRules.filter, filter)));
+    .where(
+      and(eq(automodRules.guildId, guildId), eq(automodRules.filter, filter)),
+    );
   return row!;
 }

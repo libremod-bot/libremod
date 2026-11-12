@@ -8,8 +8,12 @@ import { database } from "@/lib/db";
 import { CHANNEL_ANNOUNCEMENT, CHANNEL_TEXT, getGuildChannels } from "@/lib/discord";
 import { createTicketPanel } from "../../../actions";
 import { TicketPanelForm } from "../../PanelForm";
+import { t, initLocale } from "@/lib/i18n";
 
-export const metadata = { title: "Neues Ticket-Panel · Libremod" };
+export async function generateMetadata() {
+  await initLocale();
+  return { title: t("{n0} · Libremod", { n0: t("Neues Ticket-Panel") }) };
+}
 
 export default async function NewTicketPanelPage({ params, searchParams }: { params: Promise<{ guildId: string }>; searchParams: Promise<{ fehler?: string }> }) {
   const { guildId } = await params;
@@ -22,11 +26,10 @@ export default async function NewTicketPanelPage({ params, searchParams }: { par
   ]);
   return (
     <>
-      <PageHeader icon="ticket" title="Neues Ticket-Panel" description="Libremod postet die Nachricht sofort im gewählten Kanal." />
+      <PageHeader icon="ticket" title={t("Neues Ticket-Panel")} description={t("Libremod postet die Nachricht sofort im gewählten Kanal.")} />
       <Notice error={fehler} />
       <Link href={`/servers/${guildId}/tickets`} className="small back-link">
-        <Icon name="back" size={15} /> Zurück zu den Tickets
-      </Link>
+        <Icon name="back" size={15} /> {" "}{t("Zurück zu den Tickets")}</Link>
       <TicketPanelForm
         action={createTicketPanel.bind(null, guildId)}
         channels={channels.filter((c) => c.type === CHANNEL_TEXT || c.type === CHANNEL_ANNOUNCEMENT)}

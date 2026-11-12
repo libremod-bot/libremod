@@ -9,8 +9,12 @@ import { database } from "@/lib/db";
 import { CHANNEL_ANNOUNCEMENT, CHANNEL_TEXT, getGuildChannels } from "@/lib/discord";
 import { updateTicketPanel } from "../../../actions";
 import { TicketPanelForm } from "../../PanelForm";
+import { t, initLocale } from "@/lib/i18n";
 
-export const metadata = { title: "Ticket-Panel bearbeiten · Libremod" };
+export async function generateMetadata() {
+  await initLocale();
+  return { title: t("{n0} · Libremod", { n0: t("Ticket-Panel bearbeiten") }) };
+}
 
 export default async function EditTicketPanelPage({
   params,
@@ -33,11 +37,10 @@ export default async function EditTicketPanelPage({
   if (!panel) notFound();
   return (
     <>
-      <PageHeader icon="ticket" title="Ticket-Panel bearbeiten" description="Beim Speichern wird die Nachricht in Discord aktualisiert." />
+      <PageHeader icon="ticket" title={t("Ticket-Panel bearbeiten")} description={t("Beim Speichern wird die Nachricht in Discord aktualisiert.")} />
       <Notice saved={gespeichert} error={fehler} />
       <Link href={`/servers/${guildId}/tickets`} className="small back-link">
-        <Icon name="back" size={15} /> Zurück zu den Tickets
-      </Link>
+        <Icon name="back" size={15} /> {" "}{t("Zurück zu den Tickets")}</Link>
       <TicketPanelForm
         action={updateTicketPanel.bind(null, guildId, id)}
         panel={panel}

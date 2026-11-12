@@ -3,6 +3,7 @@
  * und sind dadurch einfach zu testen. Rückgabe: Grund des Verstoßes oder null.
  */
 
+import { t } from "./i18n.js";
 export const DEFAULT_THRESHOLDS = {
   /** Nachrichten innerhalb von SPAM_WINDOW_MS */
   spam: 5,
@@ -21,7 +22,7 @@ const INVITE_RE = /(?:discord(?:app)?\.com\/invite|discord\.gg|discord\.me|dsc\.
 const URL_RE = /\bhttps?:\/\/([^\s/<>"')]+)/gi;
 
 export function checkInvites(content: string): string | null {
-  return INVITE_RE.test(content) ? "Einladungslink zu einem anderen Server" : null;
+  return INVITE_RE.test(content) ? t("Einladungslink zu einem anderen Server") : null;
 }
 
 /** Erlaubte Domains gelten inklusive Subdomains (example.com erlaubt auch www.example.com). */
@@ -30,7 +31,7 @@ export function checkLinks(content: string, allowedDomains: string[] = []): stri
   for (const match of content.matchAll(URL_RE)) {
     const host = match[1]!.toLowerCase().split(":")[0]!.split("@").pop()!;
     const ok = allowed.some((d) => host === d || host.endsWith(`.${d}`));
-    if (!ok) return `Link zu ${host}`;
+    if (!ok) return t("Link zu {host}", { host });
   }
   return null;
 }
@@ -40,7 +41,7 @@ export function checkCaps(content: string, thresholdPercent: number = DEFAULT_TH
   if (letters.length < CAPS_MIN_LETTERS) return null;
   const upper = letters.filter((l) => l !== l.toLowerCase()).length;
   const percent = (upper / letters.length) * 100;
-  return percent >= thresholdPercent ? `Zu viele Großbuchstaben (${Math.round(percent)} %)` : null;
+  return percent >= thresholdPercent ? t("Zu viele Großbuchstaben ({n0} %)", { n0: Math.round(percent) }) : null;
 }
 
 export function checkMentions(
@@ -48,8 +49,8 @@ export function checkMentions(
   everyoneAttempt: boolean,
   threshold: number = DEFAULT_THRESHOLDS.mentions,
 ): string | null {
-  if (everyoneAttempt) return "Versuch, @everyone oder @here zu erwähnen";
-  return mentionCount >= threshold ? `Zu viele Erwähnungen (${mentionCount})` : null;
+  if (everyoneAttempt) return t("Versuch, @everyone oder @here zu erwähnen");
+  return mentionCount >= threshold ? t("Zu viele Erwähnungen ({mentionCount})", { mentionCount }) : null;
 }
 
 const LEET: Record<string, string> = { "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a", $: "s" };
@@ -84,7 +85,7 @@ export function compileWordList(words: string[]): RegExp | null {
 
 export function checkWords(content: string, list: RegExp | null): string | null {
   if (!list) return null;
-  return list.test(normalizeText(content)) ? "Verbotenes Wort" : null;
+  return list.test(normalizeText(content)) ? t("Verbotenes Wort") : null;
 }
 
 /**
@@ -101,11 +102,11 @@ export class SpamTracker {
     this.history.set(key, entries);
 
     const recent = entries.filter((e) => now - e.at < SPAM_WINDOW_MS).length;
-    if (recent >= threshold) return `Zu viele Nachrichten (${recent} in ${SPAM_WINDOW_MS / 1000} Sekunden)`;
+    if (recent >= threshold) return t("Zu viele Nachrichten ({recent} in {n1} Sekunden)", { recent, n1: SPAM_WINDOW_MS / 1000 });
 
     if (text) {
       const duplicates = entries.filter((e) => e.text === text).length;
-      if (duplicates >= DUPLICATE_LIMIT) return "Dieselbe Nachricht mehrfach gesendet";
+      if (duplicates >= DUPLICATE_LIMIT) return t("Dieselbe Nachricht mehrfach gesendet");
     }
     return null;
   }
@@ -130,7 +131,7 @@ export class JoinTracker {
 
   /** Gibt true zurück, sobald die Schwelle innerhalb des Fensters erreicht ist. */
   record(guildId: string, threshold: number, windowSeconds: number, now = Date.now()): boolean {
-    const recent = (this.joins.get(guildId) ?? []).filter((t) => now - t < windowSeconds * 1000);
+    const recent = (this.joins.get(guildId) ?? []).filter((tItem) => now - tItem < windowSeconds * 1000);
     recent.push(now);
     this.joins.set(guildId, recent);
     return recent.length >= threshold;

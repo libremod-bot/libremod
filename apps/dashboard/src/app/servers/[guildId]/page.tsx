@@ -49,8 +49,12 @@ import type { AreaKey } from "@/lib/areas";
 import { Notice } from "@/components/Notice";
 import { database } from "@/lib/db";
 import { getGuildChannels } from "@/lib/discord";
+import { t, relFmt, initLocale } from "@/lib/i18n";
 
-export const metadata = { title: "Übersicht · Libremod" };
+export async function generateMetadata() {
+  await initLocale();
+  return { title: t("{n0} · Libremod", { n0: t("Übersicht") }) };
+}
 
 const CASE_LABELS: Record<CaseType, string> = {
   warn: "Verwarnung",
@@ -61,7 +65,7 @@ const CASE_LABELS: Record<CaseType, string> = {
   unban: "Ban aufgehoben",
 };
 
-const relative = new Intl.RelativeTimeFormat("de", { numeric: "auto" });
+const relative = relFmt({ numeric: "auto" });
 function ago(date: Date) {
   const minutes = Math.round((date.getTime() - Date.now()) / 60_000);
   if (Math.abs(minutes) < 60) return relative.format(minutes, "minute");
@@ -133,7 +137,7 @@ export default async function OverviewPage({
     db.select({ n: count() }).from(guildEvents).where(and(eq(guildEvents.guildId, guildId), eq(guildEvents.state, "open"))),
   ]);
   const countBadge = (n: number | undefined, one: string, many: string) =>
-    n ? <span className="badge on">{n === 1 ? one : `${n} ${many}`}</span> : <span className="badge">Keine</span>;
+    n ? <span className="badge on">{n === 1 ? one : `${n} ${many}`}</span> : <span className="badge">{t("Keine")}</span>;
   const welcomeOn = !!(welcome?.welcomeEnabled || welcome?.goodbyeEnabled || welcome?.dmEnabled);
   const roleFeatures = (autoRoleRows[0]?.n ?? 0) + (panels[0]?.n ?? 0);
 
@@ -142,12 +146,12 @@ export default async function OverviewPage({
   const hasEscalations = (escalations[0]?.n ?? 0) > 0;
 
   const steps: { done: boolean; text: string; href: string }[] = [
-    { done: !!settings?.modLogChannelId, text: "Mod-Log-Kanal festlegen", href: `${base}/moderation` },
-    { done: automodOn, text: "Auto-Moderation einschalten", href: `${base}/automod` },
-    { done: rules.length > 0, text: "Mindestens einen Filter aktivieren", href: `${base}/automod` },
-    { done: hasEscalations, text: "Verwarnungsstufen festlegen", href: `${base}/moderation` },
-    { done: settings?.raidEnabled ?? false, text: "Raid-Schutz aktivieren", href: `${base}/automod#raid` },
-    { done: logs.length > 0, text: "Logging einrichten", href: `${base}/logging` },
+    { done: !!settings?.modLogChannelId, text: t("Mod-Log-Kanal festlegen"), href: `${base}/moderation` },
+    { done: automodOn, text: t("Auto-Moderation einschalten"), href: `${base}/automod` },
+    { done: rules.length > 0, text: t("Mindestens einen Filter aktivieren"), href: `${base}/automod` },
+    { done: hasEscalations, text: t("Verwarnungsstufen festlegen"), href: `${base}/moderation` },
+    { done: settings?.raidEnabled ?? false, text: t("Raid-Schutz aktivieren"), href: `${base}/automod#raid` },
+    { done: logs.length > 0, text: t("Logging einrichten"), href: `${base}/logging` },
   ];
   if (!access.full) steps.length = 0;
   const doneCount = steps.filter((s) => s.done).length;
@@ -155,181 +159,181 @@ export default async function OverviewPage({
   const modules: { icon: IconName; title: string; text: string; href?: string; status: React.ReactNode }[] = [
     {
       icon: "ticket",
-      title: "Tickets",
-      text: "Support-Tickets mit Formularen, Team-Rollen, Übernahme, Transkripten und Bewertungen.",
+      title: t("Tickets"),
+      text: t("Support-Tickets mit Formularen, Team-Rollen, Übernahme, Transkripten und Bewertungen."),
       href: `${base}/tickets`,
       status: panelCount?.n ? (
         <span className="badge on">{openTickets?.n ? `${openTickets.n} offen` : "Aktiv"}</span>
       ) : (
-        <span className="badge">Aus</span>
+        <span className="badge">{t("Aus")}</span>
       ),
     },
     {
       icon: "mail",
-      title: "Einsprüche",
-      text: "Gebannte können über eine eigene Seite Einspruch einlegen, das Team entscheidet hier.",
+      title: t("Einsprüche"),
+      text: t("Gebannte können über eine eigene Seite Einspruch einlegen, das Team entscheidet hier."),
       href: `${base}/appeals`,
-      status: appealCfg?.enabled ? <span className={`badge ${openAppeals?.n ? "warn" : "on"}`}>{openAppeals?.n ? `${openAppeals.n} offen` : "Aktiv"}</span> : <span className="badge">Aus</span>,
+      status: appealCfg?.enabled ? <span className={`badge ${openAppeals?.n ? "warn" : "on"}`}>{openAppeals?.n ? `${openAppeals.n} offen` : "Aktiv"}</span> : <span className="badge">{t("Aus")}</span>,
     },
     {
       icon: "usercheck",
-      title: "Verifizierung",
-      text: "Neue Mitglieder bestätigen per Knopf, Code oder Frage. Mit Mindestalter für Konten und Rauswurf nach Frist.",
+      title: t("Verifizierung"),
+      text: t("Neue Mitglieder bestätigen per Knopf, Code oder Frage. Mit Mindestalter für Konten und Rauswurf nach Frist."),
       href: `${base}/verification`,
-      status: verify?.enabled ? <span className="badge on">Aktiv</span> : <span className="badge">Aus</span>,
+      status: verify?.enabled ? <span className="badge on">{t("Aktiv")}</span> : <span className="badge">{t("Aus")}</span>,
     },
     {
       icon: "lock",
-      title: "Lockdown",
-      text: "Im Notfall einzelne Kanäle oder den ganzen Server sperren, auf Wunsch befristet. Mit /lockdown und /unlock.",
+      title: t("Lockdown"),
+      text: t("Im Notfall einzelne Kanäle oder den ganzen Server sperren, auf Wunsch befristet. Mit /lockdown und /unlock."),
       href: `${base}/moderation#lockdown`,
-      status: lockCount?.n ? <span className="badge danger">{lockCount.n === 1 ? "1 Kanal gesperrt" : `${lockCount.n} Kanäle gesperrt`}</span> : <span className="badge">Nichts gesperrt</span>,
+      status: lockCount?.n ? <span className="badge danger">{lockCount.n === 1 ? "1 Kanal gesperrt" : `${lockCount.n} Kanäle gesperrt`}</span> : <span className="badge">{t("Nichts gesperrt")}</span>,
     },
     {
       icon: "gavel",
-      title: "Moderation",
-      text: "Mod-Log, Direktnachrichten bei Strafen und automatische Verwarnungsstufen.",
+      title: t("Moderation"),
+      text: t("Mod-Log, Direktnachrichten bei Strafen und automatische Verwarnungsstufen."),
       href: `${base}/moderation`,
-      status: settings?.modLogChannelId ? <span className="badge on">Eingerichtet</span> : <span className="badge warn">Mod-Log fehlt</span>,
+      status: settings?.modLogChannelId ? <span className="badge on">{t("Eingerichtet")}</span> : <span className="badge warn">{t("Mod-Log fehlt")}</span>,
     },
     {
       icon: "shield",
       title: "Auto-Mod",
-      text: "Spam, Links, Einladungen, Wortfilter, Großbuchstaben, Erwähnungen und Raid-Schutz.",
+      text: t("Spam, Links, Einladungen, Wortfilter, Großbuchstaben, Erwähnungen und Raid-Schutz."),
       href: `${base}/automod`,
-      status: automodOn ? <span className="badge on">{rules.length} von 6 Filtern aktiv</span> : <span className="badge">Aus</span>,
+      status: automodOn ? <span className="badge on">{rules.length} {" "}{t("von 6 Filtern aktiv")}</span> : <span className="badge">{t("Aus")}</span>,
     },
     {
       icon: "list",
-      title: "Fallakte",
-      text: "Alle Verwarnungen, Timeouts, Kicks und Bans mit Grund und Moderator.",
+      title: t("Fallakte"),
+      text: t("Alle Verwarnungen, Timeouts, Kicks und Bans mit Grund und Moderator."),
       href: `${base}/cases`,
-      status: <span className="badge info">{weekStats?.total ?? 0} diese Woche</span>,
+      status: <span className="badge info">{weekStats?.total ?? 0} {" "}{t("diese Woche")}</span>,
     },
     {
       icon: "log",
-      title: "Logging",
-      text: "Gelöschte und bearbeitete Nachrichten, Beitritte, Rollen, Kanäle und Sprachkanäle.",
+      title: t("Logging"),
+      text: t("Gelöschte und bearbeitete Nachrichten, Beitritte, Rollen, Kanäle und Sprachkanäle."),
       href: `${base}/logging`,
-      status: logs.length ? <span className="badge on">{logs.length} von 5 Log-Arten aktiv</span> : <span className="badge">Aus</span>,
+      status: logs.length ? <span className="badge on">{logs.length} {" "}{t("von 5 Log-Arten aktiv")}</span> : <span className="badge">{t("Aus")}</span>,
     },
     {
       icon: "wave",
-      title: "Begrüßung",
-      text: "Willkommens- und Abschiedsnachrichten mit Platzhaltern, auf Wunsch per Direktnachricht.",
+      title: t("Begrüßung"),
+      text: t("Willkommens- und Abschiedsnachrichten mit Platzhaltern, auf Wunsch per Direktnachricht."),
       href: `${base}/welcome`,
-      status: welcomeOn ? <span className="badge on">Aktiv</span> : <span className="badge">Aus</span>,
+      status: welcomeOn ? <span className="badge on">{t("Aktiv")}</span> : <span className="badge">{t("Aus")}</span>,
     },
     {
       icon: "tag",
-      title: "Rollen",
-      text: "Auto-Rollen beim Beitritt und Rollen zum Selbstaussuchen per Button oder Menü.",
+      title: t("Rollen"),
+      text: t("Auto-Rollen beim Beitritt und Rollen zum Selbstaussuchen per Button oder Menü."),
       href: `${base}/roles`,
-      status: roleFeatures ? <span className="badge on">Eingerichtet</span> : <span className="badge">Aus</span>,
+      status: roleFeatures ? <span className="badge on">{t("Eingerichtet")}</span> : <span className="badge">{t("Aus")}</span>,
     },
     {
       icon: "steps",
-      title: "Level",
-      text: "XP für Nachrichten und Sprachkanäle, Rollenbelohnungen und Rangliste.",
+      title: t("Level"),
+      text: t("XP für Nachrichten und Sprachkanäle, Rollenbelohnungen und Rangliste."),
       href: `${base}/levels`,
-      status: levels?.enabled ? <span className="badge on">Aktiv</span> : <span className="badge">Aus</span>,
+      status: levels?.enabled ? <span className="badge on">{t("Aktiv")}</span> : <span className="badge">{t("Aus")}</span>,
     },
     {
       icon: "slash",
-      title: "Eigene Befehle",
-      text: "Slash-Befehle wie /regeln mit eigenem Text oder Embed, auf Wunsch mit Zufallsantworten.",
+      title: t("Eigene Befehle"),
+      text: t("Slash-Befehle wie /regeln mit eigenem Text oder Embed, auf Wunsch mit Zufallsantworten."),
       href: `${base}/commands`,
       status: countBadge(cmdCount?.n, "1 Befehl", "Befehle"),
     },
     {
       icon: "clock",
-      title: "Geplante Nachrichten",
-      text: "Erinnerungen und Hinweise, die Libremod täglich, wöchentlich oder in festen Abständen postet.",
+      title: t("Geplante Nachrichten"),
+      text: t("Erinnerungen und Hinweise, die Libremod täglich, wöchentlich oder in festen Abständen postet."),
       href: `${base}/schedule`,
       status: countBadge(schedCount?.n, "1 aktiv", "aktiv"),
     },
     {
       icon: "mic",
-      title: "Sprachkanäle & Zähler",
-      text: "Sprachkanäle, die sich selbst erstellen und löschen, und Kanäle mit Mitgliederzahl.",
+      title: t("Sprachkanäle & Zähler"),
+      text: t("Sprachkanäle, die sich selbst erstellen und löschen, und Kanäle mit Mitgliederzahl."),
       href: `${base}/channels`,
       status: countBadge((counterCount?.n ?? 0) + (hubCount?.n ?? 0), "1 eingerichtet", "eingerichtet"),
     },
     {
       icon: "bell",
-      title: "Benachrichtigungen",
-      text: "Neue Videos, Livestreams, Reddit-Beiträge und RSS-Feeds automatisch im Kanal melden.",
+      title: t("Benachrichtigungen"),
+      text: t("Neue Videos, Livestreams, Reddit-Beiträge und RSS-Feeds automatisch im Kanal melden."),
       href: `${base}/notifications`,
       status: countBadge(feedCount?.n, "1 aktiv", "aktiv"),
     },
     {
       icon: "coin",
-      title: "Währung & Shop",
-      text: "Eigene Währung mit täglichem Bonus, Arbeiten, Überweisungen und einem Shop für Rollen und Artikel.",
+      title: t("Währung & Shop"),
+      text: t("Eigene Währung mit täglichem Bonus, Arbeiten, Überweisungen und einem Shop für Rollen und Artikel."),
       href: `${base}/economy`,
       status: eco?.enabled ? (
         <span className="badge on">{itemCount?.n ? `Aktiv · ${itemCount.n} im Shop` : "Aktiv"}</span>
       ) : (
-        <span className="badge">Aus</span>
+        <span className="badge">{t("Aus")}</span>
       ),
     },
     {
       icon: "gift",
-      title: "Gewinnspiele",
-      text: "Preise verlosen mit Mitmach-Knopf, Bedingungen wie Rolle oder Level und fairer Auslosung.",
+      title: t("Gewinnspiele"),
+      text: t("Preise verlosen mit Mitmach-Knopf, Bedingungen wie Rolle oder Level und fairer Auslosung."),
       href: `${base}/giveaways`,
       status: countBadge(gwCount?.n, "1 läuft", "laufen"),
     },
     {
       icon: "calendar",
-      title: "Events",
-      text: "Termine planen mit Zu- und Absagen, Warteliste, Event-Rolle und Erinnerung vor Beginn.",
+      title: t("Events"),
+      text: t("Termine planen mit Zu- und Absagen, Warteliste, Event-Rolle und Erinnerung vor Beginn."),
       href: `${base}/events`,
       status: countBadge(eventCount?.n, "1 geplant", "geplant"),
     },
     {
       icon: "cake",
-      title: "Geburtstage",
-      text: "Mitglieder tragen ihren Geburtstag ein, Libremod gratuliert und vergibt für einen Tag eine Rolle.",
+      title: t("Geburtstage"),
+      text: t("Mitglieder tragen ihren Geburtstag ein, Libremod gratuliert und vergibt für einen Tag eine Rolle."),
       href: `${base}/birthdays`,
       status: bday?.enabled ? (
         <span className="badge on">{bdayCount?.n ? `Aktiv · ${bdayCount.n} eingetragen` : "Aktiv"}</span>
       ) : (
-        <span className="badge">Aus</span>
+        <span className="badge">{t("Aus")}</span>
       ),
     },
     {
       icon: "bulb",
-      title: "Vorschläge",
-      text: "Ideen sammeln, mit 👍 und 👎 abstimmen lassen und als Team entscheiden.",
+      title: t("Vorschläge"),
+      text: t("Ideen sammeln, mit 👍 und 👎 abstimmen lassen und als Team entscheiden."),
       href: `${base}/suggestions`,
-      status: sugg?.enabled ? <span className="badge on">{openSugg?.n ? `${openSugg.n} offen` : "Aktiv"}</span> : <span className="badge">Aus</span>,
+      status: sugg?.enabled ? <span className="badge on">{openSugg?.n ? `${openSugg.n} offen` : "Aktiv"}</span> : <span className="badge">{t("Aus")}</span>,
     },
     {
       icon: "hash",
-      title: "Zähl-Kanal",
-      text: "Gemeinsam hochzählen, mit Rekord und Neustart bei Fehlern.",
+      title: t("Zähl-Kanal"),
+      text: t("Gemeinsam hochzählen, mit Rekord und Neustart bei Fehlern."),
       href: `${base}/counting`,
-      status: countRow ? <span className="badge on">Bei {countRow.current} · Rekord {countRow.record}</span> : <span className="badge">Aus</span>,
+      status: countRow ? <span className="badge on">{t("Bei")}{" "}{countRow.current} {" "}{t("· Rekord")}{" "}{countRow.record}</span> : <span className="badge">{t("Aus")}</span>,
     },
     {
       icon: "link",
-      title: "Wortkette",
-      text: "Jedes Wort beginnt mit dem letzten Buchstaben des vorigen.",
+      title: t("Wortkette"),
+      text: t("Jedes Wort beginnt mit dem letzten Buchstaben des vorigen."),
       href: `${base}/wordchain`,
-      status: chainRow ? <span className="badge on">{chainRow.length} Wörter · Rekord {chainRow.record}</span> : <span className="badge">Aus</span>,
+      status: chainRow ? <span className="badge on">{chainRow.length} {" "}{t("Wörter · Rekord")}{" "}{chainRow.record}</span> : <span className="badge">{t("Aus")}</span>,
     },
     {
       icon: "note",
-      title: "Zitate",
-      text: "Denkwürdige Sätze per Rechtsklick speichern und mit /quote random wieder hervorholen.",
+      title: t("Zitate"),
+      text: t("Denkwürdige Sätze per Rechtsklick speichern und mit /quote random wieder hervorholen."),
       href: `${base}/quotes`,
       status: countBadge(quoteCount?.n, "1 Zitat", "Zitate"),
     },
     {
       icon: "sparkle",
-      title: "Highlights & Kanal-Pflege",
-      text: "Beliebte Nachrichten sammeln, Kanäle regelmäßig leeren und Langsam-Modus nach Aktivität.",
+      title: t("Highlights & Kanal-Pflege"),
+      text: t("Beliebte Nachrichten sammeln, Kanäle regelmäßig leeren und Langsam-Modus nach Aktivität."),
       href: `${base}/tools`,
       status: countBadge((hl?.enabled ? 1 : 0) + (purgeCount?.n ?? 0) + (slowCount?.n ?? 0), "1 aktiv", "aktiv"),
     },
@@ -339,40 +343,39 @@ export default async function OverviewPage({
 
   return (
     <>
-      <PageHeader icon="home" title="Übersicht" description="Was Libremod auf deinem Server gerade macht und was du noch einrichten kannst." />
+      <PageHeader icon="home" title={t("Übersicht")} description={t("Was Libremod auf deinem Server gerade macht und was du noch einrichten kannst.")} />
       <Notice error={fehler} />
       {!access.full && (
         <div className="card small muted">
-          Du hast einen Team-Zugang und siehst nur die Bereiche, die das Server-Team für deine Rolle freigegeben hat.
-        </div>
+          {t("Du hast einen Team-Zugang und siehst nur die Bereiche, die das Server-Team für deine Rolle freigegeben hat.")}</div>
       )}
 
       <div className="stats">
         <div className="card stat">
-          <div className="stat-label">Auto-Mod</div>
+          <div className="stat-label">{t("Auto-Mod")}</div>
           <div className="stat-value small-value">
-            {automodOn ? <span className="badge on">Aktiv</span> : <span className="badge">Aus</span>}
+            {automodOn ? <span className="badge on">{t("Aktiv")}</span> : <span className="badge">{t("Aus")}</span>}
           </div>
         </div>
         <div className="card stat">
-          <div className="stat-label">Aktive Filter</div>
+          <div className="stat-label">{t("Aktive Filter")}</div>
           <div className="stat-value">{automodOn ? rules.length : 0} / 6</div>
         </div>
         <div className="card stat">
-          <div className="stat-label">Logging</div>
+          <div className="stat-label">{t("Logging")}</div>
           <div className="stat-value">{logs.length} / 5</div>
         </div>
         <div className="card stat">
-          <div className="stat-label">Fälle (7 Tage)</div>
+          <div className="stat-label">{t("Fälle (7 Tage)")}</div>
           <div className="stat-value">{weekStats?.total ?? 0}</div>
         </div>
         <div className="card stat">
-          <div className="stat-label">Davon automatisch</div>
+          <div className="stat-label">{t("Davon automatisch")}</div>
           <div className="stat-value">{weekStats?.automatic ?? 0}</div>
         </div>
         <div className="card stat">
-          <div className="stat-label">Mod-Log</div>
-          <div className="stat-value small-value">{modLogName ? `#${modLogName}` : <span className="badge warn">Nicht gesetzt</span>}</div>
+          <div className="stat-label">{t("Mod-Log")}</div>
+          <div className="stat-value small-value">{modLogName ? `#${modLogName}` : <span className="badge warn">{t("Nicht gesetzt")}</span>}</div>
         </div>
       </div>
 
@@ -380,10 +383,9 @@ export default async function OverviewPage({
         <section className="card">
           <div className="card-title">
             <Icon name="check" />
-            <h2>Einrichtung</h2>
+            <h2>{t("Einrichtung")}</h2>
             <span className="badge info" style={{ marginLeft: "auto" }}>
-              {doneCount} von {steps.length} erledigt
-            </span>
+              {doneCount} {" "}{t("von")}{" "}{steps.length} {" "}{t("erledigt")}</span>
           </div>
           <div className="progress">
             <span style={{ width: `${(doneCount / steps.length) * 100}%` }} />
@@ -409,7 +411,7 @@ export default async function OverviewPage({
       )}
 
       <section>
-        <h2 style={{ marginBottom: "0.85rem" }}>Module</h2>
+        <h2 style={{ marginBottom: "0.85rem" }}>{t("Module")}</h2>
         <div className="modules">
           {shownModules.map((m) => {
             const inner = (
@@ -424,7 +426,7 @@ export default async function OverviewPage({
                 <p>{m.text}</p>
                 {m.href && (
                   <span className="module-link">
-                    Einstellen <Icon name="arrow" size={15} />
+                    {t("Einstellen")}{" "}<Icon name="arrow" size={15} />
                   </span>
                 )}
               </>
@@ -446,13 +448,12 @@ export default async function OverviewPage({
       <section className="card">
         <div className="card-title">
           <Icon name="list" />
-          <h2>Letzte Fälle</h2>
+          <h2>{t("Letzte Fälle")}</h2>
           <Link href={`${base}/cases`} className="small" style={{ marginLeft: "auto" }}>
-            Alle ansehen
-          </Link>
+            {t("Alle ansehen")}</Link>
         </div>
         {recent.length === 0 ? (
-          <p className="empty">Noch keine Fälle. Ruhig hier!</p>
+          <p className="empty">{t("Noch keine Fälle. Ruhig hier!")}</p>
         ) : (
           <div className="table-wrap">
             <table>
@@ -461,10 +462,10 @@ export default async function OverviewPage({
                   <tr key={c.id}>
                     <td className="muted">#{c.caseNumber}</td>
                     <td>
-                      <span className="badge">{CASE_LABELS[c.type]}</span>
+                      <span className="badge">{t(CASE_LABELS[c.type])}</span>
                     </td>
                     <td className="mono">{c.targetId}</td>
-                    <td>{c.reason || <span className="muted">Kein Grund</span>}</td>
+                    <td>{c.reason || <span className="muted">{t("Kein Grund")}</span>}</td>
                     <td className="small muted" style={{ whiteSpace: "nowrap" }}>
                       {ago(c.createdAt)}
                     </td>

@@ -1,5 +1,6 @@
 /** Gestaltung von Embeds (Karten) für Nachrichten, die im Dashboard bearbeitet werden. */
 
+import { t } from "./i18n.js";
 export interface EmbedField {
   name: string;
   value: string;
@@ -46,9 +47,9 @@ const isHttpsUrl = (u: string) => {
 
 const str = (v: unknown, max: number, what: string): string | undefined => {
   if (v === undefined || v === null || v === "") return undefined;
-  if (typeof v !== "string") throw new Error(`${what} ist ungültig.`);
+  if (typeof v !== "string") throw new Error(t("{what} ist ungültig.", { what }));
   const s = v.trim();
-  if (s.length > max) throw new Error(`${what} darf höchstens ${max} Zeichen lang sein.`);
+  if (s.length > max) throw new Error(t("{what} darf höchstens {max} Zeichen lang sein.", { what, max }));
   return s || undefined;
 };
 
@@ -62,43 +63,43 @@ export function cleanEmbedDesign(raw: unknown): EmbedDesign | string {
   try {
     data = (typeof raw === "string" ? JSON.parse(raw) : raw) as Record<string, unknown>;
   } catch {
-    return "Die Karten-Gestaltung konnte nicht gelesen werden.";
+    return t("Die Karten-Gestaltung konnte nicht gelesen werden.");
   }
-  if (!data || typeof data !== "object" || Array.isArray(data)) return "Die Karten-Gestaltung ist ungültig.";
+  if (!data || typeof data !== "object" || Array.isArray(data)) return t("Die Karten-Gestaltung ist ungültig.");
   try {
     const out: EmbedDesign = {};
-    const title = str(data.title, EMBED_LIMITS.title, "Die Überschrift");
+    const title = str(data.title, EMBED_LIMITS.title, t("Die Überschrift"));
     if (title) out.title = title;
-    const author = str(data.authorName, EMBED_LIMITS.author, "Die Zeile über der Überschrift");
+    const author = str(data.authorName, EMBED_LIMITS.author, t("Die Zeile über der Überschrift"));
     if (author) out.authorName = author;
-    const footer = str(data.footer, EMBED_LIMITS.footer, "Die Fußzeile");
+    const footer = str(data.footer, EMBED_LIMITS.footer, t("Die Fußzeile"));
     if (footer) out.footer = footer;
     if (data.color !== undefined && data.color !== null) {
       const c = Number(data.color);
-      if (!Number.isInteger(c) || c < 0 || c > 0xffffff) return "Die Farbe ist ungültig.";
+      if (!Number.isInteger(c) || c < 0 || c > 0xffffff) return t("Die Farbe ist ungültig.");
       out.color = c;
     }
-    const image = str(data.imageUrl, EMBED_LIMITS.url, "Die Bild-Adresse");
+    const image = str(data.imageUrl, EMBED_LIMITS.url, t("Die Bild-Adresse"));
     if (image) {
-      if (!isHttpsUrl(image)) return "Die Bild-Adresse muss mit https:// beginnen.";
+      if (!isHttpsUrl(image)) return t("Die Bild-Adresse muss mit https:// beginnen.");
       out.imageUrl = image;
     }
     if (data.thumbnail === "none" || data.thumbnail === "avatar" || data.thumbnail === "url") out.thumbnail = data.thumbnail;
     if (out.thumbnail === "url") {
-      const t = str(data.thumbnailUrl, EMBED_LIMITS.url, "Die Adresse des kleinen Bildes");
-      if (!t || !isHttpsUrl(t)) return "Das kleine Bild braucht eine Adresse, die mit https:// beginnt.";
-      out.thumbnailUrl = t;
+      const tItem = str(data.thumbnailUrl, EMBED_LIMITS.url, t("Die Adresse des kleinen Bildes"));
+      if (!tItem || !isHttpsUrl(tItem)) return t("Das kleine Bild braucht eine Adresse, die mit https:// beginnt.");
+      out.thumbnailUrl = tItem;
     }
     if (data.timestamp === true) out.timestamp = true;
     if (data.fields !== undefined) {
-      if (!Array.isArray(data.fields)) return "Die Felder sind ungültig.";
-      if (data.fields.length > EMBED_LIMITS.fields) return `Höchstens ${EMBED_LIMITS.fields} Felder.`;
+      if (!Array.isArray(data.fields)) return t("Die Felder sind ungültig.");
+      if (data.fields.length > EMBED_LIMITS.fields) return t("Höchstens {fields} Felder.", { fields: EMBED_LIMITS.fields });
       const fields: EmbedField[] = [];
       for (const f of data.fields as Record<string, unknown>[]) {
-        const name = str(f?.name, EMBED_LIMITS.fieldName, "Ein Feldname");
-        const value = str(f?.value, EMBED_LIMITS.fieldValue, "Ein Feldinhalt");
+        const name = str(f?.name, EMBED_LIMITS.fieldName, t("Ein Feldname"));
+        const value = str(f?.value, EMBED_LIMITS.fieldValue, t("Ein Feldinhalt"));
         if (!name && !value) continue;
-        if (!name || !value) return "Jedes Feld braucht einen Namen und einen Inhalt.";
+        if (!name || !value) return t("Jedes Feld braucht einen Namen und einen Inhalt.");
         fields.push({ name, value, ...(f.inline === true ? { inline: true } : {}) });
       }
       if (fields.length) out.fields = fields;

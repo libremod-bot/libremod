@@ -1,5 +1,6 @@
 import type { TicketCategory, TicketPanel } from "@libremod/db";
 import type { GuildChannel } from "@/lib/discord";
+import { t } from "@/lib/i18n";
 
 export function TicketPanelForm({
   action,
@@ -19,15 +20,14 @@ export function TicketPanelForm({
     <form action={action} className="card">
       <div className="grid-2">
         <div className="field">
-          <label htmlFor="title">Überschrift</label>
+          <label htmlFor="title">{t("Überschrift")}</label>
           <input id="title" name="title" type="text" required maxLength={256} defaultValue={panel?.title ?? "Hilfe & Support"} />
         </div>
         <div className="field">
-          <label htmlFor="channelId">Kanal</label>
+          <label htmlFor="channelId">{t("Kanal")}</label>
           <select id="channelId" name="channelId" required defaultValue={panel?.channelId ?? ""}>
             <option value="" disabled>
-              Kanal wählen …
-            </option>
+              {t("Kanal wählen …")}</option>
             {channels.map((c) => (
               <option key={c.id} value={c.id}>
                 #{c.name}
@@ -37,7 +37,7 @@ export function TicketPanelForm({
         </div>
       </div>
       <div className="field">
-        <label htmlFor="description">Text</label>
+        <label htmlFor="description">{t("Text")}</label>
         <textarea
           id="description"
           name="description"
@@ -48,19 +48,19 @@ export function TicketPanelForm({
       </div>
       <div className="grid-2">
         <div className="field">
-          <label htmlFor="style">Darstellung</label>
+          <label htmlFor="style">{t("Darstellung")}</label>
           <select id="style" name="style" defaultValue={panel?.style ?? "buttons"}>
-            <option value="buttons">Buttons</option>
-            <option value="select">Auswahlmenü (mit Beschreibungen)</option>
+            <option value="buttons">{t("Buttons")}</option>
+            <option value="select">{t("Auswahlmenü (mit Beschreibungen)")}</option>
           </select>
         </div>
         <div className="field">
-          <label htmlFor="color">Farbe</label>
+          <label htmlFor="color">{t("Farbe")}</label>
           <input id="color" name="color" type="color" defaultValue={`#${(panel?.color ?? 0x4cb4ff).toString(16).padStart(6, "0")}`} />
         </div>
       </div>
       <fieldset className="field">
-        <legend>Ticket-Arten in diesem Panel</legend>
+        <legend>{t("Ticket-Arten in diesem Panel")}</legend>
         {categories.map((c) => (
           <label className="check-inline" key={c.id}>
             <input type="checkbox" name="categoryIds" value={c.id} defaultChecked={selected.has(c.id)} />

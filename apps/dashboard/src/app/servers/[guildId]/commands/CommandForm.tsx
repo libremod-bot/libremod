@@ -1,5 +1,6 @@
 import type { CustomCommand } from "@libremod/db";
 import { EmbedEditor } from "@/components/EmbedEditor";
+import { t } from "@/lib/i18n";
 
 
 /** Formular für einen eigenen Befehl. */
@@ -8,7 +9,7 @@ export function CommandForm({ action, command, submitLabel }: { action: (form: F
     <form action={action}>
       <div className="grid-2">
         <div className="field">
-          <label htmlFor="name">Name</label>
+          <label htmlFor="name">{t("Name")}</label>
           <div className="input-prefix">
             <span>/</span>
             <input
@@ -24,7 +25,7 @@ export function CommandForm({ action, command, submitLabel }: { action: (form: F
           </div>
         </div>
         <div className="field">
-          <label htmlFor="description">Beschreibung</label>
+          <label htmlFor="description">{t("Beschreibung")}</label>
           <input
             id="description"
             name="description"
@@ -32,33 +33,31 @@ export function CommandForm({ action, command, submitLabel }: { action: (form: F
             required
             maxLength={100}
             defaultValue={command?.description ?? ""}
-            placeholder="Zeigt die Serverregeln"
+            placeholder={t("Zeigt die Serverregeln")}
           />
         </div>
       </div>
       <div className="hint" style={{ marginTop: "-0.4rem", marginBottom: "0.9rem" }}>
-        Nur Kleinbuchstaben, Zahlen, - und _. Die Beschreibung sehen Mitglieder in der Befehlsliste von Discord.
-      </div>
+        {t("Nur Kleinbuchstaben, Zahlen, - und _. Die Beschreibung sehen Mitglieder in der Befehlsliste von Discord.")}</div>
       <div className="field">
-        <label htmlFor="responses">Antwort</label>
+        <label htmlFor="responses">{t("Antwort")}</label>
         <textarea
           id="responses"
           name="responses"
           required
           maxLength={8000}
           defaultValue={(command?.responses ?? []).join("\n---\n")}
-          placeholder={"1. Sei freundlich.\n2. Kein Spam.\n---\nEine zweite Antwort, falls du mehrere zur Auswahl willst"}
+          placeholder={t("1. Sei freundlich.\n2. Kein Spam.\n---\nEine zweite Antwort, falls du mehrere zur Auswahl willst")}
           style={{ minHeight: 140 }}
         />
         <div className="hint">
-          Mehrere Antworten trennst du mit einer Zeile, auf der nur --- steht. Libremod wählt dann zufällig eine aus. Platzhalter: {"{user}"},{" "}
+          {t("Mehrere Antworten trennst du mit einer Zeile, auf der nur --- steht. Libremod wählt dann zufällig eine aus. Platzhalter:")}{" "}{"{user}"},{" "}
           {"{username}"}, {"{server}"}, {"{membercount}"}.
         </div>
       </div>
       <label className="check-inline">
         <input type="checkbox" name="embed" defaultChecked={command?.embed ?? false} />
-        Als Karte (Embed) antworten
-      </label>
+        {t("Als Karte (Embed) antworten")}</label>
       <EmbedEditor
         name="design"
         textareaId="responses"
@@ -69,8 +68,7 @@ export function CommandForm({ action, command, submitLabel }: { action: (form: F
       />
       <label className="check-inline" style={{ marginTop: "0.5rem" }}>
         <input type="checkbox" name="ephemeral" defaultChecked={command?.ephemeral ?? false} />
-        Antwort nur für die Person sichtbar, die den Befehl nutzt
-      </label>
+        {t("Antwort nur für die Person sichtbar, die den Befehl nutzt")}</label>
       <div style={{ marginTop: "1rem" }}>
         <button type="submit">{submitLabel}</button>
       </div>

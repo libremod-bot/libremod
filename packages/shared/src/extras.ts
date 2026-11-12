@@ -4,14 +4,15 @@
 
 // --- Wortkette ---
 
+import { t } from "./i18n.js";
 export const MIN_WORD_LENGTH = 2;
 export const MAX_WORD_LENGTH = 40;
 
 /** Ein einzelnes Wort aus Buchstaben (Bindestrich erlaubt), kleingeschrieben. Sonst null. */
 export function parseWord(content: string): string | null {
-  const t = content.trim().toLocaleLowerCase("de-DE");
-  if (t.length < MIN_WORD_LENGTH || t.length > MAX_WORD_LENGTH) return null;
-  return /^\p{L}+(?:-\p{L}+)*$/u.test(t) ? t : null;
+  const tItem = content.trim().toLocaleLowerCase("de-DE");
+  if (tItem.length < MIN_WORD_LENGTH || tItem.length > MAX_WORD_LENGTH) return null;
+  return /^\p{L}+(?:-\p{L}+)*$/u.test(tItem) ? tItem : null;
 }
 
 /** Buchstabe ohne Akzent und Umlaut-Punkte, ß zählt als s. */
@@ -44,9 +45,9 @@ export function judgeWord(
 }
 
 export function wordHint(result: Exclude<WordResult, "ok">, lastWord: string | null): string {
-  if (result === "letter") return `Das nächste Wort muss mit **${lastLetter(lastWord ?? "").toUpperCase()}** anfangen.`;
-  if (result === "twice") return "Bitte warte, bis jemand anderes ein Wort geschrieben hat.";
-  return "Dieses Wort gab es in dieser Kette schon.";
+  if (result === "letter") return t("Das nächste Wort muss mit **{n0}** anfangen.", { n0: lastLetter(lastWord ?? "").toUpperCase() });
+  if (result === "twice") return t("Bitte warte, bis jemand anderes ein Wort geschrieben hat.");
+  return t("Dieses Wort gab es in dieser Kette schon.");
 }
 
 // --- Zitate ---
@@ -71,7 +72,7 @@ export function quoteEmbed(q: QuoteView, avatarUrl?: string) {
   return {
     description: `„${q.text.length > 3900 ? `${q.text.slice(0, 3899)}…` : q.text}“\n\n— ${who}${link}`,
     color: 0xf5c542,
-    footer: { text: `Zitat #${q.number}` },
+    footer: { text: t("Zitat #{number}", { number: q.number }) },
     timestamp: q.createdAt.toISOString(),
     ...(avatarUrl ? { thumbnail: { url: avatarUrl } } : {}),
   };

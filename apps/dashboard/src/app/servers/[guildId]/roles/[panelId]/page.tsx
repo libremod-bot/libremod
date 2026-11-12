@@ -9,8 +9,12 @@ import { database } from "@/lib/db";
 import { CHANNEL_ANNOUNCEMENT, CHANNEL_TEXT, getBotTopPosition, getGuildChannels, getGuildRoles } from "@/lib/discord";
 import { updatePanel } from "../../actions";
 import { PanelForm } from "../PanelForm";
+import { t, initLocale } from "@/lib/i18n";
 
-export const metadata = { title: "Rollen-Panel bearbeiten · Libremod" };
+export async function generateMetadata() {
+  await initLocale();
+  return { title: t("{n0} · Libremod", { n0: t("Rollen-Panel bearbeiten") }) };
+}
 
 export default async function EditPanelPage({
   params,
@@ -37,11 +41,10 @@ export default async function EditPanelPage({
 
   return (
     <>
-      <PageHeader icon="tag" title="Rollen-Panel bearbeiten" description="Änderungen werden direkt in der Nachricht in Discord übernommen." />
+      <PageHeader icon="tag" title={t("Rollen-Panel bearbeiten")} description={t("Änderungen werden direkt in der Nachricht in Discord übernommen.")} />
       <Notice saved={gespeichert} error={fehler} />
       <Link href={`/servers/${guildId}/roles`} className="small back-link">
-        <Icon name="back" size={15} /> Zurück zu Rollen
-      </Link>
+        <Icon name="back" size={15} /> {" "}{t("Zurück zu Rollen")}</Link>
       <div className="card">
         <PanelForm
           action={updatePanel.bind(null, guildId, panel.id)}
@@ -49,7 +52,7 @@ export default async function EditPanelPage({
           channels={textChannels}
           roles={roles}
           botTop={botTop}
-          submitLabel={panel.messageId ? "Speichern und Nachricht aktualisieren" : "Speichern und posten"}
+          submitLabel={panel.messageId ? t("Speichern und Nachricht aktualisieren") : t("Speichern und posten")}
         />
       </div>
     </>

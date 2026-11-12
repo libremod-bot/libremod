@@ -147,6 +147,7 @@ import {
   unbanUser,
   getGuildInfo,
 } from "@/lib/discord";
+import { t } from "@/lib/i18n";
 
 const SNOWFLAKE = /^\d{17,20}$/;
 const AUTOMOD_ACTIONS: AutomodAction[] = ["delete", "warn", "timeout", "kick", "ban"];
@@ -195,10 +196,10 @@ async function ensureSettings(guildId: string) {
 // --- Moderation ---
 
 export async function saveModeration(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "moderation", "Moderation gespeichert");
+  await requireGuildAccess(guildId, "moderation", t("Moderation gespeichert"));
   const path = `/servers/${guildId}/moderation`;
   const channel = text(form, "modLogChannelId");
-  if (channel && !SNOWFLAKE.test(channel)) back(path, "Ungültiger Kanal.");
+  if (channel && !SNOWFLAKE.test(channel)) back(path, t("Ungültiger Kanal."));
 
   const { db, notifySettingsChanged } = database();
   await ensureSettings(guildId);
@@ -211,18 +212,18 @@ export async function saveModeration(guildId: string, form: FormData) {
 }
 
 export async function addEscalation(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "moderation", "Verwarn-Stufe hinzugefügt");
+  await requireGuildAccess(guildId, "moderation", t("Verwarn-Stufe hinzugefügt"));
   const path = `/servers/${guildId}/moderation`;
   const warnCount = int(form, "warnCount", 1, 100);
   const action = text(form, "action") as EscalationAction;
   const durationInput = text(form, "duration");
   const seconds = durationInput ? parseDuration(durationInput) : null;
 
-  if (!warnCount) back(path, "Bitte eine Anzahl Verwarnungen zwischen 1 und 100 angeben.");
-  if (!ESCALATION_ACTIONS.includes(action)) back(path, "Unbekannte Aktion.");
-  if (durationInput && !seconds) back(path, "Diese Dauer verstehe ich nicht. Beispiele: 1h, 7d.");
-  if (action === "timeout" && !seconds) back(path, "Für einen Timeout brauche ich eine Dauer.");
-  if (action === "timeout" && seconds! > MAX_TIMEOUT_SECONDS) back(path, "Timeouts dürfen höchstens 28 Tage dauern.");
+  if (!warnCount) back(path, t("Bitte eine Anzahl Verwarnungen zwischen 1 und 100 angeben."));
+  if (!ESCALATION_ACTIONS.includes(action)) back(path, t("Unbekannte Aktion."));
+  if (durationInput && !seconds) back(path, t("Diese Dauer verstehe ich nicht. Beispiele: 1h, 7d."));
+  if (action === "timeout" && !seconds) back(path, t("Für einen Timeout brauche ich eine Dauer."));
+  if (action === "timeout" && seconds! > MAX_TIMEOUT_SECONDS) back(path, t("Timeouts dürfen höchstens 28 Tage dauern."));
 
   const durationSeconds = action === "kick" ? null : seconds;
   const { db, notifySettingsChanged } = database();
@@ -235,7 +236,7 @@ export async function addEscalation(guildId: string, form: FormData) {
 }
 
 export async function removeEscalation(guildId: string, warnCount: number) {
-  await requireGuildAccess(guildId, "moderation", "Verwarn-Stufe entfernt");
+  await requireGuildAccess(guildId, "moderation", t("Verwarn-Stufe entfernt"));
   const { db, notifySettingsChanged } = database();
   await db.delete(warnEscalations).where(and(eq(warnEscalations.guildId, guildId), eq(warnEscalations.warnCount, warnCount)));
   await notifySettingsChanged(guildId);
@@ -245,7 +246,7 @@ export async function removeEscalation(guildId: string, warnCount: number) {
 // --- Auto-Mod ---
 
 export async function saveAutomod(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "automod", "Auto-Mod gespeichert");
+  await requireGuildAccess(guildId, "automod", t("Auto-Mod gespeichert"));
   const path = `/servers/${guildId}/automod`;
   const { db, notifySettingsChanged } = database();
   await ensureSettings(guildId);
@@ -253,31 +254,31 @@ export async function saveAutomod(guildId: string, form: FormData) {
   const rules: (typeof automodRules.$inferInsert)[] = [];
   for (const filter of automodFilter.enumValues as readonly AutomodFilter[]) {
     const action = text(form, `${filter}.action`) as AutomodAction;
-    if (!AUTOMOD_ACTIONS.includes(action)) back(path, "Unbekannte Aktion.");
+    if (!AUTOMOD_ACTIONS.includes(action)) back(path, t("Unbekannte Aktion."));
     const durationInput = text(form, `${filter}.duration`);
     const durationSeconds = durationInput ? parseDuration(durationInput) : null;
-    if (durationInput && !durationSeconds) back(path, `Die Dauer „${durationInput}“ verstehe ich nicht. Beispiele: 10m, 1h, 1d.`);
-    if (action === "timeout" && durationSeconds && durationSeconds > MAX_TIMEOUT_SECONDS) back(path, "Timeouts dürfen höchstens 28 Tage dauern.");
+    if (durationInput && !durationSeconds) back(path, t("Die Dauer „{durationInput}“ verstehe ich nicht. Beispiele: 10m, 1h, 1d.", { durationInput }));
+    if (action === "timeout" && durationSeconds && durationSeconds > MAX_TIMEOUT_SECONDS) back(path, t("Timeouts dürfen höchstens 28 Tage dauern."));
 
     const threshold = int(form, `${filter}.threshold`, filter === "caps" ? 50 : 2, 100);
-    if (Number.isNaN(threshold)) back(path, `Ungültige Schwelle beim Filter „${filter}“.`);
+    if (Number.isNaN(threshold)) back(path, t("Ungültige Schwelle beim Filter „{filter}“.", { filter }));
 
     const config: Record<string, unknown> = {};
     if (threshold) config.threshold = threshold;
     const notice = text(form, `${filter}.notice`);
-    if (notice.length > 500) back(path, "Der Hinweistext darf höchstens 500 Zeichen lang sein.");
+    if (notice.length > 500) back(path, t("Der Hinweistext darf höchstens 500 Zeichen lang sein."));
     if (notice) config.notice = notice;
     if (filter === "words") {
       const words = list(form, "words.list");
-      if (words.length > 1000) back(path, "Die Wortliste kann höchstens 1000 Einträge haben.");
+      if (words.length > 1000) back(path, t("Die Wortliste kann höchstens 1000 Einträge haben."));
       config.words = [...new Set(words)];
     }
     if (filter === "phishing") {
       const domains = list(form, "phishing.blockedDomains").map((d) => d.toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, ""));
-      if (domains.length > 500) back(path, "Höchstens 500 gesperrte Domains.");
+      if (domains.length > 500) back(path, t("Höchstens 500 gesperrte Domains."));
       config.blockedDomains = [...new Set(domains.filter((d) => /^[a-z0-9.-]+\.[a-z0-9-]+$/.test(d)))];
       const allowed = list(form, "phishing.allowedDomains").map((d) => d.toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, ""));
-      if (allowed.length > 500) back(path, "Höchstens 500 freigegebene Domains.");
+      if (allowed.length > 500) back(path, t("Höchstens 500 freigegebene Domains."));
       config.allowedDomains = [...new Set(allowed.filter((d) => /^[a-z0-9.-]+\.[a-z0-9-]+$/.test(d)))];
       config.externalLists = form.get("phishing.externalLists") === "on";
     }
@@ -296,8 +297,8 @@ export async function saveAutomod(guildId: string, form: FormData) {
   const raidJoinThreshold = int(form, "raidJoinThreshold", 3, 100) ?? 10;
   const raidWindowSeconds = int(form, "raidWindowSeconds", 5, 600) ?? 10;
   const raidAction = text(form, "raidAction");
-  if (Number.isNaN(raidJoinThreshold) || Number.isNaN(raidWindowSeconds)) back(path, "Ungültige Werte beim Raid-Schutz.");
-  if (!RAID_ACTIONS.includes(raidAction)) back(path, "Unbekannte Raid-Aktion.");
+  if (Number.isNaN(raidJoinThreshold) || Number.isNaN(raidWindowSeconds)) back(path, t("Ungültige Werte beim Raid-Schutz."));
+  if (!RAID_ACTIONS.includes(raidAction)) back(path, t("Unbekannte Raid-Aktion."));
 
   await db.transaction(async (tx) => {
     await tx
@@ -345,7 +346,7 @@ async function textChannelIds(guildId: string) {
 }
 
 export async function saveLogging(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "logging", "Logging gespeichert");
+  await requireGuildAccess(guildId, "logging", t("Logging gespeichert"));
   const path = `/servers/${guildId}/logging`;
   const { db, notifySettingsChanged } = database();
   const known = await textChannelIds(guildId);
@@ -358,7 +359,7 @@ export async function saveLogging(guildId: string, form: FormData) {
     const channelId = text(form, `${category}.channel`);
     if (!channelId) continue;
     // Ein inzwischen gelöschter Kanal darf stehen bleiben, neue Kanäle müssen Textkanäle dieses Servers sein.
-    if (!known.text.has(channelId) && current.get(category) !== channelId) back(path, "Bitte nur Textkanäle dieses Servers wählen.");
+    if (!known.text.has(channelId) && current.get(category) !== channelId) back(path, t("Bitte nur Textkanäle dieses Servers wählen."));
     chosen.push({ category, channelId });
   }
   const ignored = [
@@ -376,11 +377,11 @@ export async function saveLogging(guildId: string, form: FormData) {
 }
 
 export async function quickLogging(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "logging", "Logging schnell eingerichtet");
+  await requireGuildAccess(guildId, "logging", t("Logging schnell eingerichtet"));
   const path = `/servers/${guildId}/logging`;
   const channelId = text(form, "channelId");
   const known = await textChannelIds(guildId);
-  if (!known.text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  if (!known.text.has(channelId)) back(path, t("Bitte einen Textkanal dieses Servers wählen."));
 
   const { db, notifySettingsChanged } = database();
   await db
@@ -394,7 +395,7 @@ export async function quickLogging(guildId: string, form: FormData) {
 // --- Begrüßung ---
 
 export async function saveWelcome(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "welcome", "Begrüßung gespeichert");
+  await requireGuildAccess(guildId, "welcome", t("Begrüßung gespeichert"));
   const path = `/servers/${guildId}/welcome`;
   const known = await textChannelIds(guildId);
 
@@ -412,21 +413,21 @@ export async function saveWelcome(guildId: string, form: FormData) {
     goodbyeEmbed: form.get("goodbyeEmbed") === "on",
     goodbyeDesign: design(path, form, "goodbyeDesign"),
     welcomeImage: form.get("welcomeImage") === "on",
-    welcomeImageTitle: text(form, "welcomeImageTitle").slice(0, 40) || "Willkommen!",
+    welcomeImageTitle: text(form, "welcomeImageTitle").slice(0, 40) || t("Willkommen!"),
     welcomeImageColor: /^#[0-9a-f]{6}$/i.test(text(form, "welcomeImageColor")) ? parseInt(text(form, "welcomeImageColor").slice(1), 16) : 0x4cb4ff,
   };
   for (const id of [values.welcomeChannelId, values.goodbyeChannelId]) {
-    if (id && !known.text.has(id)) back(path, "Bitte nur Textkanäle dieses Servers wählen.");
+    if (id && !known.text.has(id)) back(path, t("Bitte nur Textkanäle dieses Servers wählen."));
   }
-  if (values.welcomeEnabled && !values.welcomeChannelId) back(path, "Für die Willkommensnachricht fehlt noch der Kanal.");
-  if (values.goodbyeEnabled && !values.goodbyeChannelId) back(path, "Für die Abschiedsnachricht fehlt noch der Kanal.");
+  if (values.welcomeEnabled && !values.welcomeChannelId) back(path, t("Für die Willkommensnachricht fehlt noch der Kanal."));
+  if (values.goodbyeEnabled && !values.goodbyeChannelId) back(path, t("Für die Abschiedsnachricht fehlt noch der Kanal."));
   for (const [key, label] of [
     ["welcomeMessage", "Willkommensnachricht"],
     ["dmMessage", "Direktnachricht"],
     ["goodbyeMessage", "Abschiedsnachricht"],
   ] as const) {
-    if (!values[key]) back(path, `Der Text der ${label} ist leer.`);
-    if (values[key].length > MAX_TEMPLATE_LENGTH) back(path, `Der Text der ${label} ist zu lang (höchstens ${MAX_TEMPLATE_LENGTH} Zeichen).`);
+    if (!values[key]) back(path, t("Der Text der {label} ist leer.", { label }));
+    if (values[key].length > MAX_TEMPLATE_LENGTH) back(path, t("Der Text der {label} ist zu lang (höchstens {MAX_TEMPLATE_LENGTH} Zeichen).", { label, MAX_TEMPLATE_LENGTH }));
   }
 
   const { db, notifySettingsChanged } = database();
@@ -446,11 +447,11 @@ async function assignableRoles(guildId: string, form: FormData, key: string) {
 }
 
 export async function saveAutoRoles(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "roles", "Automatische Rollen gespeichert");
+  await requireGuildAccess(guildId, "roles", t("Automatische Rollen gespeichert"));
   const path = `/servers/${guildId}/roles`;
   const humans = await assignableRoles(guildId, form, "humanRoles");
   const bots = await assignableRoles(guildId, form, "botRoles");
-  if (humans.invalid.length || bots.invalid.length) back(path, "Mindestens eine Rolle kann Libremod nicht vergeben.");
+  if (humans.invalid.length || bots.invalid.length) back(path, t("Mindestens eine Rolle kann Libremod nicht vergeben."));
 
   const { db, notifySettingsChanged } = database();
   await db.transaction(async (tx) => {
@@ -474,12 +475,12 @@ async function readPanelForm(guildId: string, form: FormData, path: string) {
   const known = await textChannelIds(guildId);
   const { valid, invalid, roles } = await assignableRoles(guildId, form, "roleIds");
 
-  if (!title || title.length > 256) back(path, "Bitte eine Überschrift mit höchstens 256 Zeichen angeben.");
-  if (description.length > 2000) back(path, "Die Beschreibung darf höchstens 2000 Zeichen lang sein.");
-  if (!known.text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
-  if (invalid.length) back(path, "Mindestens eine Rolle kann Libremod nicht vergeben.");
-  if (!valid.length) back(path, "Bitte mindestens eine Rolle auswählen.");
-  if (valid.length > MAX_PANEL_ROLES) back(path, `Ein Panel kann höchstens ${MAX_PANEL_ROLES} Rollen haben.`);
+  if (!title || title.length > 256) back(path, t("Bitte eine Überschrift mit höchstens 256 Zeichen angeben."));
+  if (description.length > 2000) back(path, t("Die Beschreibung darf höchstens 2000 Zeichen lang sein."));
+  if (!known.text.has(channelId)) back(path, t("Bitte einen Textkanal dieses Servers wählen."));
+  if (invalid.length) back(path, t("Mindestens eine Rolle kann Libremod nicht vergeben."));
+  if (!valid.length) back(path, t("Bitte mindestens eine Rolle auswählen."));
+  if (valid.length > MAX_PANEL_ROLES) back(path, t("Ein Panel kann höchstens {MAX_PANEL_ROLES} Rollen haben.", { MAX_PANEL_ROLES }));
 
   // In der Reihenfolge der Rollenliste des Servers, höchste zuerst.
   const roleIds = [...roles.keys()].filter((id) => valid.includes(id));
@@ -488,11 +489,11 @@ async function readPanelForm(guildId: string, form: FormData, path: string) {
 
 const postError = (err: unknown) =>
   err instanceof DiscordError && (err.status === 403 || err.status === 404)
-    ? "Gespeichert, aber Libremod konnte im Kanal nicht posten. Prüfe dort die Rechte „Nachrichten senden“ und „Links einbetten“."
-    : "Gespeichert, aber die Nachricht konnte nicht gepostet werden. Bitte später nochmal speichern.";
+    ? t("Gespeichert, aber Libremod konnte im Kanal nicht posten. Prüfe dort die Rechte „Nachrichten senden“ und „Links einbetten“.")
+    : t("Gespeichert, aber die Nachricht konnte nicht gepostet werden. Bitte später nochmal speichern.");
 
 export async function createPanel(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "roles", "Rollen-Auswahl erstellt");
+  await requireGuildAccess(guildId, "roles", t("Rollen-Auswahl erstellt"));
   const path = `/servers/${guildId}/roles`;
   const { roleNames, ...values } = await readPanelForm(guildId, form, path);
   const { db } = database();
@@ -509,11 +510,11 @@ export async function createPanel(guildId: string, form: FormData) {
 }
 
 export async function updatePanel(guildId: string, panelId: number, form: FormData) {
-  await requireGuildAccess(guildId, "roles", "Rollen-Auswahl geändert");
+  await requireGuildAccess(guildId, "roles", t("Rollen-Auswahl geändert"));
   const path = `/servers/${guildId}/roles/${panelId}`;
   const { db } = database();
   const [old] = await db.select().from(rolePanels).where(and(eq(rolePanels.id, panelId), eq(rolePanels.guildId, guildId)));
-  if (!old) back(`/servers/${guildId}/roles`, "Dieses Panel gibt es nicht mehr.");
+  if (!old) back(`/servers/${guildId}/roles`, t("Dieses Panel gibt es nicht mehr."));
   const { roleNames, ...values } = await readPanelForm(guildId, form, path);
   const body = buildPanelMessage({ ...values, id: panelId, roles: roleNames });
 
@@ -540,7 +541,7 @@ export async function updatePanel(guildId: string, panelId: number, form: FormDa
 }
 
 export async function deletePanel(guildId: string, panelId: number) {
-  await requireGuildAccess(guildId, "roles", "Rollen-Auswahl gelöscht");
+  await requireGuildAccess(guildId, "roles", t("Rollen-Auswahl gelöscht"));
   const { db } = database();
   const [panel] = await db.delete(rolePanels).where(and(eq(rolePanels.id, panelId), eq(rolePanels.guildId, guildId))).returning();
   if (panel?.messageId) await deleteBotMessage(panel.channelId, panel.messageId).catch(() => {});
@@ -552,7 +553,7 @@ export async function deletePanel(guildId: string, panelId: number) {
 const ANNOUNCE = ["off", "same", "channel", "dm"] as const;
 
 export async function saveLevels(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "levels", "Level-Einstellungen gespeichert");
+  await requireGuildAccess(guildId, "levels", t("Level-Einstellungen gespeichert"));
   const path = `/servers/${guildId}/levels`;
   const textXpMin = int(form, "textXpMin", 0, 1000) ?? 15;
   const textXpMax = int(form, "textXpMax", 0, 1000) ?? 25;
@@ -561,21 +562,21 @@ export async function saveLevels(guildId: string, form: FormData) {
   const weekendPercent = int(form, "weekendPercent", 0, MAX_XP_PERCENT) ?? 100;
   const levelUpCoins = int(form, "levelUpCoins", 0, 1_000_000) ?? 0;
   if ([textXpMin, textXpMax, cooldownSeconds, voiceXpPerMinute, weekendPercent, levelUpCoins].some(Number.isNaN)) {
-    back(path, "Bitte nur ganze Zahlen im erlaubten Bereich.");
+    back(path, t("Bitte nur ganze Zahlen im erlaubten Bereich."));
   }
   const color = /^#[0-9a-f]{6}$/i.test(text(form, "cardColor")) ? parseInt(text(form, "cardColor").slice(1), 16) : 0x4cb4ff;
   const seasonMode = text(form, "seasonMode") || "off";
-  if (!SEASON_MODES.some((m) => m.value === seasonMode)) back(path, "Unbekannte Einstellung für Saisons.");
-  if (textXpMin > textXpMax) back(path, "Die Mindest-XP dürfen nicht größer als die Höchst-XP sein.");
+  if (!SEASON_MODES.some((m) => m.value === seasonMode)) back(path, t("Unbekannte Einstellung für Saisons."));
+  if (textXpMin > textXpMax) back(path, t("Die Mindest-XP dürfen nicht größer als die Höchst-XP sein."));
 
   const announce = text(form, "announce") as (typeof ANNOUNCE)[number];
-  if (!ANNOUNCE.includes(announce)) back(path, "Unbekannte Einstellung für die Verkündung.");
+  if (!ANNOUNCE.includes(announce)) back(path, t("Unbekannte Einstellung für die Verkündung."));
   const announceChannelId = text(form, "announceChannelId") || null;
   const known = await textChannelIds(guildId);
-  if (announceChannelId && !known.text.has(announceChannelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
-  if (announce === "channel" && !announceChannelId) back(path, "Für „In einem festen Kanal“ fehlt noch der Kanal.");
-  const announceMessage = text(form, "announceMessage") || "Glückwunsch {user}, du bist jetzt **Level {level}**!";
-  if (announceMessage.length > 500) back(path, "Der Text für den Level-Aufstieg darf höchstens 500 Zeichen lang sein.");
+  if (announceChannelId && !known.text.has(announceChannelId)) back(path, t("Bitte einen Textkanal dieses Servers wählen."));
+  if (announce === "channel" && !announceChannelId) back(path, t("Für „In einem festen Kanal“ fehlt noch der Kanal."));
+  const announceMessage = text(form, "announceMessage") || t("Glückwunsch {user}, du bist jetzt **Level {level}**!");
+  if (announceMessage.length > 500) back(path, t("Der Text für den Level-Aufstieg darf höchstens 500 Zeichen lang sein."));
 
   const roles = new Set((await getGuildRoles(guildId)).map((r) => r.id));
   const noRoles = [...new Set(form.getAll("noXpRoles").filter((v): v is string => typeof v === "string" && roles.has(v)))];
@@ -614,16 +615,16 @@ export async function saveLevels(guildId: string, form: FormData) {
 }
 
 export async function addLevelMultiplier(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "levels", "XP-Bonus hinzugefügt");
+  await requireGuildAccess(guildId, "levels", t("XP-Bonus hinzugefügt"));
   const path = `/servers/${guildId}/levels`;
   const percent = int(form, "percent", 0, MAX_XP_PERCENT);
-  if (percent === null || Number.isNaN(percent)) back(path, `Bitte einen Wert zwischen 0 und ${MAX_XP_PERCENT} % angeben.`);
+  if (percent === null || Number.isNaN(percent)) back(path, t("Bitte einen Wert zwischen 0 und {MAX_XP_PERCENT} % angeben.", { MAX_XP_PERCENT }));
   const roleId = text(form, "roleId");
   const roles = await getGuildRoles(guildId);
-  if (!roles.some((r) => r.id === roleId) || roleId === guildId) back(path, "Bitte eine Rolle dieses Servers wählen.");
+  if (!roles.some((r) => r.id === roleId) || roleId === guildId) back(path, t("Bitte eine Rolle dieses Servers wählen."));
   const { db, notifySettingsChanged } = database();
   const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(levelMultipliers).where(eq(levelMultipliers.guildId, guildId));
-  if (n >= 25) back(path, "Mehr als 25 Bonus-Rollen gehen nicht.");
+  if (n >= 25) back(path, t("Mehr als 25 Bonus-Rollen gehen nicht."));
   await db
     .insert(levelMultipliers)
     .values({ guildId, roleId, percent: percent! })
@@ -633,7 +634,7 @@ export async function addLevelMultiplier(guildId: string, form: FormData) {
 }
 
 export async function removeLevelMultiplier(guildId: string, roleId: string) {
-  await requireGuildAccess(guildId, "levels", "XP-Bonus entfernt");
+  await requireGuildAccess(guildId, "levels", t("XP-Bonus entfernt"));
   const { db, notifySettingsChanged } = database();
   await db.delete(levelMultipliers).where(and(eq(levelMultipliers.guildId, guildId), eq(levelMultipliers.roleId, roleId)));
   await notifySettingsChanged(guildId);
@@ -641,11 +642,11 @@ export async function removeLevelMultiplier(guildId: string, roleId: string) {
 }
 
 export async function endSeasonNow(guildId: string, number: number) {
-  await requireGuildAccess(guildId, "levels", "Saison beendet");
+  await requireGuildAccess(guildId, "levels", t("Saison beendet"));
   const path = `/servers/${guildId}/levels`;
   const { db, notifySettingsChanged } = database();
   const season = await endLevelSeason(db, guildId, new Date(), number);
-  if (!season) back(path, "Diese Saison ist schon beendet.");
+  if (!season) back(path, t("Diese Saison ist schon beendet."));
   await notifySettingsChanged(guildId);
   const [s] = await db.select({ channelId: levelSettings.announceChannelId }).from(levelSettings).where(eq(levelSettings.guildId, guildId));
   if (s?.channelId && season!.top.length) await sendBotMessage(s.channelId, seasonEndMessage(season!)).catch(() => {});
@@ -653,12 +654,12 @@ export async function endSeasonNow(guildId: string, number: number) {
 }
 
 export async function addLevelReward(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "levels", "Level-Belohnung hinzugefügt");
+  await requireGuildAccess(guildId, "levels", t("Level-Belohnung hinzugefügt"));
   const path = `/servers/${guildId}/levels`;
   const level = int(form, "level", 1, 500);
-  if (!level) back(path, "Bitte ein Level zwischen 1 und 500 angeben.");
+  if (!level) back(path, t("Bitte ein Level zwischen 1 und 500 angeben."));
   const { valid } = await assignableRoles(guildId, form, "roleId");
-  if (valid.length !== 1) back(path, "Diese Rolle kann Libremod nicht vergeben.");
+  if (valid.length !== 1) back(path, t("Diese Rolle kann Libremod nicht vergeben."));
   const { db, notifySettingsChanged } = database();
   await db
     .insert(levelRewards)
@@ -669,7 +670,7 @@ export async function addLevelReward(guildId: string, form: FormData) {
 }
 
 export async function removeLevelReward(guildId: string, level: number) {
-  await requireGuildAccess(guildId, "levels", "Level-Belohnung entfernt");
+  await requireGuildAccess(guildId, "levels", t("Level-Belohnung entfernt"));
   const { db, notifySettingsChanged } = database();
   await db.delete(levelRewards).where(and(eq(levelRewards.guildId, guildId), eq(levelRewards.level, level)));
   await notifySettingsChanged(guildId);
@@ -685,14 +686,14 @@ function readCommandForm(form: FormData, path: string) {
   const embed = form.get("embed") === "on";
   const cardDesign = design(path, form, "design");
   const embedTitle = cardDesign?.title ?? null;
-  if (!COMMAND_NAME.test(name)) back(path, "Der Name darf nur Kleinbuchstaben, Zahlen, - und _ enthalten (höchstens 32 Zeichen).");
+  if (!COMMAND_NAME.test(name)) back(path, t("Der Name darf nur Kleinbuchstaben, Zahlen, - und _ enthalten (höchstens 32 Zeichen)."));
   if (RESERVED_COMMANDS.includes(name)) back(path, `/${name} ist ein eingebauter Befehl von Libremod. Bitte einen anderen Namen wählen.`);
-  if (!description || description.length > 100) back(path, "Bitte eine Beschreibung mit höchstens 100 Zeichen angeben.");
-  if (!responses.length) back(path, "Bitte mindestens eine Antwort eingeben.");
-  if (responses.length > 20) back(path, "Höchstens 20 Antworten pro Befehl.");
+  if (!description || description.length > 100) back(path, t("Bitte eine Beschreibung mit höchstens 100 Zeichen angeben."));
+  if (!responses.length) back(path, t("Bitte mindestens eine Antwort eingeben."));
+  if (responses.length > 20) back(path, t("Höchstens 20 Antworten pro Befehl."));
   const max = embed ? 4000 : 2000;
-  if (responses.some((r) => r.length > max)) back(path, `Eine Antwort ist zu lang (höchstens ${max} Zeichen).`);
-  if (embedTitle && embedTitle.length > 256) back(path, "Die Embed-Überschrift darf höchstens 256 Zeichen lang sein.");
+  if (responses.some((r) => r.length > max)) back(path, t("Eine Antwort ist zu lang (höchstens {max} Zeichen).", { max }));
+  if (embedTitle && embedTitle.length > 256) back(path, t("Die Embed-Überschrift darf höchstens 256 Zeichen lang sein."));
   return {
     name,
     description,
@@ -709,16 +710,16 @@ const isUniqueViolation = (err: unknown) =>
   typeof err === "object" && err !== null && ("code" in err ? err.code : (err as { cause?: { code?: string } }).cause?.code) === "23505";
 
 export async function createCommand(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "commands", "Eigener Befehl erstellt");
+  await requireGuildAccess(guildId, "commands", t("Eigener Befehl erstellt"));
   const path = `/servers/${guildId}/commands`;
   const values = readCommandForm(form, path);
   const { db, notifySettingsChanged } = database();
   const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(customCommands).where(eq(customCommands.guildId, guildId));
-  if (n >= MAX_CUSTOM_COMMANDS) back(path, `Ein Server kann höchstens ${MAX_CUSTOM_COMMANDS} eigene Befehle haben.`);
+  if (n >= MAX_CUSTOM_COMMANDS) back(path, t("Ein Server kann höchstens {MAX_CUSTOM_COMMANDS} eigene Befehle haben.", { MAX_CUSTOM_COMMANDS }));
   try {
     await db.insert(customCommands).values({ guildId, ...values });
   } catch (err) {
-    if (isUniqueViolation(err)) back(path, `Den Befehl /${values.name} gibt es schon.`);
+    if (isUniqueViolation(err)) back(path, t("Den Befehl /{name} gibt es schon.", { name: values.name }));
     throw err;
   }
   await notifySettingsChanged(guildId);
@@ -726,14 +727,14 @@ export async function createCommand(guildId: string, form: FormData) {
 }
 
 export async function updateCommand(guildId: string, id: number, form: FormData) {
-  await requireGuildAccess(guildId, "commands", "Eigener Befehl geändert");
+  await requireGuildAccess(guildId, "commands", t("Eigener Befehl geändert"));
   const path = `/servers/${guildId}/commands/${id}`;
   const values = readCommandForm(form, path);
   const { db, notifySettingsChanged } = database();
   try {
     await db.update(customCommands).set(values).where(and(eq(customCommands.id, id), eq(customCommands.guildId, guildId)));
   } catch (err) {
-    if (isUniqueViolation(err)) back(path, `Den Befehl /${values.name} gibt es schon.`);
+    if (isUniqueViolation(err)) back(path, t("Den Befehl /{name} gibt es schon.", { name: values.name }));
     throw err;
   }
   await notifySettingsChanged(guildId);
@@ -741,7 +742,7 @@ export async function updateCommand(guildId: string, id: number, form: FormData)
 }
 
 export async function deleteCommand(guildId: string, id: number) {
-  await requireGuildAccess(guildId, "commands", "Eigener Befehl gelöscht");
+  await requireGuildAccess(guildId, "commands", t("Eigener Befehl gelöscht"));
   const { db, notifySettingsChanged } = database();
   await db.delete(customCommands).where(and(eq(customCommands.id, id), eq(customCommands.guildId, guildId)));
   await notifySettingsChanged(guildId);
@@ -753,7 +754,7 @@ export async function deleteCommand(guildId: string, id: number) {
 const UNIT_MINUTES = { minutes: 1, hours: 60, days: 1440 } as const;
 
 export async function createScheduled(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "schedule", "Geplante Nachricht erstellt");
+  await requireGuildAccess(guildId, "schedule", t("Geplante Nachricht erstellt"));
   const path = `/servers/${guildId}/schedule`;
   const channelId = text(form, "channelId");
   const content = text(form, "content");
@@ -762,33 +763,33 @@ export async function createScheduled(guildId: string, form: FormData) {
   const embedTitle = cardDesign?.title ?? null;
   const kind = text(form, "kind");
   const known = await textChannelIds(guildId);
-  if (!known.text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
-  if (!content) back(path, "Die Nachricht ist leer.");
-  if (content.length > (embed ? 4000 : 2000)) back(path, "Die Nachricht ist zu lang.");
+  if (!known.text.has(channelId)) back(path, t("Bitte einen Textkanal dieses Servers wählen."));
+  if (!content) back(path, t("Die Nachricht ist leer."));
+  if (content.length > (embed ? 4000 : 2000)) back(path, t("Die Nachricht ist zu lang."));
 
   let row: { kind: "interval" | "daily" | "weekly"; intervalMinutes: number | null; timeOfDay: string | null; weekday: number | null };
   if (kind === "interval") {
     const value = int(form, "intervalValue", 1, 1000);
     const unit = text(form, "intervalUnit") as keyof typeof UNIT_MINUTES;
-    if (!value || !(unit in UNIT_MINUTES)) back(path, "Bitte einen gültigen Abstand angeben.");
+    if (!value || !(unit in UNIT_MINUTES)) back(path, t("Bitte einen gültigen Abstand angeben."));
     const minutes = value * UNIT_MINUTES[unit];
-    if (minutes < MIN_INTERVAL_MINUTES) back(path, `Der Abstand muss mindestens ${MIN_INTERVAL_MINUTES} Minuten betragen.`);
-    if (minutes > 60 * 24 * 90) back(path, "Der Abstand darf höchstens 90 Tage betragen.");
+    if (minutes < MIN_INTERVAL_MINUTES) back(path, t("Der Abstand muss mindestens {MIN_INTERVAL_MINUTES} Minuten betragen.", { MIN_INTERVAL_MINUTES }));
+    if (minutes > 60 * 24 * 90) back(path, t("Der Abstand darf höchstens 90 Tage betragen."));
     row = { kind: "interval", intervalMinutes: minutes, timeOfDay: null, weekday: null };
   } else if (kind === "daily" || kind === "weekly") {
     const time = parseTimeOfDay(text(form, "timeOfDay"));
-    if (!time) back(path, "Bitte eine Uhrzeit wie 18:00 angeben.");
+    if (!time) back(path, t("Bitte eine Uhrzeit wie 18:00 angeben."));
     const timeOfDay = `${String(time.hour).padStart(2, "0")}:${String(time.minute).padStart(2, "0")}`;
     const weekday = kind === "weekly" ? int(form, "weekday", 1, 7) : null;
-    if (kind === "weekly" && !weekday) back(path, "Bitte einen Wochentag wählen.");
+    if (kind === "weekly" && !weekday) back(path, t("Bitte einen Wochentag wählen."));
     row = { kind, intervalMinutes: null, timeOfDay, weekday };
   } else {
-    back(path, "Unbekannte Art des Zeitplans.");
+    back(path, t("Unbekannte Art des Zeitplans."));
   }
 
   const { db } = database();
   const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(scheduledMessages).where(eq(scheduledMessages.guildId, guildId));
-  if (n >= 25) back(path, "Ein Server kann höchstens 25 geplante Nachrichten haben.");
+  if (n >= 25) back(path, t("Ein Server kann höchstens 25 geplante Nachrichten haben."));
   await db.insert(scheduledMessages).values({
     guildId,
     channelId,
@@ -803,7 +804,7 @@ export async function createScheduled(guildId: string, form: FormData) {
 }
 
 export async function toggleScheduled(guildId: string, id: number) {
-  await requireGuildAccess(guildId, "schedule", "Geplante Nachricht an/aus");
+  await requireGuildAccess(guildId, "schedule", t("Geplante Nachricht an/aus"));
   const { db } = database();
   const [m] = await db.select().from(scheduledMessages).where(and(eq(scheduledMessages.id, id), eq(scheduledMessages.guildId, guildId)));
   if (m) {
@@ -818,7 +819,7 @@ export async function toggleScheduled(guildId: string, id: number) {
 }
 
 export async function deleteScheduled(guildId: string, id: number) {
-  await requireGuildAccess(guildId, "schedule", "Geplante Nachricht gelöscht");
+  await requireGuildAccess(guildId, "schedule", t("Geplante Nachricht gelöscht"));
   const { db } = database();
   await db.delete(scheduledMessages).where(and(eq(scheduledMessages.id, id), eq(scheduledMessages.guildId, guildId)));
   back(`/servers/${guildId}/schedule`);
@@ -832,28 +833,28 @@ async function categoryOrNull(guildId: string, form: FormData, path: string) {
   const parentId = text(form, "parentId");
   if (!parentId) return null;
   const channels = await getGuildChannels(guildId);
-  if (!channels.some((c) => c.id === parentId && c.type === CHANNEL_CATEGORY)) back(path, "Unbekannte Kategorie.");
+  if (!channels.some((c) => c.id === parentId && c.type === CHANNEL_CATEGORY)) back(path, t("Unbekannte Kategorie."));
   return parentId;
 }
 
 const channelError = (err: unknown) =>
   err instanceof DiscordError && err.status === 403
-    ? "Libremod fehlt das Recht „Kanäle verwalten“. Bitte in den Servereinstellungen bei der Libremod-Rolle einschalten."
-    : "Der Kanal konnte nicht erstellt werden. Bitte später nochmal versuchen.";
+    ? t("Libremod fehlt das Recht „Kanäle verwalten“. Bitte in den Servereinstellungen bei der Libremod-Rolle einschalten.")
+    : t("Der Kanal konnte nicht erstellt werden. Bitte später nochmal versuchen.");
 
 function readHubSettings(form: FormData, path: string) {
   const nameTemplate = text(form, "nameTemplate") || "Kanal von {username}";
   const userLimit = int(form, "userLimit", 0, 99) ?? 0;
-  if (nameTemplate.length > 100) back(path, "Der Name darf höchstens 100 Zeichen lang sein.");
-  if (Number.isNaN(userLimit)) back(path, "Max. Personen muss zwischen 0 und 99 liegen.");
+  if (nameTemplate.length > 100) back(path, t("Der Name darf höchstens 100 Zeichen lang sein."));
+  if (Number.isNaN(userLimit)) back(path, t("Max. Personen muss zwischen 0 und 99 liegen."));
   return { nameTemplate, userLimit };
 }
 
 export async function createTempHub(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "channels", "Sprachkanal-Generator erstellt");
+  await requireGuildAccess(guildId, "channels", t("Sprachkanal-Generator erstellt"));
   const path = `/servers/${guildId}/channels`;
-  const hubName = text(form, "hubName") || "➕ Kanal erstellen";
-  if (hubName.length > 100) back(path, "Der Kanalname darf höchstens 100 Zeichen lang sein.");
+  const hubName = text(form, "hubName") || t("➕ Kanal erstellen");
+  if (hubName.length > 100) back(path, t("Der Kanalname darf höchstens 100 Zeichen lang sein."));
   const settings = readHubSettings(form, path);
   const parentId = await categoryOrNull(guildId, form, path);
   const { db, notifySettingsChanged } = database();
@@ -869,7 +870,7 @@ export async function createTempHub(guildId: string, form: FormData) {
 }
 
 export async function updateTempHub(guildId: string, channelId: string, form: FormData) {
-  await requireGuildAccess(guildId, "channels", "Sprachkanal-Generator geändert");
+  await requireGuildAccess(guildId, "channels", t("Sprachkanal-Generator geändert"));
   const path = `/servers/${guildId}/channels`;
   const settings = readHubSettings(form, path);
   const { db, notifySettingsChanged } = database();
@@ -879,7 +880,7 @@ export async function updateTempHub(guildId: string, channelId: string, form: Fo
 }
 
 export async function deleteTempHub(guildId: string, channelId: string) {
-  await requireGuildAccess(guildId, "channels", "Sprachkanal-Generator gelöscht");
+  await requireGuildAccess(guildId, "channels", t("Sprachkanal-Generator gelöscht"));
   const { db, notifySettingsChanged } = database();
   const [hub] = await db.delete(tempVoiceHubs).where(and(eq(tempVoiceHubs.channelId, channelId), eq(tempVoiceHubs.guildId, guildId))).returning();
   if (hub) await deleteGuildChannel(guildId, channelId).catch(() => {});
@@ -888,15 +889,15 @@ export async function deleteTempHub(guildId: string, channelId: string) {
 }
 
 export async function createCounter(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "channels", "Zähler-Kanal erstellt");
+  await requireGuildAccess(guildId, "channels", t("Zähler-Kanal erstellt"));
   const path = `/servers/${guildId}/channels`;
   const template = text(form, "template");
-  if (!template || template.length > 90) back(path, "Bitte einen Namen mit höchstens 90 Zeichen angeben.");
-  if (!/\{(members|boosts|channels|roles)\}/i.test(template)) back(path, "Der Name braucht einen Platzhalter, z. B. {members}.");
+  if (!template || template.length > 90) back(path, t("Bitte einen Namen mit höchstens 90 Zeichen angeben."));
+  if (!/\{(members|boosts|channels|roles)\}/i.test(template)) back(path, t("Der Name braucht einen Platzhalter, z. B. {members}."));
   const parentId = await categoryOrNull(guildId, form, path);
   const { db } = database();
   const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(counterChannels).where(eq(counterChannels.guildId, guildId));
-  if (n >= 10) back(path, "Ein Server kann höchstens 10 Zähler haben.");
+  if (n >= 10) back(path, t("Ein Server kann höchstens 10 Zähler haben."));
 
   let channelId: string;
   try {
@@ -918,7 +919,7 @@ export async function createCounter(guildId: string, form: FormData) {
 }
 
 export async function deleteCounter(guildId: string, channelId: string) {
-  await requireGuildAccess(guildId, "channels", "Zähler-Kanal gelöscht");
+  await requireGuildAccess(guildId, "channels", t("Zähler-Kanal gelöscht"));
   const { db } = database();
   const [row] = await db.delete(counterChannels).where(and(eq(counterChannels.channelId, channelId), eq(counterChannels.guildId, guildId))).returning();
   if (row) await deleteGuildChannel(guildId, channelId).catch(() => {});
@@ -928,7 +929,7 @@ export async function deleteCounter(guildId: string, channelId: string) {
 // --- Fallakte ---
 
 export async function revokeWarning(guildId: string, caseNumber: number) {
-  await requireGuildAccess(guildId, "cases", "Verwarnung zurückgenommen");
+  await requireGuildAccess(guildId, "cases", t("Verwarnung zurückgenommen"));
   const { db } = database();
   await db
     .update(modCases)
@@ -942,41 +943,41 @@ export async function revokeWarning(guildId: string, caseNumber: number) {
 async function readFeedForm(guildId: string, form: FormData, path: string) {
   const channelId = text(form, "channelId");
   const known = await textChannelIds(guildId);
-  if (!known.text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  if (!known.text.has(channelId)) back(path, t("Bitte einen Textkanal dieses Servers wählen."));
   const mention = text(form, "mentionRoleId");
   let mentionRoleId: string | null = null;
   if (mention) {
     const roles = await getGuildRoles(guildId);
-    if (mention !== guildId && !roles.some((r) => r.id === mention)) back(path, "Diese Rolle gibt es nicht.");
+    if (mention !== guildId && !roles.some((r) => r.id === mention)) back(path, t("Diese Rolle gibt es nicht."));
     mentionRoleId = mention;
   }
   const message = text(form, "message").replace(/\r\n/g, "\n");
-  if (message.length > 1500) back(path, "Der Text ist zu lang (höchstens 1500 Zeichen).");
+  if (message.length > 1500) back(path, t("Der Text ist zu lang (höchstens 1500 Zeichen)."));
   return { channelId, mentionRoleId, message };
 }
 
 export async function createFeed(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "notifications", "Benachrichtigung erstellt");
+  await requireGuildAccess(guildId, "notifications", t("Benachrichtigung erstellt"));
   const path = `/servers/${guildId}/notifications`;
   const platform = text(form, "platform") as NotifyPlatform;
-  if (!NOTIFY_PLATFORMS.includes(platform)) back(path, "Bitte eine Plattform wählen.");
+  if (!NOTIFY_PLATFORMS.includes(platform)) back(path, t("Bitte eine Plattform wählen."));
   const creds = credentialsFromEnv();
-  if (!platformAvailable(platform, creds)) back(path, `${PLATFORM_INFO[platform].label} ist auf dieser Libremod-Instanz nicht eingerichtet.`);
+  if (!platformAvailable(platform, creds)) back(path, t("{label} ist auf dieser Libremod-Instanz nicht eingerichtet.", { label: t(PLATFORM_INFO[platform].label) }));
   const { channelId, mentionRoleId, message } = await readFeedForm(guildId, form, path);
 
   const { db } = database();
   const existing = await db.select().from(notificationFeeds).where(eq(notificationFeeds.guildId, guildId));
-  if (existing.length >= MAX_FEEDS) back(path, `Ein Server kann höchstens ${MAX_FEEDS} Benachrichtigungen haben.`);
+  if (existing.length >= MAX_FEEDS) back(path, t("Ein Server kann höchstens {MAX_FEEDS} Benachrichtigungen haben.", { MAX_FEEDS }));
 
   let source: { sourceId: string; name: string };
   try {
     source = await resolveSource(platform, text(form, "source"), creds);
   } catch (err) {
-    const msg = err instanceof SourceError ? err.message : "Unbekannter Fehler";
-    back(path, msg.startsWith("Bitte") ? msg : `${PLATFORM_INFO[platform].label}: ${msg.replace(/\.$/, "")}. Bitte die Angabe prüfen.`);
+    const msg = err instanceof SourceError ? err.message : t("Unbekannter Fehler");
+    back(path, msg.startsWith("Bitte") ? msg : t("{label}: {n1}. Bitte die Angabe prüfen.", { label: t(PLATFORM_INFO[platform].label), n1: msg.replace(/\.$/, "") }));
   }
   if (existing.some((f) => f.platform === platform && f.sourceId === source.sourceId && f.channelId === channelId))
-    back(path, "Diese Quelle wird in diesem Kanal schon gemeldet.");
+    back(path, t("Diese Quelle wird in diesem Kanal schon gemeldet."));
 
   await db.insert(notificationFeeds).values({
     guildId,
@@ -991,12 +992,12 @@ export async function createFeed(guildId: string, form: FormData) {
 }
 
 export async function updateFeed(guildId: string, id: number, form: FormData) {
-  await requireGuildAccess(guildId, "notifications", "Benachrichtigung geändert");
+  await requireGuildAccess(guildId, "notifications", t("Benachrichtigung geändert"));
   const path = `/servers/${guildId}/notifications/${id}`;
   const { channelId, mentionRoleId, message } = await readFeedForm(guildId, form, path);
   const { db } = database();
   const [f] = await db.select().from(notificationFeeds).where(and(eq(notificationFeeds.id, id), eq(notificationFeeds.guildId, guildId)));
-  if (!f) back(`/servers/${guildId}/notifications`, "Diese Benachrichtigung gibt es nicht mehr.");
+  if (!f) back(`/servers/${guildId}/notifications`, t("Diese Benachrichtigung gibt es nicht mehr."));
   await db
     .update(notificationFeeds)
     .set({ channelId, mentionRoleId, message: message || PLATFORM_INFO[f.platform].defaultMessage })
@@ -1005,7 +1006,7 @@ export async function updateFeed(guildId: string, id: number, form: FormData) {
 }
 
 export async function toggleFeed(guildId: string, id: number) {
-  await requireGuildAccess(guildId, "notifications", "Benachrichtigung an/aus");
+  await requireGuildAccess(guildId, "notifications", t("Benachrichtigung an/aus"));
   const { db } = database();
   const [f] = await db.select().from(notificationFeeds).where(and(eq(notificationFeeds.id, id), eq(notificationFeeds.guildId, guildId)));
   // Beim Einschalten Fehlerzähler zurücksetzen; gesehene Einträge bleiben, damit nichts Altes nachkommt.
@@ -1014,7 +1015,7 @@ export async function toggleFeed(guildId: string, id: number) {
 }
 
 export async function deleteFeed(guildId: string, id: number) {
-  await requireGuildAccess(guildId, "notifications", "Benachrichtigung gelöscht");
+  await requireGuildAccess(guildId, "notifications", t("Benachrichtigung gelöscht"));
   const { db } = database();
   await db.delete(notificationFeeds).where(and(eq(notificationFeeds.id, id), eq(notificationFeeds.guildId, guildId)));
   back(`/servers/${guildId}/notifications`);
@@ -1023,17 +1024,17 @@ export async function deleteFeed(guildId: string, id: number) {
 // --- Highlights und Kanal-Pflege ---
 
 export async function saveHighlights(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "tools", "Highlights gespeichert");
+  await requireGuildAccess(guildId, "tools", t("Highlights gespeichert"));
   const path = `/servers/${guildId}/tools`;
   const enabled = form.get("enabled") === "on";
   const channelId = text(form, "channelId") || null;
   const known = await textChannelIds(guildId);
-  if (channelId && !known.text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
-  if (enabled && !channelId) back(path, "Für den Highlight-Kanal fehlt noch der Kanal.");
+  if (channelId && !known.text.has(channelId)) back(path, t("Bitte einen Textkanal dieses Servers wählen."));
+  if (enabled && !channelId) back(path, t("Für den Highlight-Kanal fehlt noch der Kanal."));
   const emoji = parseEmojiInput(text(form, "emoji") || "⭐");
-  if (!emoji) back(path, "Bitte genau ein Emoji angeben, z. B. ⭐ oder ein Server-Emoji wie <:name:123…>.");
+  if (!emoji) back(path, t("Bitte genau ein Emoji angeben, z. B. ⭐ oder ein Server-Emoji wie <:name:123…>."));
   const threshold = int(form, "threshold", 1, 100) ?? 5;
-  if (Number.isNaN(threshold)) back(path, "Die Anzahl muss zwischen 1 und 100 liegen.");
+  if (Number.isNaN(threshold)) back(path, t("Die Anzahl muss zwischen 1 und 100 liegen."));
   const values = { enabled, channelId, emoji, threshold, countSelf: form.get("countSelf") === "on", allowNsfw: form.get("allowNsfw") === "on" };
   const { db, notifySettingsChanged } = database();
   await db.insert(highlightSettings).values({ guildId, ...values }).onConflictDoUpdate({ target: highlightSettings.guildId, set: values });
@@ -1042,44 +1043,44 @@ export async function saveHighlights(guildId: string, form: FormData) {
 }
 
 export async function createPurge(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "tools", "Auto-Aufräumen hinzugefügt");
+  await requireGuildAccess(guildId, "tools", t("Auto-Aufräumen hinzugefügt"));
   const path = `/servers/${guildId}/tools`;
   const channelId = text(form, "purgeChannelId");
   const known = await textChannelIds(guildId);
-  if (!known.text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  if (!known.text.has(channelId)) back(path, t("Bitte einen Textkanal dieses Servers wählen."));
   const intervalHours = Number(text(form, "intervalHours"));
-  if (!PURGE_INTERVALS.some((i) => i.hours === intervalHours)) back(path, "Bitte einen Abstand aus der Liste wählen.");
+  if (!PURGE_INTERVALS.some((i) => i.hours === intervalHours)) back(path, t("Bitte einen Abstand aus der Liste wählen."));
   const { db } = database();
   const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(autoPurgeChannels).where(eq(autoPurgeChannels.guildId, guildId));
-  if (n >= 10) back(path, "Ein Server kann höchstens 10 Kanäle automatisch leeren lassen.");
+  if (n >= 10) back(path, t("Ein Server kann höchstens 10 Kanäle automatisch leeren lassen."));
   const values = { intervalHours, keepPinned: form.get("keepPinned") === "on", nextRunAt: new Date(Date.now() + intervalHours * 3600_000) };
   await db.insert(autoPurgeChannels).values({ channelId, guildId, ...values }).onConflictDoUpdate({ target: autoPurgeChannels.channelId, set: values });
   back(path);
 }
 
 export async function deletePurge(guildId: string, channelId: string) {
-  await requireGuildAccess(guildId, "tools", "Auto-Aufräumen entfernt");
+  await requireGuildAccess(guildId, "tools", t("Auto-Aufräumen entfernt"));
   const { db } = database();
   await db.delete(autoPurgeChannels).where(and(eq(autoPurgeChannels.channelId, channelId), eq(autoPurgeChannels.guildId, guildId)));
   back(`/servers/${guildId}/tools`);
 }
 
 export async function createSlowmode(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "tools", "Auto-Slowmode hinzugefügt");
+  await requireGuildAccess(guildId, "tools", t("Auto-Slowmode hinzugefügt"));
   const path = `/servers/${guildId}/tools`;
   const channelId = text(form, "slowChannelId");
   const known = await textChannelIds(guildId);
-  if (!known.text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  if (!known.text.has(channelId)) back(path, t("Bitte einen Textkanal dieses Servers wählen."));
   const messagesPerMinute = int(form, "messagesPerMinute", 2, 1000);
-  if (!messagesPerMinute) back(path, "Die Schwelle muss zwischen 2 und 1000 Nachrichten pro Minute liegen.");
+  if (!messagesPerMinute) back(path, t("Die Schwelle muss zwischen 2 und 1000 Nachrichten pro Minute liegen."));
   const steps: readonly number[] = SLOWMODE_STEPS;
   const minSeconds = Number(text(form, "minSeconds"));
   const maxSeconds = Number(text(form, "maxSeconds"));
-  if (!steps.includes(minSeconds) || !steps.includes(maxSeconds)) back(path, "Bitte Werte aus der Liste wählen.");
-  if (minSeconds >= maxSeconds) back(path, "Das Maximum muss größer als das Minimum sein.");
+  if (!steps.includes(minSeconds) || !steps.includes(maxSeconds)) back(path, t("Bitte Werte aus der Liste wählen."));
+  if (minSeconds >= maxSeconds) back(path, t("Das Maximum muss größer als das Minimum sein."));
   const { db, notifySettingsChanged } = database();
   const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(autoSlowmodeChannels).where(eq(autoSlowmodeChannels.guildId, guildId));
-  if (n >= 20) back(path, "Ein Server kann höchstens 20 Kanäle mit automatischem Langsam-Modus haben.");
+  if (n >= 20) back(path, t("Ein Server kann höchstens 20 Kanäle mit automatischem Langsam-Modus haben."));
   const values = { messagesPerMinute, minSeconds, maxSeconds };
   await db.insert(autoSlowmodeChannels).values({ channelId, guildId, ...values }).onConflictDoUpdate({ target: autoSlowmodeChannels.channelId, set: values });
   await notifySettingsChanged(guildId);
@@ -1087,7 +1088,7 @@ export async function createSlowmode(guildId: string, form: FormData) {
 }
 
 export async function deleteSlowmode(guildId: string, channelId: string) {
-  await requireGuildAccess(guildId, "tools", "Auto-Slowmode entfernt");
+  await requireGuildAccess(guildId, "tools", t("Auto-Slowmode entfernt"));
   const { db } = database();
   await db.delete(autoSlowmodeChannels).where(and(eq(autoSlowmodeChannels.channelId, channelId), eq(autoSlowmodeChannels.guildId, guildId)));
   back(`/servers/${guildId}/tools`);
@@ -1098,13 +1099,13 @@ export async function deleteSlowmode(guildId: string, channelId: string) {
 const TICKETS = (guildId: string) => `/servers/${guildId}/tickets`;
 
 export async function saveTicketSettings(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "tickets", "Ticket-Einstellungen gespeichert");
+  await requireGuildAccess(guildId, "tickets", t("Ticket-Einstellungen gespeichert"));
   const path = TICKETS(guildId);
   const logChannelId = text(form, "logChannelId") || null;
   const known = await textChannelIds(guildId);
-  if (logChannelId && !known.text.has(logChannelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  if (logChannelId && !known.text.has(logChannelId)) back(path, t("Bitte einen Textkanal dieses Servers wählen."));
   const autoCloseHours = Number(text(form, "autoCloseHours") || 0);
-  if (!(AUTO_CLOSE_OPTIONS as readonly number[]).includes(autoCloseHours)) back(path, "Bitte einen Wert aus der Liste wählen.");
+  if (!(AUTO_CLOSE_OPTIONS as readonly number[]).includes(autoCloseHours)) back(path, t("Bitte einen Wert aus der Liste wählen."));
   const roles = new Set((await getGuildRoles(guildId)).map((r) => r.id));
   const blockedRoleIds = [...new Set(form.getAll("blockedRoleIds").filter((v): v is string => typeof v === "string" && roles.has(v)))];
   const values = {
@@ -1122,28 +1123,28 @@ export async function saveTicketSettings(guildId: string, form: FormData) {
 
 async function readCategoryForm(guildId: string, form: FormData, path: string) {
   const name = text(form, "name");
-  if (!name || name.length > 80) back(path, "Bitte einen Namen mit höchstens 80 Zeichen angeben.");
+  if (!name || name.length > 80) back(path, t("Bitte einen Namen mit höchstens 80 Zeichen angeben."));
   const rawEmoji = text(form, "emoji");
   const emoji = rawEmoji ? parseEmojiInput(rawEmoji) : null;
-  if (rawEmoji && !emoji) back(path, "Bitte genau ein Emoji angeben oder das Feld leer lassen.");
+  if (rawEmoji && !emoji) back(path, t("Bitte genau ein Emoji angeben oder das Feld leer lassen."));
   const description = text(form, "description");
-  if (description.length > 100) back(path, "Die Kurzbeschreibung darf höchstens 100 Zeichen lang sein.");
+  if (description.length > 100) back(path, t("Die Kurzbeschreibung darf höchstens 100 Zeichen lang sein."));
   const mode = text(form, "mode") === "thread" ? "thread" : "channel";
   const channels = await getGuildChannels(guildId);
   const parentId = text(form, mode === "thread" ? "threadParentId" : "categoryParentId") || null;
   if (mode === "thread") {
-    if (!parentId || !channels.some((c) => c.id === parentId && c.type === CHANNEL_TEXT)) back(path, "Für Threads bitte einen Textkanal wählen, in dem sie entstehen.");
+    if (!parentId || !channels.some((c) => c.id === parentId && c.type === CHANNEL_TEXT)) back(path, t("Für Threads bitte einen Textkanal wählen, in dem sie entstehen."));
   } else if (parentId && !channels.some((c) => c.id === parentId && c.type === CHANNEL_CATEGORY)) {
-    back(path, "Bitte eine Kategorie dieses Servers wählen.");
+    back(path, t("Bitte eine Kategorie dieses Servers wählen."));
   }
   const roles = new Set((await getGuildRoles(guildId)).map((r) => r.id));
   const staffRoleIds = [...new Set(form.getAll("staffRoleIds").filter((v): v is string => typeof v === "string" && roles.has(v)))].slice(0, 10);
-  const welcomeMessage = text(form, "welcomeMessage").replace(/\r\n/g, "\n") || "Hallo {user}, danke für dein Ticket! Das Team meldet sich so schnell wie möglich.";
-  if (welcomeMessage.length > 2000) back(path, "Die Begrüßung darf höchstens 2000 Zeichen lang sein.");
+  const welcomeMessage = text(form, "welcomeMessage").replace(/\r\n/g, "\n") || t("Hallo {user}, danke für dein Ticket! Das Team meldet sich so schnell wie möglich.");
+  if (welcomeMessage.length > 2000) back(path, t("Die Begrüßung darf höchstens 2000 Zeichen lang sein."));
   const maxOpen = int(form, "maxOpen", 1, 10) ?? 1;
-  if (Number.isNaN(maxOpen)) back(path, "Offene Tickets pro Person: 1 bis 10.");
+  if (Number.isNaN(maxOpen)) back(path, t("Offene Tickets pro Person: 1 bis 10."));
   const nameTemplate = text(form, "nameTemplate") || "ticket-{number}";
-  if (nameTemplate.length > 90) back(path, "Die Namensvorlage ist zu lang.");
+  if (nameTemplate.length > 90) back(path, t("Die Namensvorlage ist zu lang."));
   const questions: TicketQuestion[] = cleanQuestions(
     [0, 1, 2, 3, 4].map((n) => ({
       label: text(form, `q${n}label`),
@@ -1171,29 +1172,29 @@ async function refreshTicketPanels(guildId: string) {
 }
 
 export async function createTicketCategory(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "tickets", "Ticket-Kategorie erstellt");
+  await requireGuildAccess(guildId, "tickets", t("Ticket-Kategorie erstellt"));
   const path = `${TICKETS(guildId)}/categories/new`;
   const values = await readCategoryForm(guildId, form, path);
   const { db } = database();
   const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(ticketCategories).where(eq(ticketCategories.guildId, guildId));
-  if (n >= MAX_TICKET_CATEGORIES) back(path, `Ein Server kann höchstens ${MAX_TICKET_CATEGORIES} Ticket-Arten haben.`);
+  if (n >= MAX_TICKET_CATEGORIES) back(path, t("Ein Server kann höchstens {MAX_TICKET_CATEGORIES} Ticket-Arten haben.", { MAX_TICKET_CATEGORIES }));
   await db.insert(ticketCategories).values({ guildId, ...values, position: n });
   back(TICKETS(guildId));
 }
 
 export async function updateTicketCategory(guildId: string, id: number, form: FormData) {
-  await requireGuildAccess(guildId, "tickets", "Ticket-Kategorie geändert");
+  await requireGuildAccess(guildId, "tickets", t("Ticket-Kategorie geändert"));
   const path = `${TICKETS(guildId)}/categories/${id}`;
   const values = await readCategoryForm(guildId, form, path);
   const { db } = database();
   const updated = await db.update(ticketCategories).set(values).where(and(eq(ticketCategories.id, id), eq(ticketCategories.guildId, guildId))).returning();
-  if (!updated.length) back(TICKETS(guildId), "Diese Ticket-Art gibt es nicht mehr.");
+  if (!updated.length) back(TICKETS(guildId), t("Diese Ticket-Art gibt es nicht mehr."));
   await refreshTicketPanels(guildId);
   back(path);
 }
 
 export async function deleteTicketCategory(guildId: string, id: number) {
-  await requireGuildAccess(guildId, "tickets", "Ticket-Kategorie gelöscht");
+  await requireGuildAccess(guildId, "tickets", t("Ticket-Kategorie gelöscht"));
   const { db } = database();
   await db.delete(ticketCategories).where(and(eq(ticketCategories.id, id), eq(ticketCategories.guildId, guildId)));
   // Aus Panels austragen; leere Panels bleiben, bis sie bearbeitet oder gelöscht werden.
@@ -1207,29 +1208,29 @@ export async function deleteTicketCategory(guildId: string, id: number) {
 
 async function readTicketPanelForm(guildId: string, form: FormData, path: string) {
   const title = text(form, "title");
-  if (!title || title.length > 256) back(path, "Bitte eine Überschrift mit höchstens 256 Zeichen angeben.");
+  if (!title || title.length > 256) back(path, t("Bitte eine Überschrift mit höchstens 256 Zeichen angeben."));
   const description = text(form, "description").replace(/\r\n/g, "\n");
-  if (description.length > 2000) back(path, "Die Beschreibung ist zu lang.");
+  if (description.length > 2000) back(path, t("Die Beschreibung ist zu lang."));
   const channelId = text(form, "channelId");
   const known = await textChannelIds(guildId);
-  if (!known.text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  if (!known.text.has(channelId)) back(path, t("Bitte einen Textkanal dieses Servers wählen."));
   const color = /^#[0-9a-f]{6}$/i.test(text(form, "color")) ? parseInt(text(form, "color").slice(1), 16) : 0x4cb4ff;
   const style = text(form, "style") === "select" ? "select" : "buttons";
   const { db } = database();
   const cats = await db.select().from(ticketCategories).where(eq(ticketCategories.guildId, guildId));
   const picked = new Set(form.getAll("categoryIds").map(Number));
   const categories = cats.filter((c) => picked.has(c.id)).sort((a, b) => a.position - b.position || a.id - b.id);
-  if (!categories.length) back(path, "Bitte mindestens eine Ticket-Art auswählen.");
+  if (!categories.length) back(path, t("Bitte mindestens eine Ticket-Art auswählen."));
   return { values: { title, description, channelId, color, style: style as "buttons" | "select", categoryIds: categories.map((c) => c.id) }, categories };
 }
 
 export async function createTicketPanel(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "tickets", "Ticket-Panel erstellt");
+  await requireGuildAccess(guildId, "tickets", t("Ticket-Panel erstellt"));
   const path = `${TICKETS(guildId)}/panels/new`;
   const { values, categories } = await readTicketPanelForm(guildId, form, path);
   const { db } = database();
   const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(ticketPanels).where(eq(ticketPanels.guildId, guildId));
-  if (n >= MAX_TICKET_PANELS) back(path, `Ein Server kann höchstens ${MAX_TICKET_PANELS} Ticket-Panels haben.`);
+  if (n >= MAX_TICKET_PANELS) back(path, t("Ein Server kann höchstens {MAX_TICKET_PANELS} Ticket-Panels haben.", { MAX_TICKET_PANELS }));
   const [panel] = await db.insert(ticketPanels).values({ guildId, ...values }).returning();
   let error: string | undefined;
   try {
@@ -1242,11 +1243,11 @@ export async function createTicketPanel(guildId: string, form: FormData) {
 }
 
 export async function updateTicketPanel(guildId: string, panelId: number, form: FormData) {
-  await requireGuildAccess(guildId, "tickets", "Ticket-Panel geändert");
+  await requireGuildAccess(guildId, "tickets", t("Ticket-Panel geändert"));
   const path = `${TICKETS(guildId)}/panels/${panelId}`;
   const { db } = database();
   const [old] = await db.select().from(ticketPanels).where(and(eq(ticketPanels.id, panelId), eq(ticketPanels.guildId, guildId)));
-  if (!old) back(TICKETS(guildId), "Dieses Panel gibt es nicht mehr.");
+  if (!old) back(TICKETS(guildId), t("Dieses Panel gibt es nicht mehr."));
   const { values, categories } = await readTicketPanelForm(guildId, form, path);
   const body = buildTicketPanelMessage({ ...values, id: panelId }, categories);
   let messageId = old.messageId;
@@ -1272,7 +1273,7 @@ export async function updateTicketPanel(guildId: string, panelId: number, form: 
 }
 
 export async function deleteTicketPanel(guildId: string, panelId: number) {
-  await requireGuildAccess(guildId, "tickets", "Ticket-Panel gelöscht");
+  await requireGuildAccess(guildId, "tickets", t("Ticket-Panel gelöscht"));
   const { db } = database();
   const [panel] = await db.delete(ticketPanels).where(and(eq(ticketPanels.id, panelId), eq(ticketPanels.guildId, guildId))).returning();
   if (panel?.messageId) await deleteBotMessage(panel.channelId, panel.messageId).catch(() => {});
@@ -1284,16 +1285,16 @@ export async function deleteTicketPanel(guildId: string, panelId: number) {
 const ECONOMY = (guildId: string) => `/servers/${guildId}/economy`;
 
 export async function saveEconomy(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "economy", "Währung gespeichert");
+  await requireGuildAccess(guildId, "economy", t("Währung gespeichert"));
   const path = ECONOMY(guildId);
-  const currencyName = text(form, "currencyName") || "Münzen";
-  if (currencyName.length > 32) back(path, "Der Name der Währung darf höchstens 32 Zeichen lang sein.");
+  const currencyName = text(form, "currencyName") || t("Münzen");
+  if (currencyName.length > 32) back(path, t("Der Name der Währung darf höchstens 32 Zeichen lang sein."));
   const rawSymbol = text(form, "currencySymbol") || "🪙";
   const currencySymbol = parseEmojiInput(rawSymbol) ?? (rawSymbol.length <= 4 && !/[<>@#]/.test(rawSymbol) ? rawSymbol : null);
-  if (!currencySymbol) back(path, "Als Symbol bitte ein Emoji oder bis zu 4 Zeichen wie €.");
+  if (!currencySymbol) back(path, t("Als Symbol bitte ein Emoji oder bis zu 4 Zeichen wie €."));
   const n = (key: string, min: number, max: number, fallback: number) => {
     const v = int(form, key, min, max);
-    if (Number.isNaN(v)) back(path, "Bitte nur ganze Zahlen im erlaubten Bereich.");
+    if (Number.isNaN(v)) back(path, t("Bitte nur ganze Zahlen im erlaubten Bereich."));
     return v ?? fallback;
   };
   const values = {
@@ -1309,7 +1310,7 @@ export async function saveEconomy(guildId: string, form: FormData) {
     chatReward: n("chatReward", 0, 1000, 0),
     allowPay: form.get("allowPay") === "on",
   };
-  if (values.workMin > values.workMax) back(path, "Der Mindestlohn darf nicht größer als der Höchstlohn sein.");
+  if (values.workMin > values.workMax) back(path, t("Der Mindestlohn darf nicht größer als der Höchstlohn sein."));
   const { db, notifySettingsChanged } = database();
   await db.insert(economySettings).values({ guildId, ...values }).onConflictDoUpdate({ target: economySettings.guildId, set: values });
   await notifySettingsChanged(guildId);
@@ -1318,51 +1319,51 @@ export async function saveEconomy(guildId: string, form: FormData) {
 
 async function readShopItem(guildId: string, form: FormData, path: string) {
   const name = text(form, "name");
-  if (!name || name.length > 60) back(path, "Bitte einen Namen mit höchstens 60 Zeichen angeben.");
+  if (!name || name.length > 60) back(path, t("Bitte einen Namen mit höchstens 60 Zeichen angeben."));
   const description = text(form, "description");
-  if (description.length > 200) back(path, "Die Beschreibung darf höchstens 200 Zeichen lang sein.");
+  if (description.length > 200) back(path, t("Die Beschreibung darf höchstens 200 Zeichen lang sein."));
   const price = int(form, "price", 1, 1_000_000_000);
-  if (!price) back(path, "Bitte einen Preis ab 1 angeben.");
+  if (!price) back(path, t("Bitte einen Preis ab 1 angeben."));
   const stock = int(form, "stock", 0, 1_000_000);
-  if (Number.isNaN(stock)) back(path, "Der Bestand muss eine ganze Zahl sein (leer = unbegrenzt).");
+  if (Number.isNaN(stock)) back(path, t("Der Bestand muss eine ganze Zahl sein (leer = unbegrenzt)."));
   const roleId = text(form, "roleId") || null;
   if (roleId) {
     const one = new FormData();
     one.set("r", roleId);
     const { valid } = await assignableRoles(guildId, one, "r");
-    if (!valid.length) back(path, "Diese Rolle kann Libremod nicht vergeben. Schiebe die Libremod-Rolle darüber.");
+    if (!valid.length) back(path, t("Diese Rolle kann Libremod nicht vergeben. Schiebe die Libremod-Rolle darüber."));
   }
   const replyMessage = text(form, "replyMessage");
-  if (replyMessage.length > 500) back(path, "Der Text nach dem Kauf ist zu lang.");
+  if (replyMessage.length > 500) back(path, t("Der Text nach dem Kauf ist zu lang."));
   const roleDays = int(form, "roleDays", 1, 366);
-  if (Number.isNaN(roleDays)) back(path, "Die Tage für die Rolle müssen zwischen 1 und 366 liegen.");
-  if (roleDays && !roleId) back(path, "Tage gelten nur für Artikel mit Rolle.");
+  if (Number.isNaN(roleDays)) back(path, t("Die Tage für die Rolle müssen zwischen 1 und 366 liegen."));
+  if (roleDays && !roleId) back(path, t("Tage gelten nur für Artikel mit Rolle."));
   return { name, description, price, stock, roleId, roleDays, replyMessage, enabled: form.get("enabled") !== "off" };
 }
 
 export async function createShopItem(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "economy", "Shop-Artikel erstellt");
+  await requireGuildAccess(guildId, "economy", t("Shop-Artikel erstellt"));
   const path = ECONOMY(guildId);
   const values = await readShopItem(guildId, form, path);
   const { db } = database();
   const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(shopItems).where(eq(shopItems.guildId, guildId));
-  if (n >= MAX_SHOP_ITEMS) back(path, `Ein Shop kann höchstens ${MAX_SHOP_ITEMS} Artikel haben.`);
+  if (n >= MAX_SHOP_ITEMS) back(path, t("Ein Shop kann höchstens {MAX_SHOP_ITEMS} Artikel haben.", { MAX_SHOP_ITEMS }));
   await db.insert(shopItems).values({ guildId, ...values });
   back(path);
 }
 
 export async function updateShopItem(guildId: string, id: number, form: FormData) {
-  await requireGuildAccess(guildId, "economy", "Shop-Artikel geändert");
+  await requireGuildAccess(guildId, "economy", t("Shop-Artikel geändert"));
   const path = `${ECONOMY(guildId)}/items/${id}`;
   const values = await readShopItem(guildId, form, path);
   const { db } = database();
   const done = await db.update(shopItems).set(values).where(and(eq(shopItems.id, id), eq(shopItems.guildId, guildId))).returning();
-  if (!done.length) back(ECONOMY(guildId), "Diesen Artikel gibt es nicht mehr.");
+  if (!done.length) back(ECONOMY(guildId), t("Diesen Artikel gibt es nicht mehr."));
   back(path);
 }
 
 export async function toggleShopItem(guildId: string, id: number) {
-  await requireGuildAccess(guildId, "economy", "Shop-Artikel an/aus");
+  await requireGuildAccess(guildId, "economy", t("Shop-Artikel an/aus"));
   const { db } = database();
   const [item] = await db.select().from(shopItems).where(and(eq(shopItems.id, id), eq(shopItems.guildId, guildId)));
   if (item) await db.update(shopItems).set({ enabled: !item.enabled }).where(eq(shopItems.id, id));
@@ -1370,7 +1371,7 @@ export async function toggleShopItem(guildId: string, id: number) {
 }
 
 export async function deleteShopItem(guildId: string, id: number) {
-  await requireGuildAccess(guildId, "economy", "Shop-Artikel gelöscht");
+  await requireGuildAccess(guildId, "economy", t("Shop-Artikel gelöscht"));
   const { db } = database();
   await db.delete(shopItems).where(and(eq(shopItems.id, id), eq(shopItems.guildId, guildId)));
   back(ECONOMY(guildId));
@@ -1381,26 +1382,26 @@ export async function deleteShopItem(guildId: string, id: number) {
 const GIVEAWAYS = (guildId: string) => `/servers/${guildId}/giveaways`;
 
 export async function createGiveaway(guildId: string, form: FormData) {
-  const { user } = await requireGuildAccess(guildId, "giveaways", "Gewinnspiel gestartet");
+  const { user } = await requireGuildAccess(guildId, "giveaways", t("Gewinnspiel gestartet"));
   const path = GIVEAWAYS(guildId);
   const prize = text(form, "prize");
-  if (!prize || prize.length > 200) back(path, "Bitte einen Preis mit höchstens 200 Zeichen angeben.");
+  if (!prize || prize.length > 200) back(path, t("Bitte einen Preis mit höchstens 200 Zeichen angeben."));
   const description = text(form, "description");
-  if (description.length > 1000) back(path, "Die Beschreibung darf höchstens 1000 Zeichen lang sein.");
+  if (description.length > 1000) back(path, t("Die Beschreibung darf höchstens 1000 Zeichen lang sein."));
   const winners = int(form, "winners", 1, MAX_GIVEAWAY_WINNERS);
-  if (!winners) back(path, `Bitte 1 bis ${MAX_GIVEAWAY_WINNERS} Gewinner angeben.`);
+  if (!winners) back(path, t("Bitte 1 bis {MAX_GIVEAWAY_WINNERS} Gewinner angeben.", { MAX_GIVEAWAY_WINNERS }));
   const seconds = parseDuration(text(form, "duration"));
-  if (!seconds || seconds < MIN_GIVEAWAY_SECONDS || seconds > MAX_GIVEAWAY_SECONDS) back(path, "Bitte eine Dauer zwischen 1 Minute und 60 Tagen angeben, z. B. 2h oder 3d.");
+  if (!seconds || seconds < MIN_GIVEAWAY_SECONDS || seconds > MAX_GIVEAWAY_SECONDS) back(path, t("Bitte eine Dauer zwischen 1 Minute und 60 Tagen angeben, z. B. 2h oder 3d."));
   const minLevel = int(form, "minLevel", 0, 1000);
-  if (Number.isNaN(minLevel)) back(path, "Das Mindest-Level muss zwischen 0 und 1000 liegen.");
+  if (Number.isNaN(minLevel)) back(path, t("Das Mindest-Level muss zwischen 0 und 1000 liegen."));
   const channelId = text(form, "channelId");
-  if (!(await textChannelIds(guildId)).text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  if (!(await textChannelIds(guildId)).text.has(channelId)) back(path, t("Bitte einen Textkanal dieses Servers wählen."));
   const roleId = text(form, "requiredRoleId");
-  if (roleId && !(await getGuildRoles(guildId)).some((r) => r.id === roleId)) back(path, "Diese Rolle gibt es nicht.");
+  if (roleId && !(await getGuildRoles(guildId)).some((r) => r.id === roleId)) back(path, t("Diese Rolle gibt es nicht."));
 
   const { db } = database();
   const [active] = await db.select({ n: count() }).from(giveaways).where(and(eq(giveaways.guildId, guildId), eq(giveaways.ended, false)));
-  if ((active?.n ?? 0) >= MAX_ACTIVE_GIVEAWAYS) back(path, `Es laufen schon ${MAX_ACTIVE_GIVEAWAYS} Gewinnspiele. Beende erst eins.`);
+  if ((active?.n ?? 0) >= MAX_ACTIVE_GIVEAWAYS) back(path, t("Es laufen schon {MAX_ACTIVE_GIVEAWAYS} Gewinnspiele. Beende erst eins.", { MAX_ACTIVE_GIVEAWAYS }));
 
   const [g] = await db
     .insert(giveaways)
@@ -1415,8 +1416,8 @@ export async function createGiveaway(guildId: string, form: FormData) {
     back(
       path,
       err instanceof DiscordError && (err.status === 403 || err.status === 404)
-        ? "Libremod konnte im Kanal nicht posten. Prüfe dort die Rechte „Nachrichten senden“ und „Links einbetten“."
-        : "Die Nachricht konnte nicht gepostet werden. Bitte später nochmal versuchen.",
+        ? t("Libremod konnte im Kanal nicht posten. Prüfe dort die Rechte „Nachrichten senden“ und „Links einbetten“.")
+        : t("Die Nachricht konnte nicht gepostet werden. Bitte später nochmal versuchen."),
     );
   }
   back(path);
@@ -1424,7 +1425,7 @@ export async function createGiveaway(guildId: string, form: FormData) {
 
 /** Setzt das Ende auf jetzt. Der Bot lost innerhalb weniger Sekunden aus. */
 export async function endGiveawayNow(guildId: string, giveawayId: number) {
-  await requireGuildAccess(guildId, "giveaways", "Gewinnspiel vorzeitig ausgelost");
+  await requireGuildAccess(guildId, "giveaways", t("Gewinnspiel vorzeitig ausgelost"));
   const { db } = database();
   await db
     .update(giveaways)
@@ -1434,7 +1435,7 @@ export async function endGiveawayNow(guildId: string, giveawayId: number) {
 }
 
 export async function deleteGiveaway(guildId: string, giveawayId: number) {
-  await requireGuildAccess(guildId, "giveaways", "Gewinnspiel gelöscht");
+  await requireGuildAccess(guildId, "giveaways", t("Gewinnspiel gelöscht"));
   const { db } = database();
   const [g] = await db.delete(giveaways).where(and(eq(giveaways.id, giveawayId), eq(giveaways.guildId, guildId))).returning();
   if (g) {
@@ -1449,37 +1450,37 @@ export async function deleteGiveaway(guildId: string, giveawayId: number) {
 const EVENTS = (guildId: string) => `/servers/${guildId}/events`;
 
 export async function createEvent(guildId: string, form: FormData) {
-  const { user } = await requireGuildAccess(guildId, "events", "Event geplant");
+  const { user } = await requireGuildAccess(guildId, "events", t("Event geplant"));
   const path = EVENTS(guildId);
   const title = text(form, "title");
-  if (!title || title.length > MAX_EVENT_TITLE) back(path, `Bitte einen Titel mit höchstens ${MAX_EVENT_TITLE} Zeichen angeben.`);
+  if (!title || title.length > MAX_EVENT_TITLE) back(path, t("Bitte einen Titel mit höchstens {MAX_EVENT_TITLE} Zeichen angeben.", { MAX_EVENT_TITLE }));
   const description = text(form, "description");
-  if (description.length > MAX_EVENT_DESCRIPTION) back(path, `Die Beschreibung darf höchstens ${MAX_EVENT_DESCRIPTION} Zeichen lang sein.`);
+  if (description.length > MAX_EVENT_DESCRIPTION) back(path, t("Die Beschreibung darf höchstens {MAX_EVENT_DESCRIPTION} Zeichen lang sein.", { MAX_EVENT_DESCRIPTION }));
   const location = text(form, "location");
-  if (location.length > MAX_EVENT_LOCATION) back(path, `Der Ort darf höchstens ${MAX_EVENT_LOCATION} Zeichen lang sein.`);
+  if (location.length > MAX_EVENT_LOCATION) back(path, t("Der Ort darf höchstens {MAX_EVENT_LOCATION} Zeichen lang sein.", { MAX_EVENT_LOCATION }));
   const startsAt = parseEventStart(text(form, "startsAt").replace("T", " "));
-  if (!startsAt) back(path, "Bitte Datum und Uhrzeit für den Start angeben.");
+  if (!startsAt) back(path, t("Bitte Datum und Uhrzeit für den Start angeben."));
   const durationText = text(form, "duration");
   const seconds = durationText ? parseDuration(durationText) : DEFAULT_EVENT_MINUTES * 60;
-  if (!seconds) back(path, "Die Dauer wurde nicht verstanden. Beispiele: 90m, 3h, 2d.");
+  if (!seconds) back(path, t("Die Dauer wurde nicht verstanden. Beispiele: 90m, 3h, 2d."));
   const minutes = Math.round(seconds! / 60);
   const invalid = validateEventTime(startsAt!, minutes);
   if (invalid) back(path, invalid);
   const slots = int(form, "slots", 0, MAX_EVENT_SLOTS);
-  if (Number.isNaN(slots)) back(path, `Die Plätze müssen zwischen 0 und ${MAX_EVENT_SLOTS} liegen (0 = unbegrenzt).`);
+  if (Number.isNaN(slots)) back(path, t("Die Plätze müssen zwischen 0 und {MAX_EVENT_SLOTS} liegen (0 = unbegrenzt).", { MAX_EVENT_SLOTS }));
   const remindMinutes = Number(text(form, "remindMinutes") || 30);
-  if (!EVENT_REMINDERS.some((r) => r.value === remindMinutes)) back(path, "Bitte eine Erinnerung aus der Liste wählen.");
+  if (!EVENT_REMINDERS.some((r) => r.value === remindMinutes)) back(path, t("Bitte eine Erinnerung aus der Liste wählen."));
   const channelId = text(form, "channelId");
-  if (!(await textChannelIds(guildId)).text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  if (!(await textChannelIds(guildId)).text.has(channelId)) back(path, t("Bitte einen Textkanal dieses Servers wählen."));
   const roleId = text(form, "roleId") || null;
   if (roleId) {
     const { invalid: badRole } = await assignableRoles(guildId, form, "roleId");
-    if (badRole.length) back(path, "Diese Rolle kann Libremod nicht vergeben. Sie muss unter der Rolle von Libremod stehen.");
+    if (badRole.length) back(path, t("Diese Rolle kann Libremod nicht vergeben. Sie muss unter der Rolle von Libremod stehen."));
   }
 
   const { db } = database();
   const [active] = await db.select({ n: count() }).from(guildEvents).where(and(eq(guildEvents.guildId, guildId), eq(guildEvents.state, "open")));
-  if ((active?.n ?? 0) >= MAX_ACTIVE_EVENTS) back(path, `Es sind schon ${MAX_ACTIVE_EVENTS} Events geplant. Sag erst eins ab.`);
+  if ((active?.n ?? 0) >= MAX_ACTIVE_EVENTS) back(path, t("Es sind schon {MAX_ACTIVE_EVENTS} Events geplant. Sag erst eins ab.", { MAX_ACTIVE_EVENTS }));
 
   const [e] = await db
     .insert(guildEvents)
@@ -1505,8 +1506,8 @@ export async function createEvent(guildId: string, form: FormData) {
     back(
       path,
       err instanceof DiscordError && (err.status === 403 || err.status === 404)
-        ? "Libremod konnte im Kanal nicht posten. Prüfe dort die Rechte „Nachrichten senden“ und „Links einbetten“."
-        : "Die Nachricht konnte nicht gepostet werden. Bitte später nochmal versuchen.",
+        ? t("Libremod konnte im Kanal nicht posten. Prüfe dort die Rechte „Nachrichten senden“ und „Links einbetten“.")
+        : t("Die Nachricht konnte nicht gepostet werden. Bitte später nochmal versuchen."),
     );
   }
   back(path);
@@ -1514,7 +1515,7 @@ export async function createEvent(guildId: string, form: FormData) {
 
 /** Markiert das Event als abgesagt. Der Bot passt die Nachricht an, entfernt Rollen und schreibt allen. */
 export async function cancelEventRequest(guildId: string, eventId: number) {
-  await requireGuildAccess(guildId, "events", "Event abgesagt");
+  await requireGuildAccess(guildId, "events", t("Event abgesagt"));
   const { db } = database();
   await db
     .update(guildEvents)
@@ -1525,7 +1526,7 @@ export async function cancelEventRequest(guildId: string, eventId: number) {
 
 /** Entfernt ein vergangenes oder abgesagtes Event aus der Liste (die Discord-Nachricht bleibt). */
 export async function deleteEvent(guildId: string, eventId: number) {
-  await requireGuildAccess(guildId, "events", "Event entfernt");
+  await requireGuildAccess(guildId, "events", t("Event entfernt"));
   const { db } = database();
   await db.delete(guildEvents).where(and(eq(guildEvents.id, eventId), eq(guildEvents.guildId, guildId), ne(guildEvents.state, "open")));
   back(EVENTS(guildId));
@@ -1534,23 +1535,23 @@ export async function deleteEvent(guildId: string, eventId: number) {
 // --- Geburtstage ---
 
 export async function saveBirthdays(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "birthdays", "Geburtstage gespeichert");
+  await requireGuildAccess(guildId, "birthdays", t("Geburtstage gespeichert"));
   const path = `/servers/${guildId}/birthdays`;
   const enabled = form.get("enabled") === "on";
   const channelId = text(form, "channelId") || null;
   const { db } = database();
   const [old] = await db.select().from(birthdaySettings).where(eq(birthdaySettings.guildId, guildId));
-  if (channelId && channelId !== old?.channelId && !(await textChannelIds(guildId)).text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  if (channelId && channelId !== old?.channelId && !(await textChannelIds(guildId)).text.has(channelId)) back(path, t("Bitte einen Textkanal dieses Servers wählen."));
   const roleId = text(form, "roleId") || null;
   if (roleId && roleId !== old?.roleId) {
     const { invalid } = await assignableRoles(guildId, form, "roleId");
-    if (invalid.length) back(path, "Diese Rolle kann Libremod nicht vergeben. Sie muss unter der Rolle von Libremod stehen.");
+    if (invalid.length) back(path, t("Diese Rolle kann Libremod nicht vergeben. Sie muss unter der Rolle von Libremod stehen."));
   }
-  if (enabled && !channelId && !roleId) back(path, "Bitte einen Kanal für Glückwünsche oder eine Geburtstagsrolle wählen.");
-  const message = text(form, "message") || "🎉 Alles Gute zum Geburtstag, {user}!";
-  if (message.length > 1000) back(path, "Die Nachricht darf höchstens 1000 Zeichen lang sein.");
+  if (enabled && !channelId && !roleId) back(path, t("Bitte einen Kanal für Glückwünsche oder eine Geburtstagsrolle wählen."));
+  const message = text(form, "message") || t("🎉 Alles Gute zum Geburtstag, {user}!");
+  if (message.length > 1000) back(path, t("Die Nachricht darf höchstens 1000 Zeichen lang sein."));
   const hour = int(form, "hour", 0, 23);
-  if (hour === null || Number.isNaN(hour)) back(path, "Bitte eine Uhrzeit wählen.");
+  if (hour === null || Number.isNaN(hour)) back(path, t("Bitte eine Uhrzeit wählen."));
   const values = { enabled, channelId, roleId, message, hour: hour! };
   await db.insert(birthdaySettings).values({ guildId, ...values }).onConflictDoUpdate({ target: birthdaySettings.guildId, set: values });
   back(path);
@@ -1561,42 +1562,42 @@ export async function saveBirthdays(guildId: string, form: FormData) {
 const VERIFY_MODES = ["button", "code", "question"] as const;
 
 export async function saveVerification(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "verification", "Verifizierung gespeichert");
+  await requireGuildAccess(guildId, "verification", t("Verifizierung gespeichert"));
   const path = `/servers/${guildId}/verification`;
   const { db, notifySettingsChanged } = database();
   const [old] = await db.select().from(verificationSettings).where(eq(verificationSettings.guildId, guildId));
 
   const enabled = form.get("enabled") === "on";
   const mode = text(form, "mode") as (typeof VERIFY_MODES)[number];
-  if (!VERIFY_MODES.includes(mode)) back(path, "Bitte eine Art der Verifizierung wählen.");
+  if (!VERIFY_MODES.includes(mode)) back(path, t("Bitte eine Art der Verifizierung wählen."));
   const known = await textChannelIds(guildId);
   const channelId = text(form, "channelId") || null;
-  if (channelId && channelId !== old?.channelId && !known.text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  if (channelId && channelId !== old?.channelId && !known.text.has(channelId)) back(path, t("Bitte einen Textkanal dieses Servers wählen."));
   const logChannelId = text(form, "logChannelId") || null;
-  if (logChannelId && logChannelId !== old?.logChannelId && !known.text.has(logChannelId)) back(path, "Bitte einen Textkanal dieses Servers als Log wählen.");
+  if (logChannelId && logChannelId !== old?.logChannelId && !known.text.has(logChannelId)) back(path, t("Bitte einen Textkanal dieses Servers als Log wählen."));
 
   const roleId = text(form, "roleId") || null;
   const unverifiedRoleId = text(form, "unverifiedRoleId") || null;
-  if (roleId && roleId === unverifiedRoleId) back(path, "Die beiden Rollen müssen verschieden sein.");
+  if (roleId && roleId === unverifiedRoleId) back(path, t("Die beiden Rollen müssen verschieden sein."));
   for (const key of ["roleId", "unverifiedRoleId"] as const) {
     const id = key === "roleId" ? roleId : unverifiedRoleId;
     if (id && id !== old?.[key] && (await assignableRoles(guildId, form, key)).invalid.length) {
-      back(path, "Mindestens eine Rolle kann Libremod nicht vergeben. Sie muss unter der Rolle von Libremod stehen.");
+      back(path, t("Mindestens eine Rolle kann Libremod nicht vergeben. Sie muss unter der Rolle von Libremod stehen."));
     }
   }
-  if (enabled && (!roleId || !channelId)) back(path, "Zum Einschalten braucht es einen Kanal und eine Rolle für Verifizierte.");
+  if (enabled && (!roleId || !channelId)) back(path, t("Zum Einschalten braucht es einen Kanal und eine Rolle für Verifizierte."));
 
-  const title = text(form, "title") || "Willkommen! Bitte kurz bestätigen";
-  if (title.length > 256) back(path, "Der Titel darf höchstens 256 Zeichen lang sein.");
+  const title = text(form, "title") || t("Willkommen! Bitte kurz bestätigen");
+  if (title.length > 256) back(path, t("Der Titel darf höchstens 256 Zeichen lang sein."));
   const description = text(form, "description");
-  if (description.length > 2000) back(path, "Der Text darf höchstens 2000 Zeichen lang sein.");
+  if (description.length > 2000) back(path, t("Der Text darf höchstens 2000 Zeichen lang sein."));
   const question = text(form, "question");
-  if (question.length > 45) back(path, "Die Frage darf höchstens 45 Zeichen lang sein (eine Grenze von Discord).");
+  if (question.length > 45) back(path, t("Die Frage darf höchstens 45 Zeichen lang sein (eine Grenze von Discord)."));
   const answers = parseAnswers(text(form, "answers"));
-  if (mode === "question" && (!question || !answers.length)) back(path, "Bitte eine Frage und mindestens eine richtige Antwort angeben.");
+  if (mode === "question" && (!question || !answers.length)) back(path, t("Bitte eine Frage und mindestens eine richtige Antwort angeben."));
   const minAccountAgeDays = int(form, "minAccountAgeDays", 0, 365);
   const kickAfterHours = int(form, "kickAfterHours", 0, 24 * 30);
-  if (Number.isNaN(minAccountAgeDays) || Number.isNaN(kickAfterHours)) back(path, "Bitte nur ganze Zahlen im erlaubten Bereich.");
+  if (Number.isNaN(minAccountAgeDays) || Number.isNaN(kickAfterHours)) back(path, t("Bitte nur ganze Zahlen im erlaubten Bereich."));
 
   const values = {
     enabled, mode, roleId, unverifiedRoleId, channelId, logChannelId, title, description, question, answers,
@@ -1638,7 +1639,7 @@ export async function saveVerification(guildId: string, form: FormData) {
 
 /** Setzt das Ende auf jetzt. Der Bot öffnet den Kanal innerhalb weniger Sekunden. */
 export async function unlockFromDashboard(guildId: string, channelId: string | null) {
-  await requireGuildAccess(guildId, "verification", "Kanal entsperrt");
+  await requireGuildAccess(guildId, "verification", t("Kanal entsperrt"));
   const { db } = database();
   await db
     .update(channelLocks)
@@ -1650,24 +1651,24 @@ export async function unlockFromDashboard(guildId: string, channelId: string | n
 // --- Team-Notizen ---
 
 export async function addMemberNote(guildId: string, userId: string, form: FormData) {
-  const { user } = await requireGuildAccess(guildId, "cases", "Notiz hinzugefügt");
+  const { user } = await requireGuildAccess(guildId, "cases", t("Notiz hinzugefügt"));
   const path = `/servers/${guildId}/cases`;
-  if (!SNOWFLAKE.test(userId)) back(path, "Ungültige Nutzer-ID.");
+  if (!SNOWFLAKE.test(userId)) back(path, t("Ungültige Nutzer-ID."));
   const back2 = (e?: string) => {
     if (!e) recordChange();
     return redirect(`${path}?nutzer=${userId}&${e ? `fehler=${encodeURIComponent(e)}` : "gespeichert=1"}`);
   };
   const note = text(form, "note");
-  if (!note || note.length > 1000) back2("Bitte eine Notiz mit höchstens 1000 Zeichen schreiben.");
+  if (!note || note.length > 1000) back2(t("Bitte eine Notiz mit höchstens 1000 Zeichen schreiben."));
   const { db } = database();
   const [n] = await db.select({ n: count() }).from(memberNotes).where(and(eq(memberNotes.guildId, guildId), eq(memberNotes.userId, userId)));
-  if ((n?.n ?? 0) >= 50) back2("Zu dieser Person gibt es schon 50 Notizen. Lösche erst alte.");
+  if ((n?.n ?? 0) >= 50) back2(t("Zu dieser Person gibt es schon 50 Notizen. Lösche erst alte."));
   await db.insert(memberNotes).values({ guildId, userId, authorId: user.id, text: note });
   back2();
 }
 
 export async function deleteMemberNote(guildId: string, noteId: number) {
-  await requireGuildAccess(guildId, "cases", "Notiz gelöscht");
+  await requireGuildAccess(guildId, "cases", t("Notiz gelöscht"));
   const { db } = database();
   const [gone] = await db.delete(memberNotes).where(and(eq(memberNotes.guildId, guildId), eq(memberNotes.id, noteId))).returning();
   recordChange();
@@ -1679,14 +1680,14 @@ export async function deleteMemberNote(guildId: string, noteId: number) {
 const SUGGESTIONS = (guildId: string) => `/servers/${guildId}/suggestions`;
 
 export async function saveSuggestions(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "suggestions", "Vorschläge gespeichert");
+  await requireGuildAccess(guildId, "suggestions", t("Vorschläge gespeichert"));
   const path = SUGGESTIONS(guildId);
   const { db, notifySettingsChanged } = database();
   const [old] = await db.select().from(suggestionSettings).where(eq(suggestionSettings.guildId, guildId));
   const channelId = text(form, "channelId") || null;
-  if (channelId && channelId !== old?.channelId && !(await textChannelIds(guildId)).text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  if (channelId && channelId !== old?.channelId && !(await textChannelIds(guildId)).text.has(channelId)) back(path, t("Bitte einen Textkanal dieses Servers wählen."));
   const enabled = form.get("enabled") === "on";
-  if (enabled && !channelId) back(path, "Bitte einen Kanal für Vorschläge wählen.");
+  if (enabled && !channelId) back(path, t("Bitte einen Kanal für Vorschläge wählen."));
   const values = {
     enabled,
     channelId,
@@ -1701,19 +1702,19 @@ export async function saveSuggestions(guildId: string, form: FormData) {
 }
 
 export async function setSuggestionStatusFromDashboard(guildId: string, suggestionId: number, form: FormData) {
-  const { user } = await requireGuildAccess(guildId, "suggestions", "Vorschlag entschieden");
+  const { user } = await requireGuildAccess(guildId, "suggestions", t("Vorschlag entschieden"));
   const path = SUGGESTIONS(guildId);
   const status = text(form, "status") as SuggestionStatus;
-  if (!(status in SUGGESTION_STATUS)) back(path, "Unbekannter Status.");
+  if (!(status in SUGGESTION_STATUS)) back(path, t("Unbekannter Status."));
   const reason = text(form, "reason") || null;
-  if (reason && reason.length > 500) back(path, "Die Begründung darf höchstens 500 Zeichen lang sein.");
+  if (reason && reason.length > 500) back(path, t("Die Begründung darf höchstens 500 Zeichen lang sein."));
   const { db } = database();
   const [row] = await db
     .update(suggestions)
     .set({ status, statusReason: reason, statusBy: user.id })
     .where(and(eq(suggestions.id, suggestionId), eq(suggestions.guildId, guildId)))
     .returning();
-  if (!row) back(path, "Diesen Vorschlag gibt es nicht mehr.");
+  if (!row) back(path, t("Diesen Vorschlag gibt es nicht mehr."));
   const [settings] = await db.select().from(suggestionSettings).where(eq(suggestionSettings.guildId, guildId));
   let error: string | undefined;
   if (row.messageId) {
@@ -1725,14 +1726,14 @@ export async function setSuggestionStatusFromDashboard(guildId: string, suggesti
     try {
       await editBotMessage(row.channelId, row.messageId, body);
     } catch (err) {
-      if (!(err instanceof DiscordError && err.status === 404)) error = "Gespeichert, aber die Nachricht im Kanal konnte nicht aktualisiert werden.";
+      if (!(err instanceof DiscordError && err.status === 404)) error = t("Gespeichert, aber die Nachricht im Kanal konnte nicht aktualisiert werden.");
     }
   }
   back(path, error);
 }
 
 export async function deleteSuggestion(guildId: string, suggestionId: number) {
-  await requireGuildAccess(guildId, "suggestions", "Vorschlag gelöscht");
+  await requireGuildAccess(guildId, "suggestions", t("Vorschlag gelöscht"));
   const { db } = database();
   const [gone] = await db.delete(suggestions).where(and(eq(suggestions.id, suggestionId), eq(suggestions.guildId, guildId))).returning();
   if (gone) {
@@ -1746,7 +1747,7 @@ export async function deleteSuggestion(guildId: string, suggestionId: number) {
 
 /** Setzt das Ende auf jetzt. Der Bot nimmt die Rolle innerhalb einer Minute weg. */
 export async function endTempRole(guildId: string, userId: string, roleId: string) {
-  await requireGuildAccess(guildId, "roles", "Zeitrolle beendet");
+  await requireGuildAccess(guildId, "roles", t("Zeitrolle beendet"));
   const { db } = database();
   await db
     .update(tempRoles)
@@ -1768,37 +1769,37 @@ function countingOptions(form: FormData) {
 }
 
 export async function addCountingChannel(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "counting", "Zähl-Kanal hinzugefügt");
+  await requireGuildAccess(guildId, "counting", t("Zähl-Kanal hinzugefügt"));
   const path = COUNTING(guildId);
   const channelId = text(form, "channelId");
-  if (!(await textChannelIds(guildId)).text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  if (!(await textChannelIds(guildId)).text.has(channelId)) back(path, t("Bitte einen Textkanal dieses Servers wählen."));
   const { db, notifySettingsChanged } = database();
   const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(countingChannels).where(eq(countingChannels.guildId, guildId));
-  if (n >= 5) back(path, "Ein Server kann höchstens 5 Zähl-Kanäle haben.");
+  if (n >= 5) back(path, t("Ein Server kann höchstens 5 Zähl-Kanäle haben."));
   const [chain] = await db.select().from(wordChainChannels).where(eq(wordChainChannels.channelId, channelId));
-  if (chain) back(path, "Dieser Kanal ist schon eine Wortkette.");
+  if (chain) back(path, t("Dieser Kanal ist schon eine Wortkette."));
   const added = await db.insert(countingChannels).values({ guildId, channelId, ...countingOptions(form) }).onConflictDoNothing().returning();
-  if (!added.length) back(path, "Dieser Kanal ist schon ein Zähl-Kanal.");
+  if (!added.length) back(path, t("Dieser Kanal ist schon ein Zähl-Kanal."));
   await notifySettingsChanged(guildId);
   back(path);
 }
 
 export async function updateCountingChannel(guildId: string, channelId: string, form: FormData) {
-  await requireGuildAccess(guildId, "counting", "Zähl-Kanal geändert");
+  await requireGuildAccess(guildId, "counting", t("Zähl-Kanal geändert"));
   const { db } = database();
   await db.update(countingChannels).set(countingOptions(form)).where(and(eq(countingChannels.guildId, guildId), eq(countingChannels.channelId, channelId)));
   back(COUNTING(guildId));
 }
 
 export async function resetCountingChannel(guildId: string, channelId: string) {
-  await requireGuildAccess(guildId, "counting", "Zähl-Kanal zurückgesetzt");
+  await requireGuildAccess(guildId, "counting", t("Zähl-Kanal zurückgesetzt"));
   const { db } = database();
   await db.update(countingChannels).set({ current: 0, lastUserId: null }).where(and(eq(countingChannels.guildId, guildId), eq(countingChannels.channelId, channelId)));
   back(COUNTING(guildId));
 }
 
 export async function deleteCountingChannel(guildId: string, channelId: string) {
-  await requireGuildAccess(guildId, "counting", "Zähl-Kanal entfernt");
+  await requireGuildAccess(guildId, "counting", t("Zähl-Kanal entfernt"));
   const { db, notifySettingsChanged } = database();
   await db.delete(countingChannels).where(and(eq(countingChannels.guildId, guildId), eq(countingChannels.channelId, channelId)));
   await notifySettingsChanged(guildId);
@@ -1808,25 +1809,25 @@ export async function deleteCountingChannel(guildId: string, channelId: string) 
 // --- Sprachkanal-Rollen ---
 
 export async function addVoiceRole(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "roles", "Sprachkanal-Rolle hinzugefügt");
+  await requireGuildAccess(guildId, "roles", t("Sprachkanal-Rolle hinzugefügt"));
   const path = `/servers/${guildId}/roles`;
   const channelId = text(form, "voiceChannelId");
   const channels = await getGuildChannels(guildId);
   if (channelId !== ANY_VOICE_CHANNEL && !channels.some((c) => c.id === channelId && (c.type === CHANNEL_VOICE || c.type === CHANNEL_STAGE))) {
-    back(path, "Bitte einen Sprachkanal dieses Servers wählen.");
+    back(path, t("Bitte einen Sprachkanal dieses Servers wählen."));
   }
   const { valid } = await assignableRoles(guildId, form, "voiceRoleId");
-  if (valid.length !== 1) back(path, "Diese Rolle kann Libremod nicht vergeben.");
+  if (valid.length !== 1) back(path, t("Diese Rolle kann Libremod nicht vergeben."));
   const { db, notifySettingsChanged } = database();
   const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(voiceRoles).where(eq(voiceRoles.guildId, guildId));
-  if (n >= 25) back(path, "Mehr als 25 Sprachkanal-Rollen gehen nicht.");
+  if (n >= 25) back(path, t("Mehr als 25 Sprachkanal-Rollen gehen nicht."));
   await db.insert(voiceRoles).values({ guildId, channelId, roleId: valid[0]! }).onConflictDoNothing();
   await notifySettingsChanged(guildId);
   back(path);
 }
 
 export async function removeVoiceRole(guildId: string, channelId: string, roleId: string) {
-  await requireGuildAccess(guildId, "roles", "Sprachkanal-Rolle entfernt");
+  await requireGuildAccess(guildId, "roles", t("Sprachkanal-Rolle entfernt"));
   const { db, notifySettingsChanged } = database();
   await db.delete(voiceRoles).where(and(eq(voiceRoles.guildId, guildId), eq(voiceRoles.channelId, channelId), eq(voiceRoles.roleId, roleId)));
   await notifySettingsChanged(guildId);
@@ -1838,28 +1839,28 @@ export async function removeVoiceRole(guildId: string, channelId: string, roleId
 const WORDCHAIN = (g: string) => `/servers/${g}/wordchain`;
 
 export async function addWordChain(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "wordchain", "Wortkette hinzugefügt");
+  await requireGuildAccess(guildId, "wordchain", t("Wortkette hinzugefügt"));
   const path = WORDCHAIN(guildId);
   const channelId = text(form, "channelId");
-  if (!(await textChannelIds(guildId)).text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
+  if (!(await textChannelIds(guildId)).text.has(channelId)) back(path, t("Bitte einen Textkanal dieses Servers wählen."));
   const { db, notifySettingsChanged } = database();
   const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(wordChainChannels).where(eq(wordChainChannels.guildId, guildId));
-  if (n >= 5) back(path, "Ein Server kann höchstens 5 Wortketten haben.");
+  if (n >= 5) back(path, t("Ein Server kann höchstens 5 Wortketten haben."));
   const [counting] = await db.select().from(countingChannels).where(eq(countingChannels.channelId, channelId));
-  if (counting) back(path, "Dieser Kanal ist schon ein Zähl-Kanal.");
+  if (counting) back(path, t("Dieser Kanal ist schon ein Zähl-Kanal."));
   const added = await db
     .insert(wordChainChannels)
     .values({ guildId, channelId, allowSameUser: form.get("allowSameUser") === "on" })
     .onConflictDoNothing()
     .returning();
-  if (!added.length) back(path, "Dieser Kanal ist schon eine Wortkette.");
+  if (!added.length) back(path, t("Dieser Kanal ist schon eine Wortkette."));
   await db.delete(wordChainWords).where(eq(wordChainWords.channelId, channelId));
   await notifySettingsChanged(guildId);
   back(path);
 }
 
 export async function updateWordChain(guildId: string, channelId: string, form: FormData) {
-  await requireGuildAccess(guildId, "wordchain", "Wortkette geändert");
+  await requireGuildAccess(guildId, "wordchain", t("Wortkette geändert"));
   const { db } = database();
   await db
     .update(wordChainChannels)
@@ -1869,7 +1870,7 @@ export async function updateWordChain(guildId: string, channelId: string, form: 
 }
 
 export async function resetWordChain(guildId: string, channelId: string) {
-  await requireGuildAccess(guildId, "wordchain", "Wortkette zurückgesetzt");
+  await requireGuildAccess(guildId, "wordchain", t("Wortkette zurückgesetzt"));
   const { db } = database();
   await db.transaction(async (tx) => {
     const done = await tx
@@ -1883,7 +1884,7 @@ export async function resetWordChain(guildId: string, channelId: string) {
 }
 
 export async function deleteWordChain(guildId: string, channelId: string) {
-  await requireGuildAccess(guildId, "wordchain", "Wortkette entfernt");
+  await requireGuildAccess(guildId, "wordchain", t("Wortkette entfernt"));
   const { db, notifySettingsChanged } = database();
   const gone = await db.delete(wordChainChannels).where(and(eq(wordChainChannels.guildId, guildId), eq(wordChainChannels.channelId, channelId))).returning();
   if (gone.length) await db.delete(wordChainWords).where(eq(wordChainWords.channelId, channelId));
@@ -1894,7 +1895,7 @@ export async function deleteWordChain(guildId: string, channelId: string) {
 // --- Zitate ---
 
 export async function deleteQuote(guildId: string, id: number) {
-  await requireGuildAccess(guildId, "quotes", "Zitat gelöscht");
+  await requireGuildAccess(guildId, "quotes", t("Zitat gelöscht"));
   const { db } = database();
   await db.delete(quotes).where(and(eq(quotes.guildId, guildId), eq(quotes.id, id)));
   back(`/servers/${guildId}/quotes`);
@@ -1903,14 +1904,14 @@ export async function deleteQuote(guildId: string, id: number) {
 // --- Namensschutz ---
 
 export async function saveNameGuard(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "automod", "Namensschutz gespeichert");
+  await requireGuildAccess(guildId, "automod", t("Namensschutz gespeichert"));
   const path = `/servers/${guildId}/automod`;
   const action = text(form, "nameGuard.action");
-  if (!NAME_GUARD_ACTIONS.some((a) => a.value === action)) back(path, "Unbekannte Aktion beim Namensschutz.");
+  if (!NAME_GUARD_ACTIONS.some((a) => a.value === action)) back(path, t("Unbekannte Aktion beim Namensschutz."));
   const roles = new Set((await getGuildRoles(guildId)).map((r) => r.id));
   const roleIds = [...new Set(form.getAll("nameGuard.roles").filter((v): v is string => typeof v === "string" && roles.has(v) && v !== guildId))];
   const names = [...new Set(text(form, "nameGuard.names").split(/[,\n]/).map((n) => n.trim().slice(0, 64)).filter(Boolean))];
-  if (names.length > 50) back(path, "Höchstens 50 zusätzliche Namen.");
+  if (names.length > 50) back(path, t("Höchstens 50 zusätzliche Namen."));
   const values = { enabled: form.get("nameGuard.enabled") === "on", action, roleIds, names };
   const { db, notifySettingsChanged } = database();
   await db.insert(nameGuardSettings).values({ guildId, ...values }).onConflictDoUpdate({ target: nameGuardSettings.guildId, set: values });
@@ -1923,14 +1924,14 @@ export async function saveNameGuard(guildId: string, form: FormData) {
 const APPEALS = (g: string) => `/servers/${g}/appeals`;
 
 export async function saveAppealSettings(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "appeals", "Einspruch-Einstellungen gespeichert");
+  await requireGuildAccess(guildId, "appeals", t("Einspruch-Einstellungen gespeichert"));
   const path = APPEALS(guildId);
   const channelId = text(form, "channelId") || null;
-  if (channelId && !(await textChannelIds(guildId)).text.has(channelId)) back(path, "Bitte einen Textkanal dieses Servers wählen.");
-  const question = text(form, "question") || "Warum sollten wir deinen Ban aufheben?";
-  if (question.length > 300) back(path, "Die Frage darf höchstens 300 Zeichen lang sein.");
+  if (channelId && !(await textChannelIds(guildId)).text.has(channelId)) back(path, t("Bitte einen Textkanal dieses Servers wählen."));
+  const question = text(form, "question") || t("Warum sollten wir deinen Ban aufheben?");
+  if (question.length > 300) back(path, t("Die Frage darf höchstens 300 Zeichen lang sein."));
   const cooldownDays = int(form, "cooldownDays", 0, 365) ?? 30;
-  if (Number.isNaN(cooldownDays)) back(path, "Wartezeit bitte zwischen 0 und 365 Tagen.");
+  if (Number.isNaN(cooldownDays)) back(path, t("Wartezeit bitte zwischen 0 und 365 Tagen."));
   const values = { enabled: form.get("enabled") === "on", channelId, question, cooldownDays };
   const { db } = database();
   await db.insert(appealSettings).values({ guildId, ...values }).onConflictDoUpdate({ target: appealSettings.guildId, set: values });
@@ -1938,7 +1939,7 @@ export async function saveAppealSettings(guildId: string, form: FormData) {
 }
 
 export async function decideAppeal(guildId: string, id: number, accept: boolean, form: FormData) {
-  const { user } = await requireGuildAccess(guildId, "appeals", "Einspruch entschieden");
+  const { user } = await requireGuildAccess(guildId, "appeals", t("Einspruch entschieden"));
   const path = APPEALS(guildId);
   const reason = text(form, "reason").slice(0, 500) || null;
   const { db } = database();
@@ -1948,14 +1949,14 @@ export async function decideAppeal(guildId: string, id: number, accept: boolean,
     .set({ status: accept ? "accepted" : "denied", reviewerId: user.id, reviewReason: reason, reviewedAt: new Date() })
     .where(and(eq(banAppeals.guildId, guildId), eq(banAppeals.id, id), eq(banAppeals.status, "open")))
     .returning();
-  if (!row) back(path, "Über diesen Einspruch wurde schon entschieden.");
-  const guild = await getGuildInfo(guildId).catch(() => ({ name: "dem Server" }));
+  if (!row) back(path, t("Über diesen Einspruch wurde schon entschieden."));
+  const guild = await getGuildInfo(guildId).catch(() => ({ name: t("dem Server") }));
   if (accept) {
     try {
-      await unbanUser(guildId, row!.userId, `Einspruch angenommen von ${user.username}${reason ? `: ${reason}` : ""}`);
+      await unbanUser(guildId, row!.userId, t("Einspruch angenommen von {username}{n1}", { username: user.username, n1: reason ? `: ${reason}` : "" }));
     } catch {
       await db.update(banAppeals).set({ status: "open", reviewerId: null, reviewReason: null, reviewedAt: null }).where(eq(banAppeals.id, id));
-      back(path, "Der Ban konnte nicht aufgehoben werden. Hat Libremod das Recht „Mitglieder bannen“?");
+      back(path, t("Der Ban konnte nicht aufgehoben werden. Hat Libremod das Recht „Mitglieder bannen“?"));
     }
     await db
       .update(modCases)
@@ -1963,9 +1964,9 @@ export async function decideAppeal(guildId: string, id: number, accept: boolean,
       .where(and(eq(modCases.guildId, guildId), eq(modCases.targetId, row!.userId), eq(modCases.type, "ban")));
   }
   const message = accept
-    ? `Dein Einspruch auf **${guild.name}** wurde angenommen, dein Ban ist aufgehoben. Du kannst wieder beitreten.`
-    : `Dein Einspruch auf **${guild.name}** wurde abgelehnt.`;
-  await sendDirectMessage(row!.userId, { content: `${message}${reason ? `\nBegründung: ${reason}` : ""}`.slice(0, 2000), allowed_mentions: { parse: [] } });
+    ? t("Dein Einspruch auf **{name}** wurde angenommen, dein Ban ist aufgehoben. Du kannst wieder beitreten.", { name: guild.name })
+    : t("Dein Einspruch auf **{name}** wurde abgelehnt.", { name: guild.name });
+  await sendDirectMessage(row!.userId, { content: `${message}${reason ? t("\nBegründung: {reason}", { reason }) : ""}`.slice(0, 2000), allowed_mentions: { parse: [] } });
   back(path);
 }
 
@@ -1975,12 +1976,12 @@ const TEAM = (guildId: string) => `/servers/${guildId}/team`;
 const MAX_TEAM_RULES = 25;
 
 export async function saveTeamAccess(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "team", "Team-Zugang gespeichert");
+  await requireGuildAccess(guildId, "team", t("Team-Zugang gespeichert"));
   const path = TEAM(guildId);
   const roleId = text(form, "roleId");
   const roles = await getGuildRoles(guildId);
   const role = roles.find((r) => r.id === roleId);
-  if (!role || role.id === guildId || role.managed) back(path, "Bitte eine normale Rolle dieses Servers wählen (nicht @everyone und keine Bot-Rolle).");
+  if (!role || role.id === guildId || role.managed) back(path, t("Bitte eine normale Rolle dieses Servers wählen (nicht @everyone und keine Bot-Rolle)."));
   const areas = [...new Set(form.getAll("areas").filter((v): v is string => typeof v === "string" && isTeamArea(v)))];
   const { db } = database();
   if (!areas.length) {
@@ -1989,7 +1990,7 @@ export async function saveTeamAccess(guildId: string, form: FormData) {
   }
   const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(dashboardTeamAccess).where(eq(dashboardTeamAccess.guildId, guildId));
   const [existing] = await db.select().from(dashboardTeamAccess).where(and(eq(dashboardTeamAccess.guildId, guildId), eq(dashboardTeamAccess.roleId, roleId)));
-  if (!existing && n >= MAX_TEAM_RULES) back(path, `Höchstens ${MAX_TEAM_RULES} Rollen mit Team-Zugang.`);
+  if (!existing && n >= MAX_TEAM_RULES) back(path, t("Höchstens {MAX_TEAM_RULES} Rollen mit Team-Zugang.", { MAX_TEAM_RULES }));
   await db
     .insert(dashboardTeamAccess)
     .values({ guildId, roleId, areas })
@@ -1998,7 +1999,7 @@ export async function saveTeamAccess(guildId: string, form: FormData) {
 }
 
 export async function deleteTeamAccess(guildId: string, roleId: string) {
-  await requireGuildAccess(guildId, "team", "Team-Zugang entfernt");
+  await requireGuildAccess(guildId, "team", t("Team-Zugang entfernt"));
   const { db } = database();
   await db.delete(dashboardTeamAccess).where(and(eq(dashboardTeamAccess.guildId, guildId), eq(dashboardTeamAccess.roleId, roleId)));
   back(TEAM(guildId));
@@ -2007,12 +2008,12 @@ export async function deleteTeamAccess(guildId: string, roleId: string) {
 // --- Export & Import ---
 
 export async function importSettingsFile(guildId: string, form: FormData) {
-  await requireGuildAccess(guildId, "backup", "Einstellungen importiert");
+  await requireGuildAccess(guildId, "backup", t("Einstellungen importiert"));
   const path = `/servers/${guildId}/backup`;
-  if (form.get("confirm") !== "on") back(path, "Bitte bestätige, dass die bisherigen Einstellungen ersetzt werden.");
+  if (form.get("confirm") !== "on") back(path, t("Bitte bestätige, dass die bisherigen Einstellungen ersetzt werden."));
   const file = form.get("file");
-  if (!(file instanceof File) || file.size === 0) back(path, "Bitte eine Einstellungsdatei auswählen.");
-  if ((file as File).size > MAX_BACKUP_BYTES) back(path, "Die Datei ist zu groß (höchstens 2 MB).");
+  if (!(file instanceof File) || file.size === 0) back(path, t("Bitte eine Einstellungsdatei auswählen."));
+  if ((file as File).size > MAX_BACKUP_BYTES) back(path, t("Die Datei ist zu groß (höchstens 2 MB)."));
   const parsed = parseBackup(await (file as File).text());
   if (typeof parsed === "string") back(path, parsed);
   const [channels, roles] = await Promise.all([getGuildChannels(guildId), getGuildRoles(guildId)]);
@@ -2023,12 +2024,12 @@ export async function importSettingsFile(guildId: string, form: FormData) {
     result = await importSettings(db, guildId, parsed as BackupFile, known);
   } catch (err) {
     console.error("Import fehlgeschlagen", err);
-    back(path, "Der Import ist fehlgeschlagen. Es wurde nichts geändert.");
+    back(path, t("Der Import ist fehlgeschlagen. Es wurde nichts geändert."));
   }
   await notifySettingsChanged(guildId);
-  const notes = [`${result!.rows} Einträge übernommen`];
-  if (result!.cleared) notes.push(`${result!.cleared} unbekannte Kanäle oder Rollen entfernt`);
-  if (result!.dropped) notes.push(`${result!.dropped} Einträge ohne passenden Kanal übersprungen`);
-  recordChange(`aus „${(parsed as BackupFile).guild?.name ?? "unbekannt"}“, ${notes.join(", ")}`);
+  const notes = [t("{rows} Einträge übernommen", { rows: result!.rows })];
+  if (result!.cleared) notes.push(t("{cleared} unbekannte Kanäle oder Rollen entfernt", { cleared: result!.cleared }));
+  if (result!.dropped) notes.push(t("{dropped} Einträge ohne passenden Kanal übersprungen", { dropped: result!.dropped }));
+  recordChange(t("aus „{n0}“, {n1}", { n0: (parsed as BackupFile).guild?.name ?? "unbekannt", n1: notes.join(", ") }));
   redirect(`${path}?importiert=${encodeURIComponent(notes.join(" · "))}`);
 }

@@ -1,5 +1,6 @@
 import "server-only";
 import { env } from "./env";
+import { t } from "@/lib/i18n";
 
 const API = "https://discord.com/api/v10";
 
@@ -100,20 +101,20 @@ export async function exchangeCode(code: string) {
       redirect_uri: `${env.dashboardUrl}/api/auth/callback`,
     }),
   });
-  if (!res.ok) throw new DiscordError(res.status, "Token-Austausch fehlgeschlagen");
+  if (!res.ok) throw new DiscordError(res.status, t("Token-Austausch fehlgeschlagen"));
   return (await res.json()) as { access_token: string; expires_in: number };
 }
 
 export function getCurrentUser(accessToken: string) {
   return discord<{ id: string; username: string; global_name: string | null; avatar: string | null }>(
     "/users/@me",
-    `Bearer ${accessToken}`,
+    t("Bearer {accessToken}", { accessToken }),
   );
 }
 
 /** Alle Server des Nutzers (aus dem Login). */
 export function getUserGuilds(userId: string, accessToken: string) {
-  return cached(`user-guilds:${userId}`, 60_000, () => discord<PartialGuild[]>("/users/@me/guilds", `Bearer ${accessToken}`));
+  return cached(`user-guilds:${userId}`, 60_000, () => discord<PartialGuild[]>("/users/@me/guilds", t("Bearer {accessToken}", { accessToken })));
 }
 
 export const canManage = (g: PartialGuild) => {
@@ -128,7 +129,7 @@ export async function getManageableGuilds(userId: string, accessToken: string) {
 
 // --- Bot-Anfragen ---
 
-const bot = () => `Bot ${env.botToken}`;
+const bot = () => t("Bot {botToken}", { botToken: env.botToken });
 
 /** Prüft, ob der Bot auf dem Server ist. */
 export function botIsInGuild(guildId: string) {

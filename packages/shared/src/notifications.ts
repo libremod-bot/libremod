@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { isPublicUrl } from "./netguard.js";
+import { t } from "./i18n.js";
 
 /** Benachrichtigungen über neue Videos, Livestreams, Beiträge und Feed-Einträge. */
 export const NOTIFY_PLATFORMS = ["youtube", "twitch", "kick", "reddit", "rss"] as const;
@@ -200,7 +201,7 @@ export type Fetch = typeof fetch;
 async function get(url: string, f: Fetch, init: RequestInit = {}, checkHost = f === fetch) {
   let current = url;
   for (let hop = 0; hop < 5; hop++) {
-    if (checkHost && !(await isPublicUrl(new URL(current)))) throw new SourceError("Diese Adresse ist nicht erlaubt", true);
+    if (checkHost && !(await isPublicUrl(new URL(current)))) throw new SourceError(t("Diese Adresse ist nicht erlaubt"), true);
     let res: Response;
     try {
       res = await f(current, {
@@ -210,26 +211,26 @@ async function get(url: string, f: Fetch, init: RequestInit = {}, checkHost = f 
         redirect: "manual",
       });
     } catch (err) {
-      throw new SourceError(`Nicht erreichbar (${(err as Error).name === "TimeoutError" ? "Zeitüberschreitung" : "Netzwerkfehler"})`);
+      throw new SourceError(t("Nicht erreichbar ({n0})", { n0: (err as Error).name === "TimeoutError" ? t("Zeitüberschreitung") : "Netzwerkfehler" }));
     }
     if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
       current = new URL(res.headers.get("location")!, current).toString();
       continue;
     }
-    if (res.status === 404 || res.status === 410) throw new SourceError("Nicht gefunden", true);
-    if (!res.ok) throw new SourceError(`Antwort ${res.status}`);
+    if (res.status === 404 || res.status === 410) throw new SourceError(t("Nicht gefunden"), true);
+    if (!res.ok) throw new SourceError(t("Antwort {status}", { status: res.status }));
     const size = Number(res.headers.get("content-length") ?? 0);
-    if (size > MAX_BODY) throw new SourceError("Antwort zu groß", true);
+    if (size > MAX_BODY) throw new SourceError(t("Antwort zu groß"), true);
     return res;
   }
-  throw new SourceError("Zu viele Weiterleitungen", true);
+  throw new SourceError(t("Zu viele Weiterleitungen"), true);
 }
 
 const MAX_BODY = 5 * 1024 * 1024;
 
 async function readText(res: Response) {
   const text = await res.text();
-  if (text.length > MAX_BODY) throw new SourceError("Antwort zu groß", true);
+  if (text.length > MAX_BODY) throw new SourceError(t("Antwort zu groß"), true);
   return text;
 }
 
@@ -266,7 +267,7 @@ export function parseFeed(body: string): FeedResult {
   try {
     doc = xml.parse(body);
   } catch {
-    throw new SourceError("Kein gültiger Feed", true);
+    throw new SourceError(t("Kein gültiger Feed"), true);
   }
   let name = "";
   let items: FeedItem[] = [];
@@ -298,12 +299,12 @@ export function parseFeed(body: string): FeedResult {
       };
     });
   } else {
-    throw new SourceError("Kein gültiger Feed", true);
+    throw new SourceError(t("Kein gültiger Feed"), true);
   }
   items = items.filter((i) => i.id);
   // Nicht jeder Feed ist sortiert.
   if (items.every((i) => i.published)) items.sort((a, b) => b.published!.getTime() - a.published!.getTime());
-  return { name: name || "Feed", items };
+  return { name: name || t("Feed"), items };
 }
 
 async function fetchXmlFeed(url: string, f: Fetch) {
@@ -343,7 +344,7 @@ export async function resolveYoutubeHandle(handle: string, f: Fetch = fetch): Pr
     /<link rel="canonical" href="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/.exec(html) ??
     /"externalId":"(UC[\w-]{22})"/.exec(html) ??
     /"browseId":"(UC[\w-]{22})"/.exec(html);
-  if (!m) throw new SourceError("Kanal nicht gefunden", true);
+  if (!m) throw new SourceError(t("Kanal nicht gefunden"), true);
   return m[1]!;
 }
 
@@ -360,9 +361,9 @@ async function appToken(kind: "twitch" | "kick", creds: { clientId: string; clie
   try {
     res = await f(url, { method: "POST", body, headers: { "user-agent": USER_AGENT }, signal: AbortSignal.timeout(15_000) });
   } catch {
-    throw new SourceError("Anmeldung nicht erreichbar");
+    throw new SourceError(t("Anmeldung nicht erreichbar"));
   }
-  if (!res.ok) throw new SourceError(`Anmeldung fehlgeschlagen (${res.status}), Schlüssel prüfen`);
+  if (!res.ok) throw new SourceError(t("Anmeldung fehlgeschlagen ({status}), Schlüssel prüfen", { status: res.status }));
   const data = (await res.json()) as { access_token: string; expires_in: number };
   tokens.set(key, { token: data.access_token, expires: Date.now() + data.expires_in * 1000 });
   return data.access_token;
@@ -370,10 +371,10 @@ async function appToken(kind: "twitch" | "kick", creds: { clientId: string; clie
 
 /** Live-Status mehrerer Twitch-Kanäle auf einmal (Kanalname → Ergebnis; fehlende Kanäle gibt es nicht). */
 export async function fetchTwitch(logins: string[], creds: Credentials, f: Fetch = fetch): Promise<Map<string, LiveResult>> {
-  if (!creds.twitch) throw new SourceError("Twitch ist nicht eingerichtet");
+  if (!creds.twitch) throw new SourceError(t("Twitch ist nicht eingerichtet"));
   const out = new Map<string, LiveResult>();
   const token = await appToken("twitch", creds.twitch, f);
-  const headers = { "client-id": creds.twitch.clientId, authorization: `Bearer ${token}` };
+  const headers = { "client-id": creds.twitch.clientId, authorization: t("Bearer {token}", { token }) };
   for (let i = 0; i < logins.length; i += 100) {
     const chunk = logins.slice(i, i + 100);
     const q = chunk.map((l) => `login=${encodeURIComponent(l)}`).join("&");
@@ -400,7 +401,7 @@ export async function fetchTwitch(logins: string[], creds: Credentials, f: Fetch
 
 /** Live-Status mehrerer Kick-Kanäle über die offizielle Schnittstelle. */
 export async function fetchKick(slugs: string[], creds: Credentials, f: Fetch = fetch): Promise<Map<string, LiveResult>> {
-  if (!creds.kick) throw new SourceError("Kick ist nicht eingerichtet");
+  if (!creds.kick) throw new SourceError(t("Kick ist nicht eingerichtet"));
   const out = new Map<string, LiveResult>();
   const token = await appToken("kick", creds.kick, f);
   for (let i = 0; i < slugs.length; i += 50) {
@@ -437,7 +438,7 @@ export async function resolveSource(
   f: Fetch = fetch,
 ): Promise<{ sourceId: string; name: string }> {
   const parsed = parseSourceInput(platform, raw);
-  if (!parsed) throw new SourceError(`Bitte ${PLATFORM_INFO[platform].source} angeben.`, true);
+  if (!parsed) throw new SourceError(t("Bitte {source} angeben.", { source: PLATFORM_INFO[platform].source }), true);
   switch (platform) {
     case "youtube": {
       const id = parsed.kind === "handle" ? await resolveYoutubeHandle(parsed.value, f) : parsed.value;
@@ -456,7 +457,7 @@ export async function resolveSource(
     case "kick": {
       const map = platform === "twitch" ? await fetchTwitch([parsed.value], creds, f) : await fetchKick([parsed.value], creds, f);
       const hit = map.get(parsed.value);
-      if (!hit) throw new SourceError("Diesen Kanal gibt es nicht.", true);
+      if (!hit) throw new SourceError(t("Diesen Kanal gibt es nicht."), true);
       return { sourceId: parsed.value, name: hit.name };
     }
   }

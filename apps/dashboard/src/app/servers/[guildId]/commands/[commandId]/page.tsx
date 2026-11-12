@@ -8,8 +8,12 @@ import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
 import { updateCommand } from "../../actions";
 import { CommandForm } from "../CommandForm";
+import { t, initLocale } from "@/lib/i18n";
 
-export const metadata = { title: "Befehl bearbeiten · Libremod" };
+export async function generateMetadata() {
+  await initLocale();
+  return { title: t("{n0} · Libremod", { n0: t("Befehl bearbeiten") }) };
+}
 
 export default async function EditCommandPage({
   params,
@@ -29,11 +33,10 @@ export default async function EditCommandPage({
 
   return (
     <>
-      <PageHeader icon="slash" title={`/${command.name} bearbeiten`} description="Änderungen sind nach wenigen Sekunden in Discord sichtbar." />
+      <PageHeader icon="slash" title={`/${command.name} bearbeiten`} description={t("Änderungen sind nach wenigen Sekunden in Discord sichtbar.")} />
       <Notice saved={gespeichert} error={fehler} />
       <Link href={`/servers/${guildId}/commands`} className="small back-link">
-        <Icon name="back" size={15} /> Zurück zu den Befehlen
-      </Link>
+        <Icon name="back" size={15} /> {" "}{t("Zurück zu den Befehlen")}</Link>
       <div className="card">
         <CommandForm action={updateCommand.bind(null, guildId, command.id)} command={command} submitLabel="Speichern" />
       </div>

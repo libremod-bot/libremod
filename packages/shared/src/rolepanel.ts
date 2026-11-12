@@ -3,6 +3,7 @@
  * Hier entsteht das Nachrichten-JSON für die Discord-API, das Dashboard und Bot gemeinsam nutzen.
  */
 
+import { t } from "./i18n.js";
 export const MAX_PANEL_ROLES = 25;
 const PREFIX = "lmrole";
 
@@ -32,10 +33,10 @@ const clip = (s: string, max: number) => (s.length <= max ? s : `${s.slice(0, ma
 export function buildPanelMessage(panel: PanelInput) {
   const roles = panel.roles.slice(0, MAX_PANEL_ROLES);
   const hint = panel.single
-    ? "Du kannst eine Rolle aus dieser Liste haben. Eine neue Wahl ersetzt die alte."
+    ? t("Du kannst eine Rolle aus dieser Liste haben. Eine neue Wahl ersetzt die alte.")
     : panel.style === "buttons"
-      ? "Klicke auf eine Rolle, um sie zu bekommen. Nochmal klicken entfernt sie wieder."
-      : "Wähle im Menü alle Rollen aus, die du haben möchtest.";
+      ? t("Klicke auf eine Rolle, um sie zu bekommen. Nochmal klicken entfernt sie wieder.")
+      : t("Wähle im Menü alle Rollen aus, die du haben möchtest.");
 
   const embed = {
     title: clip(panel.title, 256),
@@ -65,7 +66,7 @@ export function buildPanelMessage(panel: PanelInput) {
           {
             type: 3,
             custom_id: panelCustomId(panel.id),
-            placeholder: panel.single ? "Rolle wählen" : "Rollen wählen",
+            placeholder: panel.single ? t("Rolle wählen") : t("Rollen wählen"),
             min_values: 0,
             max_values: panel.single ? 1 : Math.max(1, roles.length),
             options: roles.map((r) => ({ label: clip(r.name, 100), value: r.id })),

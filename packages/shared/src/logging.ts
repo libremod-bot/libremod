@@ -1,6 +1,7 @@
 /** Hilfsfunktionen für das Logging-Modul, unabhängig von discord.js. */
 
 /** Kürzt Text auf max Zeichen und hängt bei Bedarf „…“ an. Leerer Text wird zu fallback. */
+import { t } from "./i18n.js";
 export function truncate(text: string | null | undefined, max: number, fallback = "(leer)"): string {
   const value = (text ?? "").trim();
   if (!value) return fallback;
@@ -36,8 +37,8 @@ export function formatTranscript(messages: TranscriptMessage[]): string {
   return [...messages]
     .sort((x, y) => x.createdAt.getTime() - y.createdAt.getTime())
     .map((m) => {
-      const files = m.attachments?.length ? `\n    Anhänge: ${m.attachments.join(", ")}` : "";
-      return `[${transcriptTime.format(m.createdAt)}] ${m.authorTag} (${m.authorId}): ${m.content || "(kein Text)"}${files}`;
+      const files = m.attachments?.length ? t("\n    Anhänge: {n0}", { n0: m.attachments.join(", ") }) : "";
+      return `[${transcriptTime.format(m.createdAt)}] ${m.authorTag} (${m.authorId}): ${m.content || t("(kein Text)")}${files}`;
     })
     .join("\n");
 }

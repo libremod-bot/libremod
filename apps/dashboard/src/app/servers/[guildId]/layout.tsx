@@ -1,6 +1,7 @@
 import { GuildIcon } from "@/components/GuildIcon";
 import { SidebarLinks } from "@/components/Sidebar";
 import { requireGuildAccess } from "@/lib/access";
+import { t } from "@/lib/i18n";
 
 export default async function GuildLayout({
   children,
@@ -14,7 +15,7 @@ export default async function GuildLayout({
 
   return (
     <div className="layout">
-      <nav className="sidebar" aria-label="Bereiche">
+      <nav className="sidebar" aria-label={t("Bereiche")}>
         <div className="sidebar-head">
           <GuildIcon guild={guild} />
           <strong>{guild.name}</strong>

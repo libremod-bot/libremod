@@ -1,6 +1,7 @@
 import "server-only";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { t } from "@/lib/i18n";
 
 // In der Entwicklung die gemeinsame .env aus dem Hauptordner mitnutzen.
 const rootEnv = resolve(process.cwd(), "../../.env");
@@ -8,7 +9,7 @@ if (process.env.NODE_ENV !== "production" && existsSync(rootEnv)) process.loadEn
 
 function required(name: string): string {
   const value = process.env[name];
-  if (!value) throw new Error(`Umgebungsvariable ${name} fehlt. Bitte .env prüfen.`);
+  if (!value) throw new Error(t("Umgebungsvariable {name} fehlt. Bitte .env prüfen.", { name }));
   return value;
 }
 
@@ -27,7 +28,7 @@ export const env = {
   },
   get sessionSecret() {
     const secret = required("SESSION_SECRET");
-    if (secret.length < 32) throw new Error("SESSION_SECRET muss mindestens 32 Zeichen lang sein.");
+    if (secret.length < 32) throw new Error(t("SESSION_SECRET muss mindestens 32 Zeichen lang sein."));
     return secret;
   },
   get dashboardUrl() {

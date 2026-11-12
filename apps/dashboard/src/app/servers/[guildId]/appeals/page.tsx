@@ -8,10 +8,14 @@ import { database } from "@/lib/db";
 import { env } from "@/lib/env";
 import { CHANNEL_ANNOUNCEMENT, CHANNEL_TEXT, getGuildChannels, getMembers } from "@/lib/discord";
 import { decideAppeal, saveAppealSettings } from "../actions";
+import { t, dateFmt, initLocale } from "@/lib/i18n";
 
-export const metadata = { title: "Einsprüche · Libremod" };
+export async function generateMetadata() {
+  await initLocale();
+  return { title: t("{n0} · Libremod", { n0: t("Einsprüche") }) };
+}
 
-const when = new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Berlin" });
+const when = dateFmt({ dateStyle: "short", timeStyle: "short", timeZone: "Europe/Berlin" });
 const STATUS: Record<string, { label: string; badge: string }> = {
   open: { label: "Offen", badge: "info" },
   accepted: { label: "Angenommen", badge: "on" },
@@ -49,8 +53,8 @@ export default async function AppealsPage({
     <>
       <PageHeader
         icon="mail"
-        title="Einsprüche"
-        description="Gebannte Personen können über eine eigene Seite Einspruch einlegen. Ihr entscheidet hier, bei Annahme hebt Libremod den Ban auf."
+        title={t("Einsprüche")}
+        description={t("Gebannte Personen können über eine eigene Seite Einspruch einlegen. Ihr entscheidet hier, bei Annahme hebt Libremod den Ban auf.")}
       />
       <Notice saved={gespeichert} error={fehler} />
 
@@ -58,18 +62,18 @@ export default async function AppealsPage({
         <Switch
           name="enabled"
           defaultChecked={s?.enabled ?? false}
-          label="Einsprüche annehmen"
-          description="Der Link steht dann auch in der Direktnachricht, die Gebannte bekommen (wenn Direktnachrichten unter Moderation an sind)."
+          label={t("Einsprüche annehmen")}
+          description={t("Der Link steht dann auch in der Direktnachricht, die Gebannte bekommen (wenn Direktnachrichten unter Moderation an sind).")}
         />
         <div className="field" style={{ marginTop: "1rem" }}>
-          <label htmlFor="appealLink">Link zum Einspruch</label>
+          <label htmlFor="appealLink">{t("Link zum Einspruch")}</label>
           <input id="appealLink" type="text" readOnly value={link} />
         </div>
         <div className="grid-2">
           <div className="field">
-            <label htmlFor="channelId">Neue Einsprüche melden in</label>
+            <label htmlFor="channelId">{t("Neue Einsprüche melden in")}</label>
             <select id="channelId" name="channelId" defaultValue={s?.channelId ?? ""}>
-              <option value="">Nirgends</option>
+              <option value="">{t("Nirgends")}</option>
               {textChannels.map((c) => (
                 <option key={c.id} value={c.id}>
                   #{c.name}
@@ -78,30 +82,30 @@ export default async function AppealsPage({
             </select>
           </div>
           <div className="field">
-            <label htmlFor="cooldownDays">Wartezeit nach Ablehnung (Tage)</label>
+            <label htmlFor="cooldownDays">{t("Wartezeit nach Ablehnung (Tage)")}</label>
             <input id="cooldownDays" name="cooldownDays" type="number" min={0} max={365} defaultValue={s?.cooldownDays ?? 30} />
           </div>
         </div>
         <div className="field">
-          <label htmlFor="question">Frage an die gebannte Person</label>
+          <label htmlFor="question">{t("Frage an die gebannte Person")}</label>
           <input id="question" name="question" type="text" maxLength={300} defaultValue={s?.question ?? "Warum sollten wir deinen Ban aufheben?"} />
         </div>
         <div style={{ marginTop: "1rem" }}>
-          <button type="submit">Speichern</button>
+          <button type="submit">{t("Speichern")}</button>
         </div>
       </form>
 
       <section className="card">
         <div className="card-title">
           <Icon name="mail" />
-          <h2>{alle ? "Alle Einsprüche" : "Offene Einsprüche"}</h2>
+          <h2>{alle ? t("Alle Einsprüche") : t("Offene Einsprüche")}</h2>
           <a className="small" href={alle ? "?" : "?alle=1"} style={{ marginLeft: "auto" }}>
-            {alle ? `Nur offene (${open})` : "Alle anzeigen"}
+            {alle ? t("Nur offene ({open})", { open }) : t("Alle anzeigen")}
           </a>
         </div>
         {rows.length === 0 ? (
           <p className="empty" style={{ paddingTop: 0 }}>
-            {alle ? "Noch keine Einsprüche." : "Gerade liegt kein Einspruch vor."}
+            {alle ? t("Noch keine Einsprüche.") : t("Gerade liegt kein Einspruch vor.")}
           </p>
         ) : (
           <ul className="notes appeal-list">
@@ -110,7 +114,7 @@ export default async function AppealsPage({
                 <div className="suggestion-head">
                   <strong>{r.userName}</strong>
                   <span className="small muted">{r.userId}</span>
-                  <span className={`badge ${STATUS[r.status]?.badge ?? ""}`}>{STATUS[r.status]?.label ?? r.status}</span>
+                  <span className={`badge ${STATUS[r.status]?.badge ?? ""}`}>{STATUS[r.status] ? t(STATUS[r.status].label) : r.status}</span>
                   <span className="small muted">{when.format(r.createdAt)}</span>
                 </div>
                 <div className="quote-text" style={{ fontStyle: "normal" }}>
@@ -118,17 +122,15 @@ export default async function AppealsPage({
                 </div>
                 {r.status === "open" ? (
                   <form className="inline-form" style={{ marginTop: ".6rem" }}>
-                    <input name="reason" type="text" maxLength={500} placeholder="Begründung (optional, geht an die Person)" aria-label="Begründung" />
+                    <input name="reason" type="text" maxLength={500} placeholder={t("Begründung (optional, geht an die Person)")} aria-label={t("Begründung")} />
                     <button className="small" type="submit" formAction={decideAppeal.bind(null, guildId, r.id, true)}>
-                      Annehmen und entbannen
-                    </button>
+                      {t("Annehmen und entbannen")}</button>
                     <button className="danger small" type="submit" formAction={decideAppeal.bind(null, guildId, r.id, false)}>
-                      Ablehnen
-                    </button>
+                      {t("Ablehnen")}</button>
                   </form>
                 ) : (
                   <div className="small muted">
-                    {r.reviewerId ? `von ${reviewer(r.reviewerId)}` : ""}
+                    {r.reviewerId ? t("von {reviewerId}", { reviewerId: reviewer(r.reviewerId) }) : ""}
                     {r.reviewedAt ? ` · ${when.format(r.reviewedAt)}` : ""}
                     {r.reviewReason ? ` · ${r.reviewReason}` : ""}
                   </div>

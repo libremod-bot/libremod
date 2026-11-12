@@ -4,6 +4,7 @@
 
 // --- Vorschläge ---
 
+import { t } from "./i18n.js";
 export type SuggestionStatusName = "open" | "considered" | "accepted" | "denied" | "implemented";
 
 export const SUGGESTION_STATUS: Record<SuggestionStatusName, { label: string; color: number; emoji: string; voting: boolean }> = {
@@ -37,10 +38,10 @@ export function applyVote(previous: 1 | -1 | null, clicked: 1 | -1): { next: 1 |
 /** Balken wie ██████░░░░ 60 % für die Zustimmung. */
 export function voteBar(up: number, down: number, width = 10): string {
   const total = up + down;
-  if (!total) return "Noch keine Stimmen";
+  if (!total) return t("Noch keine Stimmen");
   const share = up / total;
   const filled = Math.round(share * width);
-  return `${"█".repeat(filled)}${"░".repeat(width - filled)} ${Math.round(share * 100)} % dafür`;
+  return t("{n0}{n1} {n2} % dafür", { n0: "█".repeat(filled), n1: "░".repeat(width - filled), n2: Math.round(share * 100) });
 }
 
 const clip = (s: string, max: number) => (s.length <= max ? s : `${s.slice(0, max - 1)}…`);
@@ -63,23 +64,23 @@ export interface SuggestionView {
 /** Nachricht für POST/PATCH /channels/{id}/messages und für discord.js. */
 export function buildSuggestionMessage(s: SuggestionView, anonymous: boolean) {
   const st = SUGGESTION_STATUS[s.status];
-  const fields = [{ name: "Abstimmung", value: voteBar(s.up, s.down), inline: false }];
+  const fields = [{ name: t("Abstimmung"), value: voteBar(s.up, s.down), inline: false }];
   if (s.status !== "open") {
-    const by = s.statusBy ? ` von <@${s.statusBy}>` : "";
-    fields.push({ name: `${st.emoji} ${st.label}`, value: clip(`${s.statusReason?.trim() || "Ohne Begründung"}${by}`, 1024), inline: false });
+    const by = s.statusBy ? t(" von <@{statusBy}>", { statusBy: s.statusBy }) : "";
+    fields.push({ name: `${st.emoji} ${t(st.label)}`, value: clip(`${s.statusReason?.trim() || t("Ohne Begründung")}${by}`, 1024), inline: false });
   }
   const author = anonymous
-    ? { name: "Anonymer Vorschlag" }
-    : { name: clip(s.authorName ?? "Vorschlag", 256), ...(s.authorAvatar ? { icon_url: s.authorAvatar } : {}) };
+    ? { name: t("Anonymer Vorschlag") }
+    : { name: clip(s.authorName ?? t("Vorschlag"), 256), ...(s.authorAvatar ? { icon_url: s.authorAvatar } : {}) };
   return {
     embeds: [
       {
         author,
-        title: `Vorschlag #${s.number}`,
+        title: t("Vorschlag #{number}", { number: s.number }),
         description: clip(s.text, 4000),
         color: st.color,
         fields,
-        footer: { text: `${st.label}${anonymous ? "" : ` · von ${s.authorId}`}` },
+        footer: { text: `${t(st.label)}${anonymous ? "" : t(" · von {authorId}", { authorId: s.authorId })}` },
         timestamp: s.createdAt.toISOString(),
       },
     ],

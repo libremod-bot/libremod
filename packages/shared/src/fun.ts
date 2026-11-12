@@ -5,6 +5,7 @@
 
 // --- Gewinnspiele ---
 
+import { t } from "./i18n.js";
 export const GIVEAWAY_COLOR = 0xff6fae;
 export const GIVEAWAY_ENDED_COLOR = 0x80848e;
 export const MAX_GIVEAWAY_WINNERS = 20;
@@ -61,19 +62,19 @@ export function buildGiveawayMessage(g: GiveawayView, entrants: number) {
   if (g.ended) {
     lines.push(
       g.winnerIds.length
-        ? `🏆 Gewinner: ${g.winnerIds.map((id) => `<@${id}>`).join(", ")}`
-        : "Leider hat niemand teilgenommen.",
+        ? t("🏆 Gewinner: {n0}", { n0: g.winnerIds.map((id) => `<@${id}>`).join(", ") })
+        : t("Leider hat niemand teilgenommen."),
     );
-    lines.push(`Beendet <t:${unix(g.endsAt)}:R>`);
+    lines.push(t("Beendet <t:{endsAt}:R>", { endsAt: unix(g.endsAt) }));
   } else {
-    lines.push(`Endet <t:${unix(g.endsAt)}:R> (<t:${unix(g.endsAt)}:f>)`);
-    lines.push(`${g.winners === 1 ? "1 Gewinner" : `${g.winners} Gewinner`} · Klicke auf den Knopf, um mitzumachen.`);
+    lines.push(t("Endet <t:{endsAt}:R> (<t:{endsAt}:f>)", { endsAt: unix(g.endsAt) }));
+    lines.push(t("{n0} · Klicke auf den Knopf, um mitzumachen.", { n0: g.winners === 1 ? t("1 Gewinner") : t("{winners} Gewinner", { winners: g.winners }) }));
   }
   const rules: string[] = [];
-  if (g.requiredRoleId) rules.push(`Rolle <@&${g.requiredRoleId}>`);
-  if (g.minLevel > 0) rules.push(`mindestens Level ${g.minLevel}`);
-  if (rules.length) lines.push(`Teilnahme nur mit: ${rules.join(" und ")}`);
-  lines.push(`Veranstaltet von <@${g.hostId}>`);
+  if (g.requiredRoleId) rules.push(t("Rolle <@&{requiredRoleId}>", { requiredRoleId: g.requiredRoleId }));
+  if (g.minLevel > 0) rules.push(t("mindestens Level {minLevel}", { minLevel: g.minLevel }));
+  if (rules.length) lines.push(t("Teilnahme nur mit: {n0}", { n0: rules.join(" und ") }));
+  lines.push(t("Veranstaltet von <@{hostId}>", { hostId: g.hostId }));
 
   return {
     embeds: [
@@ -81,7 +82,7 @@ export function buildGiveawayMessage(g: GiveawayView, entrants: number) {
         title: `🎁 ${clip(g.prize, 240)}`,
         description: clip(lines.join("\n"), 4000),
         color: g.ended ? GIVEAWAY_ENDED_COLOR : GIVEAWAY_COLOR,
-        footer: { text: `${entrants} ${entrants === 1 ? "Teilnahme" : "Teilnahmen"} · Gewinnspiel #${g.id}` },
+        footer: { text: t("{entrants} {n1} · Gewinnspiel #{id}", { entrants, n1: entrants === 1 ? t("Teilnahme") : t("Teilnahmen"), id: g.id }) },
         timestamp: g.endsAt.toISOString(),
       },
     ],
@@ -93,7 +94,7 @@ export function buildGiveawayMessage(g: GiveawayView, entrants: number) {
             type: 2,
             style: g.ended ? 2 : 1,
             custom_id: giveawayCustomId(g.id),
-            label: g.ended ? "Beendet" : "Mitmachen",
+            label: g.ended ? t("Beendet") : t("Mitmachen"),
             emoji: { name: "🎉" },
             disabled: g.ended,
           },
@@ -106,11 +107,11 @@ export function buildGiveawayMessage(g: GiveawayView, entrants: number) {
 
 /** Text der Gewinner-Bekanntgabe. */
 export function giveawayResultText(prize: string, winnerIds: string[], reroll = false): string {
-  if (!winnerIds.length) return `Beim Gewinnspiel um **${clip(prize, 200)}** gab es keine gültigen Teilnahmen.`;
+  if (!winnerIds.length) return t("Beim Gewinnspiel um **{n0}** gab es keine gültigen Teilnahmen.", { n0: clip(prize, 200) });
   const who = winnerIds.map((id) => `<@${id}>`).join(", ");
   return reroll
-    ? `🎲 Neu ausgelost: ${who} ${winnerIds.length === 1 ? "gewinnt" : "gewinnen"} **${clip(prize, 200)}**!`
-    : `🎉 Glückwunsch ${who}! ${winnerIds.length === 1 ? "Du hast" : "Ihr habt"} **${clip(prize, 200)}** gewonnen.`;
+    ? t("🎲 Neu ausgelost: {who} {n1} **{n2}**!", { who, n1: winnerIds.length === 1 ? "gewinnt" : "gewinnen", n2: clip(prize, 200) })
+    : t("🎉 Glückwunsch {who}! {n1} **{n2}** gewonnen.", { who, n1: winnerIds.length === 1 ? t("Du hast") : t("Ihr habt"), n2: clip(prize, 200) });
 }
 
 // --- Umfragen ---
@@ -133,10 +134,10 @@ export function parsePollOptions(input: string): { ok: true; options: string[] }
     seen.add(key);
     options.push(o);
   }
-  if (options.length < 2) return { ok: false, error: "Bitte mindestens zwei Antworten angeben, getrennt mit `;`." };
-  if (options.length > MAX_POLL_OPTIONS) return { ok: false, error: `Höchstens ${MAX_POLL_OPTIONS} Antworten sind möglich.` };
+  if (options.length < 2) return { ok: false, error: t("Bitte mindestens zwei Antworten angeben, getrennt mit `;`.") };
+  if (options.length > MAX_POLL_OPTIONS) return { ok: false, error: t("Höchstens {MAX_POLL_OPTIONS} Antworten sind möglich.", { MAX_POLL_OPTIONS }) };
   const long = options.find((o) => o.length > MAX_POLL_ANSWER_LENGTH);
-  if (long) return { ok: false, error: `Die Antwort „${clip(long, 30)}“ ist zu lang (höchstens ${MAX_POLL_ANSWER_LENGTH} Zeichen).` };
+  if (long) return { ok: false, error: t("Die Antwort „{n0}“ ist zu lang (höchstens {MAX_POLL_ANSWER_LENGTH} Zeichen).", { n0: clip(long, 30), MAX_POLL_ANSWER_LENGTH }) };
   return { ok: true, options };
 }
 
@@ -187,14 +188,14 @@ function daysInMonth(month: number, year: number) {
 
 /** Prüft eine Eingabe. Jahr ist optional (1900 bis heute). */
 export function validateBirthday(day: number, month: number, year?: number | null, now = new Date()): string | null {
-  if (!Number.isInteger(month) || month < 1 || month > 12) return "Bitte einen Monat zwischen 1 und 12 angeben.";
+  if (!Number.isInteger(month) || month < 1 || month > 12) return t("Bitte einen Monat zwischen 1 und 12 angeben.");
   // Ohne Jahr ist der 29. Februar erlaubt.
   const maxDay = daysInMonth(month, year ?? 2000);
-  if (!Number.isInteger(day) || day < 1 || day > maxDay) return `Den ${day}. ${MONTH_NAMES[month - 1]} gibt es ${year ? `${year} ` : ""}nicht.`;
+  if (!Number.isInteger(day) || day < 1 || day > maxDay) return t("Den {day}. {n1} gibt es {n2}nicht.", { day, n1: t(MONTH_NAMES[month - 1]), n2: year ? `${year} ` : "" });
   if (year != null) {
     const today = localDate(now);
-    if (!Number.isInteger(year) || year < 1900 || year > today.year) return "Bitte ein gültiges Geburtsjahr angeben.";
-    if (year === today.year && (month > today.month || (month === today.month && day > today.day))) return "Das Datum liegt in der Zukunft.";
+    if (!Number.isInteger(year) || year < 1900 || year > today.year) return t("Bitte ein gültiges Geburtsjahr angeben.");
+    if (year === today.year && (month > today.month || (month === today.month && day > today.day))) return t("Das Datum liegt in der Zukunft.");
   }
   return null;
 }
@@ -217,8 +218,8 @@ export function nextBirthday(b: { month: number; day: number }, today: { year: n
   const ref = Date.UTC(today.year, today.month - 1, today.day);
   for (const year of [today.year, today.year + 1, today.year + 2]) {
     const c = celebrationDay(b.month, b.day, year);
-    const t = Date.UTC(year, c.month - 1, c.day);
-    if (t >= ref) return { year, month: c.month, day: c.day, inDays: Math.round((t - ref) / 86_400_000) };
+    const tItem = Date.UTC(year, c.month - 1, c.day);
+    if (tItem >= ref) return { year, month: c.month, day: c.day, inDays: Math.round((tItem - ref) / 86_400_000) };
   }
   throw new Error("unreachable");
 }
@@ -229,7 +230,7 @@ export function ageOn(birthYear: number | null | undefined, year: number): numbe
 }
 
 export function formatBirthday(b: { month: number; day: number; year?: number | null }): string {
-  return `${b.day}. ${MONTH_NAMES[b.month - 1]}${b.year ? ` ${b.year}` : ""}`;
+  return `${b.day}. ${t(MONTH_NAMES[b.month - 1])}${b.year ? ` ${b.year}` : ""}`;
 }
 
 export function renderBirthdayMessage(template: string, v: { userId: string; name: string; age: number | null; server: string }): string {

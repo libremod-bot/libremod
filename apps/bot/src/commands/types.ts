@@ -12,7 +12,16 @@ export interface CommandContext {
 }
 
 export interface Command {
-  data: SlashCommandBuilder | SlashCommandOptionsOnlyBuilder | SlashCommandSubcommandsOnlyBuilder;
-  execute(interaction: ChatInputCommandInteraction, ctx: CommandContext): Promise<void>;
-  autocomplete?(interaction: AutocompleteInteraction, ctx: CommandContext): Promise<void>;
+  data:
+    | SlashCommandBuilder
+    | SlashCommandOptionsOnlyBuilder
+    | SlashCommandSubcommandsOnlyBuilder;
+  execute(
+    interaction: ChatInputCommandInteraction,
+    ctx: CommandContext,
+  ): Promise<void>;
+  autocomplete?(
+    interaction: AutocompleteInteraction,
+    ctx: CommandContext,
+  ): Promise<void>;
 }

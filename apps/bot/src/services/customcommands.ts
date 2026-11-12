@@ -11,6 +11,7 @@ import { buildEmbedJson, pickResponse, renderTemplate } from "@libremod/shared";
 import { config } from "../config.js";
 import { commandBodies } from "../commands/index.js";
 import { logger } from "../logger.js";
+import { t } from "@libremod/shared";
 
 /** Was zuletzt pro Server bei Discord registriert wurde, damit nur Änderungen übertragen werden. */
 const synced = new Map<string, string>();
@@ -20,25 +21,44 @@ const pending = new Map<string, NodeJS.Timeout>();
  * Registriert die eigenen Befehle eines Servers als Slash-Befehle dieses Servers.
  * Auf dem Entwicklungsserver gehören die eingebauten Befehle mit dazu, weil dort alles servergebunden ist.
  */
-export async function syncGuildCommands(client: Client, db: Db, guildId: string, { force = false } = {}) {
+export async function syncGuildCommands(
+  client: Client,
+  db: Db,
+  guildId: string,
+  { force = false } = {},
+) {
   if (!client.application || !client.guilds.cache.has(guildId)) return;
-  const rows = await db.select().from(customCommands).where(eq(customCommands.guildId, guildId)).orderBy(customCommands.name);
+  const rows = await db
+    .select()
+    .from(customCommands)
+    .where(eq(customCommands.guildId, guildId))
+    .orderBy(customCommands.name);
   const custom = rows.map((c) => ({
     name: c.name,
     description: c.description,
     type: ApplicationCommandType.ChatInput,
     contexts: [InteractionContextType.Guild],
   }));
-  const body = guildId === config.DISCORD_DEV_GUILD_ID ? [...commandBodies(), ...custom] : custom;
+  const body =
+    guildId === config.DISCORD_DEV_GUILD_ID
+      ? [...commandBodies(), ...custom]
+      : custom;
   const hash = createHash("sha1").update(JSON.stringify(body)).digest("hex");
   // Noch nie synchronisiert und nichts zu tun: Discord nicht unnötig fragen.
-  if (!force && (synced.get(guildId) ?? (custom.length ? "" : hash)) === hash) return;
+  if (!force && (synced.get(guildId) ?? (custom.length ? "" : hash)) === hash)
+    return;
   try {
     await client.application.commands.set(body, guildId);
     synced.set(guildId, hash);
-    logger.info({ guildId, count: custom.length }, "Eigene Befehle registriert");
+    logger.info(
+      { guildId, count: custom.length },
+      "Eigene Befehle registriert",
+    );
   } catch (err) {
-    logger.warn({ err, guildId }, "Eigene Befehle konnten nicht registriert werden");
+    logger.warn(
+      { err, guildId },
+      "Eigene Befehle konnten nicht registriert werden",
+    );
   }
 }
 
@@ -56,18 +76,32 @@ export function scheduleCommandSync(client: Client, db: Db, guildId: string) {
 
 /** Beim Start alle Server mit eigenen Befehlen abgleichen. */
 export async function syncAllCommands(client: Client, db: Db) {
-  const guilds = await db.selectDistinct({ guildId: customCommands.guildId }).from(customCommands);
-  for (const { guildId } of guilds) await syncGuildCommands(client, db, guildId, { force: true });
+  const guilds = await db
+    .selectDistinct({ guildId: customCommands.guildId })
+    .from(customCommands);
+  for (const { guildId } of guilds)
+    await syncGuildCommands(client, db, guildId, { force: true });
 }
 
-export async function handleCustomCommand(interaction: ChatInputCommandInteraction, db: Db): Promise<boolean> {
+export async function handleCustomCommand(
+  interaction: ChatInputCommandInteraction,
+  db: Db,
+): Promise<boolean> {
   if (!interaction.inCachedGuild()) return false;
   const [cmd] = await db
     .select()
     .from(customCommands)
-    .where(and(eq(customCommands.guildId, interaction.guildId), eq(customCommands.name, interaction.commandName)));
+    .where(
+      and(
+        eq(customCommands.guildId, interaction.guildId),
+        eq(customCommands.name, interaction.commandName),
+      ),
+    );
   if (!cmd) {
-    await interaction.reply({ content: "Diesen Befehl gibt es nicht mehr.", flags: MessageFlags.Ephemeral });
+    await interaction.reply({
+      content: t("Diesen Befehl gibt es nicht mehr."),
+      flags: MessageFlags.Ephemeral,
+    });
     return true;
   }
   const vars = {
@@ -83,12 +117,26 @@ export async function handleCustomCommand(interaction: ChatInputCommandInteracti
     const embed = buildEmbedJson(cmd.design, text, {
       render,
       avatarUrl: interaction.user.displayAvatarURL({ size: 256 }),
-      defaults: { title: cmd.embedTitle ?? undefined, color: cmd.embedColor ?? undefined },
+      defaults: {
+        title: cmd.embedTitle ?? undefined,
+        color: cmd.embedColor ?? undefined,
+      },
     });
-    await interaction.reply({ embeds: [embed], flags, allowedMentions: { parse: [] } });
+    await interaction.reply({
+      embeds: [embed],
+      flags,
+      allowedMentions: { parse: [] },
+    });
   } else {
-    await interaction.reply({ content: text.slice(0, 2000) || "​", flags, allowedMentions: { parse: [] } });
+    await interaction.reply({
+      content: text.slice(0, 2000) || "​",
+      flags,
+      allowedMentions: { parse: [] },
+    });
   }
-  await db.update(customCommands).set({ uses: sql`${customCommands.uses} + 1` }).where(eq(customCommands.id, cmd.id));
+  await db
+    .update(customCommands)
+    .set({ uses: sql`${customCommands.uses} + 1` })
+    .where(eq(customCommands.id, cmd.id));
   return true;
 }

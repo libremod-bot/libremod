@@ -9,14 +9,37 @@ import {
   TimestampStyles,
   userMention,
 } from "discord.js";
-import { and, count, desc, eq, gte, memberNotes, modCases, sql } from "@libremod/db";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  gte,
+  memberNotes,
+  modCases,
+  sql,
+} from "@libremod/db";
 import { MAX_LOCK_SECONDS, parseDuration } from "@libremod/shared";
 import type { Command } from "./types.js";
 import { inGuild, replyPrivate } from "./moderation/shared.js";
-import { completeVerification, isLockable, loadVerification, lockChannel, lockServer, unlockChannel, unlockServer } from "../services/protection.js";
+import {
+  completeVerification,
+  isLockable,
+  loadVerification,
+  lockChannel,
+  lockServer,
+  unlockChannel,
+  unlockServer,
+} from "../services/protection.js";
+import { t } from "@libremod/shared";
 
-const clip = (s: string, n: number) => (s.length <= n ? s : `${s.slice(0, n - 1)}…`);
-const LOCK_CHANNEL_TYPES = [ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.GuildForum] as const;
+const clip = (s: string, n: number) =>
+  s.length <= n ? s : `${s.slice(0, n - 1)}…`;
+const LOCK_CHANNEL_TYPES = [
+  ChannelType.GuildText,
+  ChannelType.GuildAnnouncement,
+  ChannelType.GuildForum,
+] as const;
 
 // =============== /verify ===============
 
@@ -26,17 +49,41 @@ export const verify: Command = {
     .setDescription("Verifiziert ein Mitglied von Hand.")
     .setContexts(InteractionContextType.Guild)
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
-    .addUserOption((o) => o.setName("mitglied").setDescription("Wen verifizieren?").setRequired(true)),
+    .addUserOption((o) =>
+      o
+        .setName("mitglied")
+        .setDescription(t("Wen verifizieren?"))
+        .setRequired(true),
+    ),
   async execute(interaction, { db }) {
     if (!inGuild(interaction)) return;
     const s = await loadVerification(db, interaction.guildId);
-    if (!s?.enabled || !s.roleId) return void (await replyPrivate(interaction, "Die Verifizierung ist aus. Einschalten geht im Dashboard unter „Verifizierung“."));
+    if (!s?.enabled || !s.roleId)
+      return void (await replyPrivate(
+        interaction,
+        t(
+          "Die Verifizierung ist aus. Einschalten geht im Dashboard unter „Verifizierung“.",
+        ),
+      ));
     const user = interaction.options.getUser("mitglied", true);
-    const member = await interaction.guild.members.fetch(user.id).catch(() => null);
-    if (!member) return void (await replyPrivate(interaction, "Diese Person ist nicht auf dem Server."));
-    if (member.roles.cache.has(s.roleId)) return void (await replyPrivate(interaction, `${userMention(user.id)} ist schon verifiziert.`));
+    const member = await interaction.guild.members
+      .fetch(user.id)
+      .catch(() => null);
+    if (!member)
+      return void (await replyPrivate(
+        interaction,
+        t("Diese Person ist nicht auf dem Server."),
+      ));
+    if (member.roles.cache.has(s.roleId))
+      return void (await replyPrivate(
+        interaction,
+        t("{id} ist schon verifiziert.", { id: userMention(user.id) }),
+      ));
     await completeVerification(member, db, s, interaction.user.id);
-    await replyPrivate(interaction, `${userMention(user.id)} ist jetzt verifiziert.`);
+    await replyPrivate(
+      interaction,
+      t("{id} ist jetzt verifiziert.", { id: userMention(user.id) }),
+    );
   },
 };
 
@@ -52,47 +99,120 @@ function readUntil(input: string | null): Date | null | "invalid" {
 export const lockdown: Command = {
   data: new SlashCommandBuilder()
     .setName("lockdown")
-    .setDescription("Sperrt Kanäle, sodass niemand ohne Sonderrechte schreiben kann.")
+    .setDescription(
+      "Sperrt Kanäle, sodass niemand ohne Sonderrechte schreiben kann.",
+    )
     .setContexts(InteractionContextType.Guild)
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
     .addSubcommand((s) =>
       s
         .setName("channel")
-        .setDescription("Sperrt einen Kanal.")
-        .addChannelOption((o) => o.setName("kanal").setDescription("Welcher Kanal? Leer = dieser").addChannelTypes(...LOCK_CHANNEL_TYPES))
-        .addStringOption((o) => o.setName("dauer").setDescription("Automatisch wieder öffnen nach, z. B. 30m, 2h").setMaxLength(20))
-        .addStringOption((o) => o.setName("grund").setDescription("Wird im Kanal angezeigt").setMaxLength(500)),
+        .setDescription(t("Sperrt einen Kanal."))
+        .addChannelOption((o) =>
+          o
+            .setName("kanal")
+            .setDescription(t("Welcher Kanal? Leer = dieser"))
+            .addChannelTypes(...LOCK_CHANNEL_TYPES),
+        )
+        .addStringOption((o) =>
+          o
+            .setName("dauer")
+            .setDescription(t("Automatisch wieder öffnen nach, z. B. 30m, 2h"))
+            .setMaxLength(20),
+        )
+        .addStringOption((o) =>
+          o
+            .setName("grund")
+            .setDescription(t("Wird im Kanal angezeigt"))
+            .setMaxLength(500),
+        ),
     )
     .addSubcommand((s) =>
       s
         .setName("server")
-        .setDescription("Sperrt alle Kanäle, in denen gerade alle schreiben dürfen.")
-        .addStringOption((o) => o.setName("dauer").setDescription("Automatisch wieder öffnen nach, z. B. 30m, 2h").setMaxLength(20))
-        .addStringOption((o) => o.setName("grund").setDescription("Wird in den Kanälen angezeigt").setMaxLength(500)),
+        .setDescription(
+          t("Sperrt alle Kanäle, in denen gerade alle schreiben dürfen."),
+        )
+        .addStringOption((o) =>
+          o
+            .setName("dauer")
+            .setDescription(t("Automatisch wieder öffnen nach, z. B. 30m, 2h"))
+            .setMaxLength(20),
+        )
+        .addStringOption((o) =>
+          o
+            .setName("grund")
+            .setDescription(t("Wird in den Kanälen angezeigt"))
+            .setMaxLength(500),
+        ),
     ),
   async execute(interaction, { db }) {
     if (!inGuild(interaction)) return;
     const until = readUntil(interaction.options.getString("dauer"));
-    if (until === "invalid") return void (await replyPrivate(interaction, "Bitte eine Dauer zwischen 1 Minute und 30 Tagen angeben, z. B. `30m` oder `2h`."));
-    const input = { lockedBy: interaction.user.id, reason: interaction.options.getString("grund"), until };
-    const untilText = until ? ` bis ${time(until, TimestampStyles.ShortTime)} (${time(until, TimestampStyles.RelativeTime)})` : "";
+    if (until === "invalid")
+      return void (await replyPrivate(
+        interaction,
+        t(
+          "Bitte eine Dauer zwischen 1 Minute und 30 Tagen angeben, z. B. `30m` oder `2h`.",
+        ),
+      ));
+    const input = {
+      lockedBy: interaction.user.id,
+      reason: interaction.options.getString("grund"),
+      until,
+    };
+    const untilText = until
+      ? t(" bis {n0} ({n1})", {
+          n0: time(until, TimestampStyles.ShortTime),
+          n1: time(until, TimestampStyles.RelativeTime),
+        })
+      : "";
 
     if (interaction.options.getSubcommand() === "channel") {
       const picked = interaction.options.getChannel("kanal");
-      const channel = picked ? interaction.guild.channels.cache.get(picked.id) : interaction.channel;
-      if (!channel || !isLockable(channel) || !("permissionOverwrites" in channel)) {
-        return void (await replyPrivate(interaction, "Diesen Kanal kann ich nicht sperren. Es gehen Text-, Ankündigungs- und Forenkanäle."));
+      const channel = picked
+        ? interaction.guild.channels.cache.get(picked.id)
+        : interaction.channel;
+      if (
+        !channel ||
+        !isLockable(channel) ||
+        !("permissionOverwrites" in channel)
+      ) {
+        return void (await replyPrivate(
+          interaction,
+          t(
+            "Diesen Kanal kann ich nicht sperren. Es gehen Text-, Ankündigungs- und Forenkanäle.",
+          ),
+        ));
       }
       const done = await lockChannel(channel, db, input);
-      return void (await replyPrivate(interaction, done ? `<#${channel.id}> ist gesperrt${untilText}.` : `<#${channel.id}> ist schon gesperrt.`));
+      return void (await replyPrivate(
+        interaction,
+        done
+          ? t("<#{id}> ist gesperrt{untilText}.", { id: channel.id, untilText })
+          : t("<#{id}> ist schon gesperrt.", { id: channel.id }),
+      ));
     }
 
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const r = await lockServer(interaction.guild, db, input);
-    const parts = [`🔒 ${r.locked} ${r.locked === 1 ? "Kanal" : "Kanäle"} gesperrt${untilText}.`];
-    if (r.failed) parts.push(`${r.failed} konnte ich nicht sperren. Mir fehlt dort wohl das Recht „Berechtigungen verwalten“.`);
-    if (!r.locked && !r.failed) parts.push("Es gab keinen offenen Kanal zum Sperren.");
-    parts.push("Aufheben mit `/unlock server`.");
+    const parts = [
+      t("🔒 {locked} {n1} gesperrt{untilText}.", {
+        locked: r.locked,
+        n1: r.locked === 1 ? "Kanal" : t("Kanäle"),
+        untilText,
+      }),
+    ];
+    if (r.failed)
+      parts.push(
+        t(
+          "{failed} konnte ich nicht sperren. Mir fehlt dort wohl das Recht „Berechtigungen verwalten“.",
+          { failed: r.failed },
+        ),
+      );
+    if (!r.locked && !r.failed)
+      parts.push(t("Es gab keinen offenen Kanal zum Sperren."));
+    parts.push(t("Aufheben mit `/unlock server`."));
     await interaction.editReply(parts.join("\n"));
   },
 };
@@ -106,20 +226,45 @@ export const unlock: Command = {
     .addSubcommand((s) =>
       s
         .setName("channel")
-        .setDescription("Öffnet einen gesperrten Kanal wieder.")
-        .addChannelOption((o) => o.setName("kanal").setDescription("Welcher Kanal? Leer = dieser").addChannelTypes(...LOCK_CHANNEL_TYPES)),
+        .setDescription(t("Öffnet einen gesperrten Kanal wieder."))
+        .addChannelOption((o) =>
+          o
+            .setName("kanal")
+            .setDescription(t("Welcher Kanal? Leer = dieser"))
+            .addChannelTypes(...LOCK_CHANNEL_TYPES),
+        ),
     )
-    .addSubcommand((s) => s.setName("server").setDescription("Hebt den Server-Lockdown auf.")),
+    .addSubcommand((s) =>
+      s.setName("server").setDescription(t("Hebt den Server-Lockdown auf.")),
+    ),
   async execute(interaction, { db }) {
     if (!inGuild(interaction)) return;
     if (interaction.options.getSubcommand() === "channel") {
-      const id = interaction.options.getChannel("kanal")?.id ?? interaction.channelId;
-      const done = await unlockChannel(interaction.guild, db, id, interaction.user.id);
-      return void (await replyPrivate(interaction, done ? `<#${id}> ist wieder offen.` : `<#${id}> war nicht von Libremod gesperrt.`));
+      const id =
+        interaction.options.getChannel("kanal")?.id ?? interaction.channelId;
+      const done = await unlockChannel(
+        interaction.guild,
+        db,
+        id,
+        interaction.user.id,
+      );
+      return void (await replyPrivate(
+        interaction,
+        done
+          ? t("<#{id}> ist wieder offen.", { id })
+          : t("<#{id}> war nicht von Libremod gesperrt.", { id }),
+      ));
     }
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const n = await unlockServer(interaction.guild, db, interaction.user.id);
-    await interaction.editReply(n ? `🔓 ${n} ${n === 1 ? "Kanal ist" : "Kanäle sind"} wieder offen.` : "Es gab keinen Server-Lockdown.");
+    await interaction.editReply(
+      n
+        ? t("🔓 {n} {n1} wieder offen.", {
+            n,
+            n1: n === 1 ? t("Kanal ist") : t("Kanäle sind"),
+          })
+        : t("Es gab keinen Server-Lockdown."),
+    );
   },
 };
 
@@ -136,21 +281,37 @@ export const note: Command = {
     .addSubcommand((s) =>
       s
         .setName("add")
-        .setDescription("Schreibt eine Notiz.")
-        .addUserOption((o) => o.setName("mitglied").setDescription("Zu wem?").setRequired(true))
-        .addStringOption((o) => o.setName("text").setDescription("Die Notiz").setRequired(true).setMaxLength(1000)),
+        .setDescription(t("Schreibt eine Notiz."))
+        .addUserOption((o) =>
+          o.setName("mitglied").setDescription(t("Zu wem?")).setRequired(true),
+        )
+        .addStringOption((o) =>
+          o
+            .setName("text")
+            .setDescription(t("Die Notiz"))
+            .setRequired(true)
+            .setMaxLength(1000),
+        ),
     )
     .addSubcommand((s) =>
       s
         .setName("list")
-        .setDescription("Zeigt die Notizen zu einem Mitglied.")
-        .addUserOption((o) => o.setName("mitglied").setDescription("Zu wem?").setRequired(true)),
+        .setDescription(t("Zeigt die Notizen zu einem Mitglied."))
+        .addUserOption((o) =>
+          o.setName("mitglied").setDescription(t("Zu wem?")).setRequired(true),
+        ),
     )
     .addSubcommand((s) =>
       s
         .setName("delete")
-        .setDescription("Löscht eine Notiz.")
-        .addIntegerOption((o) => o.setName("nummer").setDescription("Nummer der Notiz (steht bei /note list)").setRequired(true).setMinValue(1)),
+        .setDescription(t("Löscht eine Notiz."))
+        .addIntegerOption((o) =>
+          o
+            .setName("nummer")
+            .setDescription(t("Nummer der Notiz (steht bei /note list)"))
+            .setRequired(true)
+            .setMinValue(1),
+        ),
     ),
   async execute(interaction, { db }) {
     if (!inGuild(interaction)) return;
@@ -159,13 +320,39 @@ export const note: Command = {
 
     if (sub === "add") {
       const user = interaction.options.getUser("mitglied", true);
-      const [n] = await db.select({ n: count() }).from(memberNotes).where(and(eq(memberNotes.guildId, guildId), eq(memberNotes.userId, user.id)));
-      if ((n?.n ?? 0) >= MAX_NOTES_PER_MEMBER) return void (await replyPrivate(interaction, `Zu dieser Person gibt es schon ${MAX_NOTES_PER_MEMBER} Notizen. Lösche erst alte.`));
+      const [n] = await db
+        .select({ n: count() })
+        .from(memberNotes)
+        .where(
+          and(
+            eq(memberNotes.guildId, guildId),
+            eq(memberNotes.userId, user.id),
+          ),
+        );
+      if ((n?.n ?? 0) >= MAX_NOTES_PER_MEMBER)
+        return void (await replyPrivate(
+          interaction,
+          t(
+            "Zu dieser Person gibt es schon {MAX_NOTES_PER_MEMBER} Notizen. Lösche erst alte.",
+            { MAX_NOTES_PER_MEMBER },
+          ),
+        ));
       const [row] = await db
         .insert(memberNotes)
-        .values({ guildId, userId: user.id, authorId: interaction.user.id, text: interaction.options.getString("text", true) })
+        .values({
+          guildId,
+          userId: user.id,
+          authorId: interaction.user.id,
+          text: interaction.options.getString("text", true),
+        })
         .returning();
-      return void (await replyPrivate(interaction, `Notiz #${row!.id} zu ${userMention(user.id)} gespeichert.`));
+      return void (await replyPrivate(
+        interaction,
+        t("Notiz #{id} zu {id2} gespeichert.", {
+          id: row!.id,
+          id2: userMention(user.id),
+        }),
+      ));
     }
 
     if (sub === "list") {
@@ -173,22 +360,58 @@ export const note: Command = {
       const rows = await db
         .select()
         .from(memberNotes)
-        .where(and(eq(memberNotes.guildId, guildId), eq(memberNotes.userId, user.id)))
+        .where(
+          and(
+            eq(memberNotes.guildId, guildId),
+            eq(memberNotes.userId, user.id),
+          ),
+        )
         .orderBy(desc(memberNotes.createdAt))
         .limit(15);
-      if (!rows.length) return void (await replyPrivate(interaction, `Zu ${userMention(user.id)} gibt es keine Notizen.`));
+      if (!rows.length)
+        return void (await replyPrivate(
+          interaction,
+          t("Zu {id} gibt es keine Notizen.", { id: userMention(user.id) }),
+        ));
       const embed = new EmbedBuilder()
         .setColor(0x5865f2)
-        .setAuthor({ name: `Notizen zu ${user.tag}`, iconURL: user.displayAvatarURL() })
+        .setAuthor({
+          name: t("Notizen zu {tag}", { tag: user.tag }),
+          iconURL: user.displayAvatarURL(),
+        })
         .setDescription(
-          clip(rows.map((r) => `**#${r.id}** · ${time(r.createdAt, TimestampStyles.ShortDate)} · von ${userMention(r.authorId)}\n${clip(r.text, 300)}`).join("\n\n"), 4000),
+          clip(
+            rows
+              .map((r) =>
+                t("**#{id}** · {n1} · von {authorId}\n{n3}", {
+                  id: r.id,
+                  n1: time(r.createdAt, TimestampStyles.ShortDate),
+                  authorId: userMention(r.authorId),
+                  n3: clip(r.text, 300),
+                }),
+              )
+              .join("\n\n"),
+            4000,
+          ),
         );
-      return void (await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral, allowedMentions: { parse: [] } }));
+      return void (await interaction.reply({
+        embeds: [embed],
+        flags: MessageFlags.Ephemeral,
+        allowedMentions: { parse: [] },
+      }));
     }
 
     const id = interaction.options.getInteger("nummer", true);
-    const gone = await db.delete(memberNotes).where(and(eq(memberNotes.guildId, guildId), eq(memberNotes.id, id))).returning();
-    await replyPrivate(interaction, gone.length ? `Notiz #${id} ist gelöscht.` : `Notiz #${id} gibt es auf diesem Server nicht.`);
+    const gone = await db
+      .delete(memberNotes)
+      .where(and(eq(memberNotes.guildId, guildId), eq(memberNotes.id, id)))
+      .returning();
+    await replyPrivate(
+      interaction,
+      gone.length
+        ? t("Notiz #{id} ist gelöscht.", { id })
+        : t("Notiz #{id} gibt es auf diesem Server nicht.", { id }),
+    );
   },
 };
 
@@ -200,7 +423,13 @@ export const modstats: Command = {
     .setDescription("Wer im Team wie viele Fälle bearbeitet hat.")
     .setContexts(InteractionContextType.Guild)
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
-    .addIntegerOption((o) => o.setName("tage").setDescription("Zeitraum in Tagen (Standard 30)").setMinValue(1).setMaxValue(365)),
+    .addIntegerOption((o) =>
+      o
+        .setName("tage")
+        .setDescription(t("Zeitraum in Tagen (Standard 30)"))
+        .setMinValue(1)
+        .setMaxValue(365),
+    ),
   async execute(interaction, { db }) {
     if (!inGuild(interaction)) return;
     const days = interaction.options.getInteger("tage") ?? 30;
@@ -209,22 +438,56 @@ export const modstats: Command = {
       .select({
         moderatorId: modCases.moderatorId,
         total: count(),
-        warns: sql<number>`count(*) filter (where ${modCases.type} = 'warn')`.mapWith(Number),
-        timeouts: sql<number>`count(*) filter (where ${modCases.type} = 'timeout')`.mapWith(Number),
-        kicks: sql<number>`count(*) filter (where ${modCases.type} = 'kick')`.mapWith(Number),
-        bans: sql<number>`count(*) filter (where ${modCases.type} = 'ban')`.mapWith(Number),
+        warns:
+          sql<number>`count(*) filter (where ${modCases.type} = 'warn')`.mapWith(
+            Number,
+          ),
+        timeouts:
+          sql<number>`count(*) filter (where ${modCases.type} = 'timeout')`.mapWith(
+            Number,
+          ),
+        kicks:
+          sql<number>`count(*) filter (where ${modCases.type} = 'kick')`.mapWith(
+            Number,
+          ),
+        bans: sql<number>`count(*) filter (where ${modCases.type} = 'ban')`.mapWith(
+          Number,
+        ),
       })
       .from(modCases)
-      .where(and(eq(modCases.guildId, interaction.guildId), eq(modCases.automatic, false), gte(modCases.createdAt, since)))
+      .where(
+        and(
+          eq(modCases.guildId, interaction.guildId),
+          eq(modCases.automatic, false),
+          gte(modCases.createdAt, since),
+        ),
+      )
       .groupBy(modCases.moderatorId)
       .orderBy(desc(count()))
       .limit(15);
-    if (!rows.length) return void (await replyPrivate(interaction, `In den letzten ${days} Tagen gab es keine Fälle.`));
+    if (!rows.length)
+      return void (await replyPrivate(
+        interaction,
+        t("In den letzten {days} Tagen gab es keine Fälle.", { days }),
+      ));
     const lines = rows.map(
-      (r, i) => `**${i + 1}.** ${userMention(r.moderatorId)} · **${r.total}** (⚠️ ${r.warns} · ⏳ ${r.timeouts} · 👢 ${r.kicks} · 🔨 ${r.bans})`,
+      (r, i) =>
+        `**${i + 1}.** ${userMention(r.moderatorId)} · **${r.total}** (⚠️ ${r.warns} · ⏳ ${r.timeouts} · 👢 ${r.kicks} · 🔨 ${r.bans})`,
     );
     await interaction.reply({
-      embeds: [new EmbedBuilder().setColor(0x5865f2).setTitle(`Team-Statistik · ${days === 1 ? "letzter Tag" : `letzte ${days} Tage`}`).setDescription(lines.join("\n"))],
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0x5865f2)
+          .setTitle(
+            t("Team-Statistik · {n0}", {
+              n0:
+                days === 1
+                  ? t("letzter Tag")
+                  : t("letzte {days} Tage", { days }),
+            }),
+          )
+          .setDescription(lines.join("\n")),
+      ],
       flags: MessageFlags.Ephemeral,
       allowedMentions: { parse: [] },
     });

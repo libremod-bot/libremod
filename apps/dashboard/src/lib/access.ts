@@ -7,6 +7,7 @@ import { isTeamArea, type AreaKey } from "./areas";
 import { database } from "./db";
 import { botIsInGuild, canManage, getMemberRoles, getUserGuilds, type PartialGuild } from "./discord";
 import { getUser } from "./session";
+import { t } from "@/lib/i18n";
 
 export interface GuildAccess {
   /** true: „Server verwalten“, alles erlaubt. false: Team-Zugang mit einzelnen Bereichen. */
@@ -107,7 +108,7 @@ export async function requireGuildAccess(guildId: string, area?: AreaKey, action
     const areas = await teamAreas(guildId, session.user.id);
     if (!areas.length) notFound();
     access = { full: false, areas };
-    if (area && !areas.includes(area)) redirect(`/servers/${guildId}?fehler=${encodeURIComponent("Für diesen Bereich hast du keinen Zugang.")}`);
+    if (area && !areas.includes(area)) redirect(`/servers/${guildId}?fehler=${encodeURIComponent(t("Für diesen Bereich hast du keinen Zugang."))}`);
   }
   ctx.user = { id: session.user.id, name: session.user.username };
   return { user: session.user, guild, access };

@@ -6,16 +6,19 @@ import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
 import { CHANNEL_ANNOUNCEMENT, CHANNEL_TEXT, getGuildChannels } from "@/lib/discord";
 import { addWordChain, deleteWordChain, resetWordChain, updateWordChain } from "../actions";
+import { t, numFmt, initLocale } from "@/lib/i18n";
 
-export const metadata = { title: "Wortkette · Libremod" };
+export async function generateMetadata() {
+  await initLocale();
+  return { title: t("{n0} · Libremod", { n0: t("Wortkette") }) };
+}
 
-const nf = new Intl.NumberFormat("de-DE");
+const nf = numFmt();
 
 function Options({ allowSameUser }: { allowSameUser?: boolean }) {
   return (
     <label className="check-inline">
-      <input type="checkbox" name="allowSameUser" defaultChecked={allowSameUser ?? false} /> Dieselbe Person darf zweimal hintereinander
-    </label>
+      <input type="checkbox" name="allowSameUser" defaultChecked={allowSameUser ?? false} /> {" "}{t("Dieselbe Person darf zweimal hintereinander")}</label>
   );
 }
 
@@ -37,14 +40,14 @@ export default async function WordChainPage({
   ]);
   const taken = new Set([...rows.map((r) => r.channelId), ...counting.map((c) => c.id)]);
   const textChannels = channels.filter((c) => (c.type === CHANNEL_TEXT || c.type === CHANNEL_ANNOUNCEMENT) && !taken.has(c.id));
-  const channelName = (id: string) => channels.find((c) => c.id === id)?.name ?? "gelöschter Kanal";
+  const channelName = (id: string) => channels.find((c) => c.id === id)?.name ?? t("gelöschter Kanal");
 
   return (
     <>
       <PageHeader
         icon="link"
-        title="Wortkette"
-        description="Jedes Wort beginnt mit dem letzten Buchstaben des vorigen: Apfel, Lampe, Elefant … Kein Wort darf zweimal vorkommen."
+        title={t("Wortkette")}
+        description={t("Jedes Wort beginnt mit dem letzten Buchstaben des vorigen: Apfel, Lampe, Elefant … Kein Wort darf zweimal vorkommen.")}
       />
       <Notice saved={gespeichert} error={fehler} />
 
@@ -56,15 +59,15 @@ export default async function WordChainPage({
           </div>
           <div className="stats" style={{ marginBottom: "1rem" }}>
             <div className="stat">
-              <div className="stat-label">Letztes Wort</div>
+              <div className="stat-label">{t("Letztes Wort")}</div>
               <div className="stat-value" style={{ overflowWrap: "anywhere" }}>{c.lastWord ?? "–"}</div>
             </div>
             <div className="stat">
-              <div className="stat-label">Länge</div>
+              <div className="stat-label">{t("Länge")}</div>
               <div className="stat-value">{nf.format(c.length)}</div>
             </div>
             <div className="stat">
-              <div className="stat-label">Rekord</div>
+              <div className="stat-label">{t("Rekord")}</div>
               <div className="stat-value">{nf.format(c.record)}</div>
             </div>
           </div>
@@ -72,20 +75,17 @@ export default async function WordChainPage({
             <Options allowSameUser={c.allowSameUser} />
             <div className="inline-form" style={{ marginTop: "1rem" }}>
               <button type="submit" className="secondary small">
-                Speichern
-              </button>
+                {t("Speichern")}</button>
             </div>
           </form>
           <div className="inline-form" style={{ marginTop: ".5rem" }}>
             <form action={resetWordChain.bind(null, guildId, c.channelId)}>
               <button type="submit" className="secondary small">
-                Neue Kette beginnen
-              </button>
+                {t("Neue Kette beginnen")}</button>
             </form>
             <form action={deleteWordChain.bind(null, guildId, c.channelId)}>
               <button type="submit" className="danger small">
-                <Icon name="trash" size={15} /> Keine Wortkette mehr
-              </button>
+                <Icon name="trash" size={15} /> {" "}{t("Keine Wortkette mehr")}</button>
             </form>
           </div>
         </section>
@@ -95,13 +95,12 @@ export default async function WordChainPage({
         <form action={addWordChain.bind(null, guildId)} className="card">
           <div className="card-title">
             <Icon name="plus" />
-            <h2>{rows.length ? "Weitere Wortkette einrichten" : "Wortkette einrichten"}</h2>
+            <h2>{rows.length ? t("Weitere Wortkette einrichten") : t("Wortkette einrichten")}</h2>
           </div>
-          <label htmlFor="channelId">Kanal</label>
+          <label htmlFor="channelId">{t("Kanal")}</label>
           <select id="channelId" name="channelId" required defaultValue="">
             <option value="" disabled>
-              Kanal wählen …
-            </option>
+              {t("Kanal wählen …")}</option>
             {textChannels.map((c) => (
               <option key={c.id} value={c.id}>
                 #{c.name}
@@ -112,13 +111,10 @@ export default async function WordChainPage({
             <Options />
           </div>
           <div className="hint">
-            Nur einzelne Wörter zählen, alles andere löscht Libremod mit einem kurzen Hinweis. Umlaute zählen wie ihr Grundbuchstabe, ß wie s.
-            Libremod braucht im Kanal „Nachrichten verwalten“ und „Reaktionen hinzufügen“.
-          </div>
+            {t("Nur einzelne Wörter zählen, alles andere löscht Libremod mit einem kurzen Hinweis. Umlaute zählen wie ihr Grundbuchstabe, ß wie s. Libremod braucht im Kanal „Nachrichten verwalten“ und „Reaktionen hinzufügen“.")}</div>
           <div style={{ marginTop: "1rem" }}>
             <button type="submit">
-              <Icon name="plus" size={16} /> Einrichten
-            </button>
+              <Icon name="plus" size={16} /> {" "}{t("Einrichten")}</button>
           </div>
         </form>
       )}

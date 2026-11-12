@@ -4,6 +4,7 @@
 
 // --- Verifizierung ---
 
+import { t } from "./i18n.js";
 export const VERIFY_COLOR = 0x3ba55d;
 export const VERIFY_START_ID = "lmvf:start";
 export const VERIFY_CODE_ID = "lmvf:code";
@@ -67,13 +68,13 @@ const clip = (s: string, max: number) => (s.length <= max ? s : `${s.slice(0, ma
 export function buildVerificationMessage(s: { title: string; description: string; mode: string }) {
   const fallback =
     s.mode === "question"
-      ? "Damit wir wissen, dass du die Regeln gelesen hast: Klicke unten und beantworte eine kurze Frage. Danach siehst du den ganzen Server."
+      ? t("Damit wir wissen, dass du die Regeln gelesen hast: Klicke unten und beantworte eine kurze Frage. Danach siehst du den ganzen Server.")
       : s.mode === "code"
-        ? "Klicke unten und tippe den angezeigten Code ab. Danach siehst du den ganzen Server."
-        : "Klicke unten, um zu bestätigen, dass du ein Mensch bist. Danach siehst du den ganzen Server.";
+        ? t("Klicke unten und tippe den angezeigten Code ab. Danach siehst du den ganzen Server.")
+        : t("Klicke unten, um zu bestätigen, dass du ein Mensch bist. Danach siehst du den ganzen Server.");
   return {
-    embeds: [{ title: clip(s.title || "Willkommen!", 256), description: clip(s.description.trim() || fallback, 4000), color: VERIFY_COLOR }],
-    components: [{ type: 1, components: [{ type: 2, style: 3, custom_id: VERIFY_START_ID, label: "Verifizieren", emoji: { name: "✅" } }] }],
+    embeds: [{ title: clip(s.title || t("Willkommen!"), 256), description: clip(s.description.trim() || fallback, 4000), color: VERIFY_COLOR }],
+    components: [{ type: 1, components: [{ type: 2, style: 3, custom_id: VERIFY_START_ID, label: t("Verifizieren"), emoji: { name: "✅" } }] }],
     allowed_mentions: { parse: [] as string[] },
   };
 }
@@ -88,7 +89,7 @@ export class AttemptLimiter {
 
   /** Millisekunden bis zum nächsten erlaubten Versuch, 0 = jetzt erlaubt. */
   waitMs(key: string, now = Date.now()): number {
-    const recent = (this.fails.get(key) ?? []).filter((t) => now - t < this.windowMs);
+    const recent = (this.fails.get(key) ?? []).filter((tItem) => now - tItem < this.windowMs);
     this.fails.set(key, recent);
     if (recent.length < this.max) return 0;
     return this.windowMs - (now - recent[recent.length - this.max]!);

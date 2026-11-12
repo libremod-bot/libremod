@@ -10,8 +10,12 @@ import { database } from "@/lib/db";
 import { CHANNEL_ANNOUNCEMENT, CHANNEL_TEXT, getGuildChannels, getGuildRoles } from "@/lib/discord";
 import { updateFeed } from "../../actions";
 import { FeedFields } from "../FeedFields";
+import { t, initLocale } from "@/lib/i18n";
 
-export const metadata = { title: "Benachrichtigung bearbeiten · Libremod" };
+export async function generateMetadata() {
+  await initLocale();
+  return { title: t("{n0} · Libremod", { n0: t("Benachrichtigung bearbeiten") }) };
+}
 
 export default async function EditFeedPage({
   params,
@@ -39,13 +43,12 @@ export default async function EditFeedPage({
     <>
       <PageHeader
         icon="bell"
-        title={`${feed.platform === "reddit" ? `r/${feed.sourceId}` : feed.name} bearbeiten`}
-        description={`${info.label}-Benachrichtigung. Die Quelle selbst lässt sich nicht ändern, lege dafür eine neue an.`}
+        title={t("{n0} bearbeiten", { n0: feed.platform === "reddit" ? `r/${feed.sourceId}` : feed.name })}
+        description={t("{label}-Benachrichtigung. Die Quelle selbst lässt sich nicht ändern, lege dafür eine neue an.", { label: info.label })}
       />
       <Notice saved={gespeichert} error={fehler} />
       <Link href={`/servers/${guildId}/notifications`} className="small back-link">
-        <Icon name="back" size={15} /> Zurück zu den Benachrichtigungen
-      </Link>
+        <Icon name="back" size={15} /> {" "}{t("Zurück zu den Benachrichtigungen")}</Link>
       <div className="card">
         <form action={updateFeed.bind(null, guildId, feed.id)}>
           <FeedFields
@@ -58,7 +61,7 @@ export default async function EditFeedPage({
             messagePlaceholder={info.defaultMessage}
           />
           <div style={{ marginTop: "1rem" }}>
-            <button type="submit">Speichern</button>
+            <button type="submit">{t("Speichern")}</button>
           </div>
         </form>
       </div>

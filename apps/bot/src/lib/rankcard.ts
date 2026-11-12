@@ -1,6 +1,15 @@
 import { createCanvas } from "@napi-rs/canvas";
 import { compactNumber } from "@libremod/shared";
-import { clean, drawAvatar, drawBackground, ensureFonts, fit, hex, roundRect } from "./canvas.js";
+import {
+  clean,
+  drawAvatar,
+  drawBackground,
+  ensureFonts,
+  fit,
+  hex,
+  roundRect,
+} from "./canvas.js";
+import { t } from "@libremod/shared";
 
 export interface RankCardData {
   name: string;
@@ -35,11 +44,11 @@ export async function renderRankCard(d: RankCardData): Promise<Buffer> {
   ctx.textAlign = "right";
   let x = right;
   const stat = (label: string, value: string, color: string) => {
-    ctx.font = "bold 54px Inter";
+    ctx.font = t("bold 54px Inter");
     ctx.fillStyle = color;
     ctx.fillText(value, x, 92);
     x -= ctx.measureText(value).width + 10;
-    ctx.font = "26px Inter";
+    ctx.font = t("26px Inter");
     ctx.fillStyle = "#9aa4b5";
     ctx.fillText(label, x, 92);
     x -= ctx.measureText(label).width + 30;
@@ -49,19 +58,27 @@ export async function renderRankCard(d: RankCardData): Promise<Buffer> {
 
   // Name
   ctx.textAlign = "left";
-  ctx.font = "bold 40px Inter";
+  ctx.font = t("bold 40px Inter");
   ctx.fillStyle = "#ffffff";
   ctx.fillText(fit(ctx, clean(d.name) || d.username, right - left), left, 160);
-  ctx.font = "24px Inter";
+  ctx.font = t("24px Inter");
   ctx.fillStyle = "#9aa4b5";
-  const sub = d.season ? `@${d.username} · Saison ${d.season}` : `@${d.username}`;
+  const sub = d.season
+    ? t("@{username} · Saison {season}", {
+        username: d.username,
+        season: d.season,
+      })
+    : `@${d.username}`;
   ctx.fillText(fit(ctx, sub, right - left - 260), left, 196);
 
   // XP rechts neben dem Namen
   ctx.textAlign = "right";
-  ctx.font = "bold 26px Inter";
+  ctx.font = t("bold 26px Inter");
   ctx.fillStyle = "#ffffff";
-  const xpText = `${compactNumber(d.current)} / ${compactNumber(d.needed)} XP`;
+  const xpText = t("{current} / {needed} XP", {
+    current: compactNumber(d.current),
+    needed: compactNumber(d.needed),
+  });
   ctx.fillText(xpText, right, 196);
 
   // Fortschrittsbalken

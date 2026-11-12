@@ -6,13 +6,17 @@ import { PageHeader } from "@/components/PageHeader";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
 import { getGuildChannels } from "@/lib/discord";
+import { t, dateFmt, numFmt, initLocale } from "@/lib/i18n";
 
-export const metadata = { title: "Statistik · Libremod" };
+export async function generateMetadata() {
+  await initLocale();
+  return { title: t("{n0} · Libremod", { n0: t("Statistik") }) };
+}
 
 const RANGES = [7, 30, 90, 365];
-const nf = new Intl.NumberFormat("de-DE");
-const dayLabel = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", timeZone: "UTC" });
-const longDay = new Intl.DateTimeFormat("de-DE", { weekday: "short", day: "numeric", month: "long", timeZone: "UTC" });
+const nf = numFmt();
+const dayLabel = dateFmt({ day: "2-digit", month: "2-digit", timeZone: "UTC" });
+const longDay = dateFmt({ weekday: "short", day: "numeric", month: "long", timeZone: "UTC" });
 
 function isoDay(d: Date) {
   const p = berlinParts(d);
@@ -48,12 +52,12 @@ function BarChart({ days, values, unit, label, width = W }: { days: string[]; va
   const ticks = [0, max / 2, max];
   const every = Math.ceil(days.length / (W < 500 ? 4 : 8));
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img" aria-label={label}>
-      {ticks.map((t) => (
-        <g key={t}>
-          <line x1={PAD.l} x2={W - PAD.r} y1={y(t)} y2={y(t)} className="chart-grid" />
-          <text x={PAD.l - 6} y={y(t) + 4} textAnchor="end" className="chart-axis">
-            {nf.format(Math.round(t))}
+    <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img" aria-label={t(label)}>
+      {ticks.map((tItem) => (
+        <g key={tItem}>
+          <line x1={PAD.l} x2={W - PAD.r} y1={y(tItem)} y2={y(tItem)} className="chart-grid" />
+          <text x={PAD.l - 6} y={y(tItem) + 4} textAnchor="end" className="chart-axis">
+            {nf.format(Math.round(tItem))}
           </text>
         </g>
       ))}
@@ -82,7 +86,7 @@ function BarChart({ days, values, unit, label, width = W }: { days: string[]; va
 /** Linie für die Mitgliederzahl. Tage ohne Messung werden übersprungen. */
 function LineChart({ days, values, label }: { days: string[]; values: (number | null)[]; label: string }) {
   const known = values.filter((v): v is number => v !== null);
-  if (!known.length) return <p className="empty">Noch keine Daten.</p>;
+  if (!known.length) return <p className="empty">{t("Noch keine Daten.")}</p>;
   let lo = Math.min(...known);
   let hi = Math.max(...known);
   if (hi - lo < 4) {
@@ -97,12 +101,12 @@ function LineChart({ days, values, label }: { days: string[]; values: (number | 
   const pts = values.map((v, i) => (v === null ? null : `${x(i)},${y(v)}`)).filter(Boolean);
   const every = Math.max(1, Math.ceil((days.length - 1) / 7));
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img" aria-label={label}>
-      {[lo, (lo + hi) / 2, hi].map((t) => (
-        <g key={t}>
-          <line x1={PAD.l} x2={W - PAD.r} y1={y(t)} y2={y(t)} className="chart-grid" />
-          <text x={PAD.l - 6} y={y(t) + 4} textAnchor="end" className="chart-axis">
-            {nf.format(Math.round(t))}
+    <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img" aria-label={t(label)}>
+      {[lo, (lo + hi) / 2, hi].map((tItem) => (
+        <g key={tItem}>
+          <line x1={PAD.l} x2={W - PAD.r} y1={y(tItem)} y2={y(tItem)} className="chart-grid" />
+          <text x={PAD.l - 6} y={y(tItem) + 4} textAnchor="end" className="chart-axis">
+            {nf.format(Math.round(tItem))}
           </text>
         </g>
       ))}
@@ -112,7 +116,7 @@ function LineChart({ days, values, label }: { days: string[]; values: (number | 
           <g key={days[i]} className="chart-hit">
             <rect x={x(i) - step / 2} y={PAD.t} width={Math.max(step, 6)} height={ih} fill="transparent" />
             <circle cx={x(i)} cy={y(v)} r={4} className="chart-dot" />
-            <title>{`${longDay.format(new Date(`${days[i]}T00:00:00Z`))}: ${nf.format(v)} Mitglieder`}</title>
+            <title>{t("{n0}: {n1} Mitglieder", { n0: longDay.format(new Date(`${days[i]}T00:00:00Z`)), n1: nf.format(v) })}</title>
           </g>
         ),
       )}
@@ -168,7 +172,7 @@ export default async function StatsPage({
   const growth = firstMembers !== null && lastMembers !== null ? lastMembers - firstMembers : null;
   const hours = Array.from({ length: 24 }, (_, h) => hourRows.find((r) => r.hour === h)?.n ?? 0);
   const busiest = sum(hours) ? hours.indexOf(Math.max(...hours)) : null;
-  const channelName = (id: string) => channels.find((c) => c.id === id)?.name ?? "gelöschter Kanal";
+  const channelName = (id: string) => channels.find((c) => c.id === id)?.name ?? t("gelöschter Kanal");
   const topMax = Math.max(1, ...channelRows.map((c) => c.n));
   const base = `/servers/${guildId}/stats`;
   const empty = daily.length === 0;
@@ -177,81 +181,80 @@ export default async function StatsPage({
     <>
       <PageHeader
         icon="gauge"
-        title="Statistik"
-        description="Wie sich dein Server entwickelt. Libremod zählt nur Nachrichten, Beitritte und Abgänge, ohne zu speichern, wer was geschrieben hat."
+        title={t("Statistik")}
+        description={t("Wie sich dein Server entwickelt. Libremod zählt nur Nachrichten, Beitritte und Abgänge, ohne zu speichern, wer was geschrieben hat.")}
       />
 
-      <div className="chips" role="group" aria-label="Zeitraum">
+      <div className="chips" role="group" aria-label={t("Zeitraum")}>
         {RANGES.map((r) => (
           <Link key={r} href={`${base}?tage=${r}`} className="chip" aria-current={r === range ? "page" : undefined}>
-            {r === 365 ? "1 Jahr" : `${r} Tage`}
+            {r === 365 ? t("1 Jahr") : t("{r} Tage", { r })}
           </Link>
         ))}
       </div>
 
       {empty ? (
         <div className="card empty">
-          Noch keine Daten für diesen Zeitraum. Libremod sammelt ab jetzt, die ersten Zahlen erscheinen nach wenigen Minuten.
-        </div>
+          {t("Noch keine Daten für diesen Zeitraum. Libremod sammelt ab jetzt, die ersten Zahlen erscheinen nach wenigen Minuten.")}</div>
       ) : (
         <>
           <div className="stats">
             <div className="card stat">
-              <div className="stat-label">Mitglieder</div>
+              <div className="stat-label">{t("Mitglieder")}</div>
               <div className="stat-value">{lastMembers !== null ? nf.format(lastMembers) : "–"}</div>
             </div>
             <div className="card stat">
-              <div className="stat-label">Veränderung</div>
+              <div className="stat-label">{t("Veränderung")}</div>
               <div className="stat-value">{growth === null ? "–" : `${growth > 0 ? "+" : ""}${nf.format(growth)}`}</div>
             </div>
             <div className="card stat">
-              <div className="stat-label">Beitritte</div>
+              <div className="stat-label">{t("Beitritte")}</div>
               <div className="stat-value">{nf.format(sum(joins))}</div>
             </div>
             <div className="card stat">
-              <div className="stat-label">Abgänge</div>
+              <div className="stat-label">{t("Abgänge")}</div>
               <div className="stat-value">{nf.format(sum(leaves))}</div>
             </div>
             <div className="card stat">
-              <div className="stat-label">Nachrichten</div>
+              <div className="stat-label">{t("Nachrichten")}</div>
               <div className="stat-value">{nf.format(sum(messages))}</div>
             </div>
             <div className="card stat">
-              <div className="stat-label">Aktivste Stunde</div>
-              <div className="stat-value">{busiest === null ? "–" : `${busiest}–${busiest + 1} Uhr`}</div>
+              <div className="stat-label">{t("Aktivste Stunde")}</div>
+              <div className="stat-value">{busiest === null ? "–" : t("{busiest}–{n1} Uhr", { busiest, n1: busiest + 1 })}</div>
             </div>
           </div>
 
           <section className="card">
             <div className="card-title">
               <Icon name="users" />
-              <h2>Mitglieder</h2>
+              <h2>{t("Mitglieder")}</h2>
             </div>
-            <LineChart days={days} values={members} label="Mitgliederzahl pro Tag" />
+            <LineChart days={days} values={members} label={t("Mitgliederzahl pro Tag")} />
           </section>
 
           <section className="card">
             <div className="card-title">
               <Icon name="message" />
-              <h2>Nachrichten pro Tag</h2>
+              <h2>{t("Nachrichten pro Tag")}</h2>
             </div>
-            <BarChart days={days} values={messages} unit="Nachrichten" label="Nachrichten pro Tag" />
+            <BarChart days={days} values={messages} unit="Nachrichten" label={t("Nachrichten pro Tag")} />
           </section>
 
           <div className="grid-2" style={{ alignItems: "start" }}>
             <section className="card">
               <div className="card-title">
                 <Icon name="door" />
-                <h2>Beitritte pro Tag</h2>
+                <h2>{t("Beitritte pro Tag")}</h2>
               </div>
-              <BarChart days={days} values={joins} unit="Beitritte" label="Beitritte pro Tag" width={360} />
+              <BarChart days={days} values={joins} unit="Beitritte" label={t("Beitritte pro Tag")} width={360} />
             </section>
             <section className="card">
               <div className="card-title">
                 <Icon name="door" />
-                <h2>Abgänge pro Tag</h2>
+                <h2>{t("Abgänge pro Tag")}</h2>
               </div>
-              <BarChart days={days} values={leaves} unit="Abgänge" label="Abgänge pro Tag" width={360} />
+              <BarChart days={days} values={leaves} unit={t("Abgänge")} label={t("Abgänge pro Tag")} width={360} />
             </section>
           </div>
 
@@ -259,10 +262,10 @@ export default async function StatsPage({
             <section className="card">
               <div className="card-title">
                 <Icon name="hash" />
-                <h2>Aktivste Kanäle</h2>
+                <h2>{t("Aktivste Kanäle")}</h2>
               </div>
               {channelRows.length === 0 ? (
-                <p className="empty">Noch keine Nachrichten.</p>
+                <p className="empty">{t("Noch keine Nachrichten.")}</p>
               ) : (
                 <ul className="rank-bars">
                   {channelRows.map((c) => (
@@ -280,24 +283,24 @@ export default async function StatsPage({
             <section className="card">
               <div className="card-title">
                 <Icon name="clock" />
-                <h2>Nachrichten nach Uhrzeit</h2>
+                <h2>{t("Nachrichten nach Uhrzeit")}</h2>
               </div>
               <HourChart hours={hours} />
-              <div className="hint">Deutsche Zeit, über den ganzen Zeitraum zusammengezählt.</div>
+              <div className="hint">{t("Deutsche Zeit, über den ganzen Zeitraum zusammengezählt.")}</div>
             </section>
           </div>
 
           <details className="card">
-            <summary>Zahlen als Tabelle</summary>
+            <summary>{t("Zahlen als Tabelle")}</summary>
             <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Tag</th>
-                    <th>Mitglieder</th>
-                    <th>Beitritte</th>
-                    <th>Abgänge</th>
-                    <th>Nachrichten</th>
+                    <th>{t("Tag")}</th>
+                    <th>{t("Mitglieder")}</th>
+                    <th>{t("Beitritte")}</th>
+                    <th>{t("Abgänge")}</th>
+                    <th>{t("Nachrichten")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -331,7 +334,7 @@ function HourChart({ hours }: { hours: number[] }) {
   const step = (w - pad.l - pad.r) / 24;
   const ih = h - pad.t - pad.b;
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="chart" role="img" aria-label="Nachrichten nach Uhrzeit">
+    <svg viewBox={`0 0 ${w} ${h}`} className="chart" role="img" aria-label={t("Nachrichten nach Uhrzeit")}>
       <line x1={pad.l} x2={w - pad.r} y1={pad.t + ih} y2={pad.t + ih} className="chart-grid" />
       {hours.map((v, i) => {
         const bh = (v / max) * ih;
@@ -339,14 +342,13 @@ function HourChart({ hours }: { hours: number[] }) {
           <g key={i} className="chart-hit">
             <rect x={pad.l + i * step} y={pad.t} width={step} height={ih} fill="transparent" />
             {bh > 0 && <rect x={pad.l + i * step + 1} y={pad.t + ih - bh} width={step - 2} height={bh} rx={3} className="chart-bar" />}
-            <title>{`${i}–${i + 1} Uhr: ${nf.format(v)} Nachrichten`}</title>
+            <title>{t("{i}–{n1} Uhr: {n2} Nachrichten", { i, n1: i + 1, n2: nf.format(v) })}</title>
           </g>
         );
       })}
       {[0, 6, 12, 18].map((hh) => (
         <text key={hh} x={pad.l + hh * step + step / 2} y={h - 6} textAnchor="middle" className="chart-axis">
-          {hh} Uhr
-        </text>
+          {hh} {" "}{t("Uhr")}</text>
       ))}
     </svg>
   );

@@ -6,10 +6,14 @@ import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
 import { getMembers } from "@/lib/discord";
 import { deleteQuote } from "../actions";
+import { t, dateFmt, initLocale } from "@/lib/i18n";
 
-export const metadata = { title: "Zitate · Libremod" };
+export async function generateMetadata() {
+  await initLocale();
+  return { title: t("{n0} · Libremod", { n0: t("Zitate") }) };
+}
 
-const when = new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeZone: "Europe/Berlin" });
+const when = dateFmt({ dateStyle: "short", timeZone: "Europe/Berlin" });
 
 export default async function QuotesPage({
   params,
@@ -36,28 +40,27 @@ export default async function QuotesPage({
     <>
       <PageHeader
         icon="note"
-        title="Zitate"
-        description="Lustige und denkwürdige Sätze aufheben: Rechtsklick auf eine Nachricht → Apps → Als Zitat speichern, oder /quote add. Mit /quote random kommt eins zurück."
+        title={t("Zitate")}
+        description={t("Lustige und denkwürdige Sätze aufheben: Rechtsklick auf eine Nachricht → Apps → Als Zitat speichern, oder /quote add. Mit /quote random kommt eins zurück.")}
       />
       <Notice saved={gespeichert} error={fehler} />
 
       <section className="card">
         <div className="card-title">
           <Icon name="note" />
-          <h2>Gespeicherte Zitate</h2>
+          <h2>{t("Gespeicherte Zitate")}</h2>
           <span className="badge info" style={{ marginLeft: "auto" }}>
             {total}
           </span>
         </div>
         <form className="inline-form" style={{ marginBottom: "1rem" }}>
-          <input type="search" name="suche" defaultValue={term} placeholder="Im Text suchen …" aria-label="Im Text suchen" maxLength={100} />
+          <input type="search" name="suche" defaultValue={term} placeholder={t("Im Text suchen …")} aria-label={t("Im Text suchen")} maxLength={100} />
           <button type="submit" className="secondary small">
-            Suchen
-          </button>
+            {t("Suchen")}</button>
         </form>
         {rows.length === 0 ? (
           <p className="empty" style={{ paddingTop: 0 }}>
-            {term ? "Nichts gefunden." : "Noch keine Zitate gespeichert."}
+            {term ? t("Nichts gefunden.") : t("Noch keine Zitate gespeichert.")}
           </p>
         ) : (
           <ul className="notes">
@@ -70,13 +73,12 @@ export default async function QuotesPage({
                     <>
                       {" · "}
                       <a href={`https://discord.com/channels/${guildId}/${r.channelId}/${r.messageId}`} target="_blank" rel="noreferrer">
-                        zur Nachricht
-                      </a>
+                        {t("zur Nachricht")}</a>
                     </>
                   )}
                 </div>
                 <form action={deleteQuote.bind(null, guildId, r.id)}>
-                  <button className="danger small" type="submit" aria-label={`Zitat ${r.number} löschen`}>
+                  <button className="danger small" type="submit" aria-label={t("Zitat {number} löschen", { number: r.number })}>
                     <Icon name="trash" size={15} />
                   </button>
                 </form>

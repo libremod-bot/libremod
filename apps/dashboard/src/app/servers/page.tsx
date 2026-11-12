@@ -11,8 +11,12 @@ import {
   inviteUrl,
 } from "@/lib/discord";
 import { getUser } from "@/lib/session";
+import { t, initLocale } from "@/lib/i18n";
 
-export const metadata = { title: "Deine Server · Libremod" };
+export async function generateMetadata() {
+  await initLocale();
+  return { title: t("{n0} · Libremod", { n0: t("Deine Server") }) };
+}
 
 export default async function ServersPage() {
   const session = await getUser();
@@ -42,8 +46,8 @@ export default async function ServersPage() {
     <>
       <PageHeader
         icon="home"
-        title={`Hallo ${session.user.username}!`}
-        description="Wähle einen Server aus. Hier erscheinen alle Server, auf denen du „Server verwalten“ darfst oder einen Team-Zugang hast."
+        title={t("Hallo {username}!", { username: session.user.username })}
+        description={t("Wähle einen Server aus. Hier erscheinen alle Server, auf denen du „Server verwalten“ darfst oder einen Team-Zugang hast.")}
       />
       {owner && !botOnline(status) && (
         <div
@@ -51,11 +55,11 @@ export default async function ServersPage() {
           role="alert"
           style={{ display: "block", fontWeight: 500, marginBottom: "1rem" }}
         >
-          Der Bot ist gerade offline. <Link href="/status">Status ansehen</Link>
+          {t("Der Bot ist gerade offline.")}{" "}<Link href="/status">{t("Status ansehen")}</Link>
         </div>
       )}
       {withBot.length === 0 ? (
-        <div className="card empty">Du verwaltest noch keinen Server.</div>
+        <div className="card empty">{t("Du verwaltest noch keinen Server.")}</div>
       ) : (
         <div className="guild-grid">
           {withBot.map((g) => (
@@ -65,18 +69,16 @@ export default async function ServersPage() {
               {g.hasBot ? (
                 <>
                   <span className="badge on">
-                    {g.team ? "Team-Zugang" : "Libremod aktiv"}
+                    {g.team ? "Team-Zugang" : t("Libremod aktiv")}
                   </span>
                   <Link className="button" href={`/servers/${g.id}`}>
-                    Einstellen
-                  </Link>
+                    {t("Einstellen")}</Link>
                 </>
               ) : (
                 <>
-                  <span className="badge">Noch nicht eingeladen</span>
+                  <span className="badge">{t("Noch nicht eingeladen")}</span>
                   <a className="button secondary" href={inviteUrl(g.id)}>
-                    Libremod einladen
-                  </a>
+                    {t("Libremod einladen")}</a>
                 </>
               )}
             </div>
@@ -85,8 +87,8 @@ export default async function ServersPage() {
       )}
       {owner && (
         <p className="small muted" style={{ marginTop: "1.5rem" }}>
-          Du bist Besitzer dieser Libremod-Installation.{" "}
-          <Link href="/status">Status, Version und Datensicherung ansehen</Link>
+          {t("Du bist Besitzer dieser Libremod-Installation.")}{" "}
+          <Link href="/status">{t("Status, Version und Datensicherung ansehen")}</Link>
         </p>
       )}
     </>

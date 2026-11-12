@@ -5,10 +5,14 @@ import { database } from "@/lib/db";
 import { botIsInGuild, getBan, getGuildInfo, guildIconUrl } from "@/lib/discord";
 import { getUser } from "@/lib/session";
 import { submitAppeal } from "./actions";
+import { t, dateFmt, initLocale } from "@/lib/i18n";
 
-export const metadata = { title: "Einspruch gegen einen Ban · Libremod" };
+export async function generateMetadata() {
+  await initLocale();
+  return { title: t("{n0} · Libremod", { n0: t("Einspruch gegen einen Ban") }) };
+}
 
-const when = new Intl.DateTimeFormat("de-DE", { dateStyle: "long", timeZone: "Europe/Berlin" });
+const when = dateFmt({ dateStyle: "long", timeZone: "Europe/Berlin" });
 const STATUS: Record<string, string> = { open: "Liegt dem Team vor", accepted: "Angenommen", denied: "Abgelehnt" };
 
 export default async function AppealPage({
@@ -38,7 +42,7 @@ export default async function AppealPage({
         <div className="appeal-icon">{guild.name.slice(0, 2).toUpperCase()}</div>
       )}
       <div>
-        <h1>Einspruch gegen einen Ban</h1>
+        <h1>{t("Einspruch gegen einen Ban")}</h1>
         <p className="muted">{guild.name}</p>
       </div>
     </div>
@@ -48,7 +52,7 @@ export default async function AppealPage({
     return (
       <section className="card appeal">
         {head}
-        <p>Auf diesem Server kann man gerade keinen Einspruch einlegen. Wende dich bitte direkt an das Team.</p>
+        <p>{t("Auf diesem Server kann man gerade keinen Einspruch einlegen. Wende dich bitte direkt an das Team.")}</p>
       </section>
     );
   }
@@ -57,10 +61,9 @@ export default async function AppealPage({
     return (
       <section className="card appeal">
         {head}
-        <p>Melde dich mit Discord an, damit das Team weiß, wer den Einspruch schreibt. Wir fragen nur deinen Namen ab.</p>
+        <p>{t("Melde dich mit Discord an, damit das Team weiß, wer den Einspruch schreibt. Wir fragen nur deinen Namen ab.")}</p>
         <a className="button" href={`/api/auth/login?weiter=${encodeURIComponent(`/appeal/${guildId}`)}`}>
-          Mit Discord anmelden
-        </a>
+          {t("Mit Discord anmelden")}</a>
       </section>
     );
   }
@@ -80,34 +83,32 @@ export default async function AppealPage({
   return (
     <section className="card appeal">
       {head}
-      {gesendet && <div className="toast">Danke! Dein Einspruch ist beim Team. Du bekommst eine Direktnachricht, sobald entschieden ist.</div>}
+      {gesendet && <div className="toast">{t("Danke! Dein Einspruch ist beim Team. Du bekommst eine Direktnachricht, sobald entschieden ist.")}</div>}
       {fehler && <div className="toast error">{fehler}</div>}
       {last && (
         <div className="appeal-last">
-          <strong>Dein letzter Einspruch</strong> vom {when.format(last.createdAt)}: {STATUS[last.status] ?? last.status}
-          {last.reviewReason && <div className="small">Begründung: {last.reviewReason}</div>}
+          <strong>{t("Dein letzter Einspruch")}</strong> {" "}{t("vom")}{" "}{when.format(last.createdAt)}: {STATUS[last.status] ?? last.status}
+          {last.reviewReason && <div className="small">{t("Begründung:")}{" "}{last.reviewReason}</div>}
         </div>
       )}
       {!ban ? (
-        <p>{last?.status === "accepted" ? "Dein Ban ist aufgehoben, du kannst wieder beitreten." : "Du bist auf diesem Server nicht gebannt. Hier gibt es nichts zu tun."}</p>
+        <p>{last?.status === "accepted" ? t("Dein Ban ist aufgehoben, du kannst wieder beitreten.") : t("Du bist auf diesem Server nicht gebannt. Hier gibt es nichts zu tun.")}</p>
       ) : blocker ? (
         <p>{blocker}</p>
       ) : (
         <form action={submitAppeal.bind(null, guildId)}>
-          {ban.reason && <p className="small muted">Grund für den Ban: {ban.reason.replace(/ \(durch \d+\)$/, "")}</p>}
+          {ban.reason && <p className="small muted">{t("Grund für den Ban:")}{" "}{ban.reason.replace(/ \(durch \d+\)$/, "")}</p>}
           <label htmlFor="text">{s.question}</label>
           <textarea id="text" name="text" required minLength={APPEAL_MIN_LENGTH} maxLength={APPEAL_MAX_LENGTH} style={{ minHeight: 180 }} />
           <div className="hint">
-            Bleib sachlich und ehrlich. Mindestens {APPEAL_MIN_LENGTH} Zeichen. Nach einer Ablehnung kannst du nach {s.cooldownDays} Tagen einen neuen Einspruch
-            stellen.
-          </div>
+            {t("Bleib sachlich und ehrlich. Mindestens")}{" "}{APPEAL_MIN_LENGTH} {" "}{t("Zeichen. Nach einer Ablehnung kannst du nach")}{" "}{s.cooldownDays} {" "}{t("Tagen einen neuen Einspruch stellen.")}</div>
           <div style={{ marginTop: "1rem" }}>
-            <button type="submit">Einspruch absenden</button>
+            <button type="submit">{t("Einspruch absenden")}</button>
           </div>
         </form>
       )}
       <p className="small muted" style={{ marginTop: "1.5rem" }}>
-        Angemeldet als {session.user.username}.
+        {t("Angemeldet als")}{" "}{session.user.username}.
       </p>
     </section>
   );

@@ -8,8 +8,12 @@ import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
 import { CHANNEL_CATEGORY, getGuildChannels, getGuildRoles } from "@/lib/discord";
 import { saveAutomod, saveNameGuard } from "../actions";
+import { t, initLocale } from "@/lib/i18n";
 
-export const metadata = { title: "Auto-Mod · Libremod" };
+export async function generateMetadata() {
+  await initLocale();
+  return { title: t("{n0} · Libremod", { n0: t("Auto-Mod") }) };
+}
 
 const FILTERS: Record<AutomodFilter, { label: string; description: string; icon: IconName; threshold?: string }> = {
   phishing: {
@@ -80,7 +84,7 @@ export default async function AutomodPage({
       <PageHeader
         icon="shield"
         title="Auto-Mod"
-        description="Libremod löscht unerwünschte Nachrichten automatisch und bestraft auf Wunsch. Schalte einfach ein, was du brauchst."
+        description={t("Libremod löscht unerwünschte Nachrichten automatisch und bestraft auf Wunsch. Schalte einfach ein, was du brauchst.")}
       />
       <Notice saved={gespeichert} error={fehler} />
 
@@ -90,12 +94,12 @@ export default async function AutomodPage({
             name="automodEnabled"
             defaultChecked={settings?.automodEnabled ?? false}
             label="Auto-Moderation"
-            description="Hauptschalter für alle Filter. Mitglieder mit „Nachrichten verwalten“ sind immer ausgenommen."
+            description={t("Hauptschalter für alle Filter. Mitglieder mit „Nachrichten verwalten“ sind immer ausgenommen.")}
           />
         </div>
 
         <section>
-          <h2 style={{ marginBottom: "0.85rem" }}>Filter</h2>
+          <h2 style={{ marginBottom: "0.85rem" }}>{t("Filter")}</h2>
           <div className="filters">
             {(["phishing", ...automodFilter.enumValues.filter((x) => x !== "phishing")] as AutomodFilter[]).map((f) => {
               const rule = byFilter.get(f);
@@ -109,16 +113,16 @@ export default async function AutomodPage({
                       <Icon name={info.icon} />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <Switch name={`${f}.enabled`} defaultChecked={rule?.enabled ?? false} label={info.label} description={info.description} />
+                      <Switch name={`${f}.enabled`} defaultChecked={rule?.enabled ?? false} label={t(info.label)} description={t(info.description)} />
                     </div>
                   </div>
 
                   <div className="field" style={{ marginTop: "1rem" }}>
-                    <label htmlFor={`${f}.action`}>Was passiert bei einem Verstoß?</label>
+                    <label htmlFor={`${f}.action`}>{t("Was passiert bei einem Verstoß?")}</label>
                     <select id={`${f}.action`} name={`${f}.action`} defaultValue={action}>
                       {ACTIONS.map(([value, label]) => (
                         <option key={value} value={value}>
-                          {label}
+                          {t(label)}
                         </option>
                       ))}
                     </select>
@@ -126,27 +130,24 @@ export default async function AutomodPage({
 
                   {f === "words" && (
                     <div className="field">
-                      <label htmlFor="words.list">Verbotene Wörter</label>
+                      <label htmlFor="words.list">{t("Verbotene Wörter")}</label>
                       <textarea
                         id="words.list"
                         name="words.list"
                         defaultValue={(rule?.config.words ?? []).join("\n")}
-                        placeholder={"ein Wort pro Zeile\nidiot*"}
+                        placeholder={t("ein Wort pro Zeile\nidiot*")}
                       />
-                      <div className="hint">Ein * am Ende trifft auch Endungen (idiot* → idioten).</div>
+                      <div className="hint">{t("Ein * am Ende trifft auch Endungen (idiot* → idioten).")}</div>
                     </div>
                   )}
                   {f === "phishing" && (
                     <div className="field">
                       <label className="check-inline" style={{ padding: 0, marginBottom: ".75rem" }}>
                         <input type="checkbox" name="phishing.externalLists" defaultChecked={rule?.config.externalLists ?? true} />
-                        Öffentliche Betrugslink-Listen nutzen
-                      </label>
+                        {t("Öffentliche Betrugslink-Listen nutzen")}</label>
                       <div className="hint" style={{ marginTop: "-.5rem", marginBottom: ".75rem" }}>
-                        Zehntausende bekannte Betrugsdomains aus zwei freien Listen auf GitHub. Libremod lädt die Listen nur herunter und prüft
-                        Links bei sich. Es wird nichts an die Listen gesendet, weder Nachrichten noch Nutzer noch dein Server.
-                      </div>
-                      <label htmlFor="phishing.blockedDomains">Zusätzlich gesperrte Domains</label>
+                        {t("Zehntausende bekannte Betrugsdomains aus zwei freien Listen auf GitHub. Libremod lädt die Listen nur herunter und prüft Links bei sich. Es wird nichts an die Listen gesendet, weder Nachrichten noch Nutzer noch dein Server.")}</div>
+                      <label htmlFor="phishing.blockedDomains">{t("Zusätzlich gesperrte Domains")}</label>
                       <textarea
                         id="phishing.blockedDomains"
                         name="phishing.blockedDomains"
@@ -154,10 +155,9 @@ export default async function AutomodPage({
                         placeholder={"beispiel-betrug.com"}
                         style={{ minHeight: 60 }}
                       />
-                      <div className="hint">Eine Domain pro Zeile. Echte Discord-, Steam- und andere bekannte Seiten bleiben immer erlaubt.</div>
+                      <div className="hint">{t("Eine Domain pro Zeile. Echte Discord-, Steam- und andere bekannte Seiten bleiben immer erlaubt.")}</div>
                       <label htmlFor="phishing.allowedDomains" style={{ marginTop: ".75rem" }}>
-                        Freigegeben (Fehlalarme)
-                      </label>
+                        {t("Freigegeben (Fehlalarme)")}</label>
                       <textarea
                         id="phishing.allowedDomains"
                         name="phishing.allowedDomains"
@@ -165,36 +165,32 @@ export default async function AutomodPage({
                         style={{ minHeight: 60 }}
                       />
                       <div className="hint">
-                        Prüft auch Kurzlinks (bit.ly usw.), getarnte Links und typische Betrugstexte. Postet jemand denselben Link in mehreren Kanälen,
-                        löscht Libremod alle Kopien und schaltet die Person mindestens 1 Stunde stumm. Im Mod-Log kann dein Team Domains per Knopf
-                        sperren oder freigeben, per Rechtsklick auf eine Nachricht → Apps → „Betrugslink sperren“ auch nachträglich.
-                      </div>
+                        {t("Prüft auch Kurzlinks (bit.ly usw.), getarnte Links und typische Betrugstexte. Postet jemand denselben Link in mehreren Kanälen, löscht Libremod alle Kopien und schaltet die Person mindestens 1 Stunde stumm. Im Mod-Log kann dein Team Domains per Knopf sperren oder freigeben, per Rechtsklick auf eine Nachricht → Apps → „Betrugslink sperren“ auch nachträglich.")}</div>
                     </div>
                   )}
                   {f === "links" && (
                     <div className="field">
-                      <label htmlFor="links.allowedDomains">Erlaubte Domains</label>
+                      <label htmlFor="links.allowedDomains">{t("Erlaubte Domains")}</label>
                       <textarea
                         id="links.allowedDomains"
                         name="links.allowedDomains"
                         defaultValue={(rule?.config.allowedDomains ?? []).join("\n")}
-                        placeholder={"youtube.com\nlibremod.dev"}
+                        placeholder={t("youtube.com\nlibremod.dev")}
                         style={{ minHeight: 80 }}
                       />
-                      <div className="hint">Eine Domain pro Zeile, Subdomains sind automatisch erlaubt.</div>
+                      <div className="hint">{t("Eine Domain pro Zeile, Subdomains sind automatisch erlaubt.")}</div>
                     </div>
                   )}
 
                   <details className="more">
                     <summary>
-                      Erweitert
-                      {rule?.durationSeconds ? ` · ${ACTION_SHORT[action]} ${formatDuration(rule.durationSeconds)}` : ""}
-                      {rule?.config.threshold ? ` · Schwelle ${rule.config.threshold}` : ""}
-                      {rule?.config.notice ? " · mit Hinweis" : ""}
+                      {t("Erweitert")}{rule?.durationSeconds ? ` · ${t(ACTION_SHORT[action])} ${formatDuration(rule.durationSeconds)}` : ""}
+                      {rule?.config.threshold ? t(" · Schwelle {threshold}", { threshold: rule.config.threshold }) : ""}
+                      {rule?.config.notice ? t(" · mit Hinweis") : ""}
                     </summary>
                     <div className="grid-3">
                       <div>
-                        <label htmlFor={`${f}.duration`}>Dauer</label>
+                        <label htmlFor={`${f}.duration`}>{t("Dauer")}</label>
                         <input
                           id={`${f}.duration`}
                           name={`${f}.duration`}
@@ -202,11 +198,11 @@ export default async function AutomodPage({
                           placeholder="z. B. 10m, 1d"
                           defaultValue={rule?.durationSeconds ? compactDuration(rule.durationSeconds) : ""}
                         />
-                        <div className="hint">Für Timeout (Standard 10 Minuten) oder befristeten Ban.</div>
+                        <div className="hint">{t("Für Timeout (Standard 10 Minuten) oder befristeten Ban.")}</div>
                       </div>
                       {info.threshold && (
                         <div>
-                          <label htmlFor={`${f}.threshold`}>Schwelle</label>
+                          <label htmlFor={`${f}.threshold`}>{t("Schwelle")}</label>
                           <input
                             id={`${f}.threshold`}
                             name={`${f}.threshold`}
@@ -217,22 +213,22 @@ export default async function AutomodPage({
                             defaultValue={rule?.config.threshold ?? ""}
                           />
                           <div className="hint">
-                            {info.threshold}, Standard {defaultThreshold}.
+                            {info.threshold}{t(", Standard")}{" "}{defaultThreshold}.
                           </div>
                         </div>
                       )}
                     </div>
                     <div className="field" style={{ marginTop: "0.9rem", marginBottom: 0 }}>
-                      <label htmlFor={`${f}.notice`}>Hinweis an die Person</label>
+                      <label htmlFor={`${f}.notice`}>{t("Hinweis an die Person")}</label>
                       <input
                         id={`${f}.notice`}
                         name={`${f}.notice`}
                         type="text"
                         maxLength={500}
-                        placeholder="z. B. {user}, bitte keine Einladungslinks hier."
+                        placeholder={t("z. B. {user}, bitte keine Einladungslinks hier.")}
                         defaultValue={rule?.config.notice ?? ""}
                       />
-                      <div className="hint">Erscheint nach dem Löschen im Kanal und verschwindet nach 10 Sekunden. Leer = kein Hinweis.</div>
+                      <div className="hint">{t("Erscheint nach dem Löschen im Kanal und verschwindet nach 10 Sekunden. Leer = kein Hinweis.")}</div>
                     </div>
                   </details>
                 </div>
@@ -244,12 +240,12 @@ export default async function AutomodPage({
         <section className="card">
           <div className="card-title">
             <Icon name="users" />
-            <h2>Ausnahmen</h2>
+            <h2>{t("Ausnahmen")}</h2>
           </div>
-          <p className="card-sub">Rollen und Kanäle, in denen die Auto-Mod nicht eingreift. Mehrfachauswahl mit Strg bzw. Cmd.</p>
+          <p className="card-sub">{t("Rollen und Kanäle, in denen die Auto-Mod nicht eingreift. Mehrfachauswahl mit Strg bzw. Cmd.")}</p>
           <div className="grid-3">
             <div>
-              <label htmlFor="exemptRoles">Rollen</label>
+              <label htmlFor="exemptRoles">{t("Rollen")}</label>
               <select id="exemptRoles" name="exemptRoles" multiple defaultValue={exemptRoles}>
                 {roles.map((r) => (
                   <option key={r.id} value={r.id}>
@@ -259,7 +255,7 @@ export default async function AutomodPage({
               </select>
             </div>
             <div>
-              <label htmlFor="exemptChannels">Kanäle und Kategorien</label>
+              <label htmlFor="exemptChannels">{t("Kanäle und Kategorien")}</label>
               <select id="exemptChannels" name="exemptChannels" multiple defaultValue={exemptChannels}>
                 {channels.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -281,34 +277,34 @@ export default async function AutomodPage({
                 name="raidEnabled"
                 defaultChecked={settings?.raidEnabled ?? false}
                 label="Raid-Schutz"
-                description="Reagiert, wenn sehr viele Mitglieder in kurzer Zeit beitreten. Bleibt danach 5 Minuten aktiv."
+                description={t("Reagiert, wenn sehr viele Mitglieder in kurzer Zeit beitreten. Bleibt danach 5 Minuten aktiv.")}
               />
             </div>
           </div>
           <div className="grid-3" style={{ marginTop: "1rem" }}>
             <div>
-              <label htmlFor="raidJoinThreshold">Ab Beitritten</label>
+              <label htmlFor="raidJoinThreshold">{t("Ab Beitritten")}</label>
               <input id="raidJoinThreshold" name="raidJoinThreshold" type="number" min={3} max={100} defaultValue={settings?.raidJoinThreshold ?? 10} />
             </div>
             <div>
-              <label htmlFor="raidWindowSeconds">Innerhalb von Sekunden</label>
+              <label htmlFor="raidWindowSeconds">{t("Innerhalb von Sekunden")}</label>
               <input id="raidWindowSeconds" name="raidWindowSeconds" type="number" min={5} max={600} defaultValue={settings?.raidWindowSeconds ?? 10} />
             </div>
             <div>
-              <label htmlFor="raidAction">Mit neuen Mitgliedern</label>
+              <label htmlFor="raidAction">{t("Mit neuen Mitgliedern")}</label>
               <select id="raidAction" name="raidAction" defaultValue={settings?.raidAction ?? "alert"}>
-                <option value="alert">Nur im Mod-Log warnen</option>
-                <option value="timeout">Timeout (1 Stunde)</option>
-                <option value="kick">Kicken</option>
-                <option value="ban">Bannen</option>
+                <option value="alert">{t("Nur im Mod-Log warnen")}</option>
+                <option value="timeout">{t("Timeout (1 Stunde)")}</option>
+                <option value="kick">{t("Kicken")}</option>
+                <option value="ban">{t("Bannen")}</option>
               </select>
             </div>
           </div>
         </section>
 
         <div className="savebar">
-          <span className="small muted">Änderungen gelten sofort nach dem Speichern.</span>
-          <button type="submit">Speichern</button>
+          <span className="small muted">{t("Änderungen gelten sofort nach dem Speichern.")}</span>
+          <button type="submit">{t("Speichern")}</button>
         </div>
       </form>
 
@@ -316,12 +312,12 @@ export default async function AutomodPage({
         <Switch
           name="nameGuard.enabled"
           defaultChecked={guard?.enabled ?? false}
-          label="Namensschutz"
-          description="Greift ein, wenn jemand heißt wie dein Team, der Server-Inhaber oder Libremod, auch mit Tricks wie „Mlchel“ oder „Max | Support“."
+          label={t("Namensschutz")}
+          description={t("Greift ein, wenn jemand heißt wie dein Team, der Server-Inhaber oder Libremod, auch mit Tricks wie „Mlchel“ oder „Max | Support“.")}
         />
         <div className="grid-2" style={{ marginTop: "1rem", alignItems: "start" }}>
           <div>
-            <label htmlFor="nameGuard.roles">Team-Rollen, deren Namen geschützt sind</label>
+            <label htmlFor="nameGuard.roles">{t("Team-Rollen, deren Namen geschützt sind")}</label>
             <select id="nameGuard.roles" name="nameGuard.roles" multiple defaultValue={guard?.roleIds ?? []}>
               {roles
                 .filter((r) => r.id !== guildId)
@@ -331,26 +327,25 @@ export default async function AutomodPage({
                   </option>
                 ))}
             </select>
-            <div className="hint">Inhaber und Libremod sind immer geschützt. Wer selbst eine dieser Rollen hat, wird nicht geprüft.</div>
+            <div className="hint">{t("Inhaber und Libremod sind immer geschützt. Wer selbst eine dieser Rollen hat, wird nicht geprüft.")}</div>
           </div>
           <div>
-            <label htmlFor="nameGuard.action">Was passiert?</label>
+            <label htmlFor="nameGuard.action">{t("Was passiert?")}</label>
             <select id="nameGuard.action" name="nameGuard.action" defaultValue={guard?.action ?? "rename"}>
               {NAME_GUARD_ACTIONS.map((a) => (
                 <option key={a.value} value={a.value}>
-                  {a.label}
+                  {t(a.label)}
                 </option>
               ))}
             </select>
             <label htmlFor="nameGuard.names" style={{ marginTop: "1rem" }}>
-              Weitere geschützte Namen
-            </label>
-            <textarea id="nameGuard.names" name="nameGuard.names" defaultValue={(guard?.names ?? []).join("\n")} placeholder={"Servername\nSupport"} style={{ minHeight: 80 }} />
-            <div className="hint">Einer pro Zeile. Alles landet im Mod-Log.</div>
+              {t("Weitere geschützte Namen")}</label>
+            <textarea id="nameGuard.names" name="nameGuard.names" defaultValue={(guard?.names ?? []).join("\n")} placeholder={t("Servername\nSupport")} style={{ minHeight: 80 }} />
+            <div className="hint">{t("Einer pro Zeile. Alles landet im Mod-Log.")}</div>
           </div>
         </div>
         <div style={{ marginTop: "1rem" }}>
-          <button type="submit">Namensschutz speichern</button>
+          <button type="submit">{t("Namensschutz speichern")}</button>
         </div>
       </form>
     </>

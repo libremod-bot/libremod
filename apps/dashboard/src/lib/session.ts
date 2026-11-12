@@ -2,6 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { getIronSession } from "iron-session";
 import { env } from "./env";
+import { initLocale } from "./i18n";
 
 export interface SessionUser {
   id: string;
@@ -36,6 +37,7 @@ export async function getSession() {
 
 /** Liefert den eingeloggten Nutzer oder null, wenn keine gültige Sitzung besteht. */
 export async function getUser() {
+  await initLocale();
   const session = await getSession();
   if (!session.user || !session.accessToken || (session.expiresAt ?? 0) < Date.now()) return null;
   return { user: session.user, accessToken: session.accessToken };

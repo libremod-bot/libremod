@@ -5,11 +5,15 @@ import { PageHeader } from "@/components/PageHeader";
 import { requireGuildAccess } from "@/lib/access";
 import { AREAS, areaLabel } from "@/lib/areas";
 import { database } from "@/lib/db";
+import { t, dateFmt, initLocale } from "@/lib/i18n";
 
-export const metadata = { title: "Änderungsprotokoll · Libremod" };
+export async function generateMetadata() {
+  await initLocale();
+  return { title: t("{n0} · Libremod", { n0: t("Änderungsprotokoll") }) };
+}
 
 const PAGE_SIZE = 50;
-const when = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Berlin" });
+const when = dateFmt({ dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Berlin" });
 
 export default async function AuditPage({
   params,
@@ -49,31 +53,30 @@ export default async function AuditPage({
     <>
       <PageHeader
         icon="file"
-        title="Änderungsprotokoll"
-        description="Wer hat wann im Dashboard was geändert. Einträge bleiben ein Jahr gespeichert."
+        title={t("Änderungsprotokoll")}
+        description={t("Wer hat wann im Dashboard was geändert. Einträge bleiben ein Jahr gespeichert.")}
       />
 
       <form className="card filterbar" method="get" action={base}>
         <div className="grid-3">
           <div>
-            <label htmlFor="bereich">Bereich</label>
+            <label htmlFor="bereich">{t("Bereich")}</label>
             <select id="bereich" name="bereich" defaultValue={bereich ?? ""}>
-              <option value="">Alle Bereiche</option>
+              <option value="">{t("Alle Bereiche")}</option>
               {AREAS.map((a) => (
                 <option key={a.key} value={a.key}>
-                  {a.label}
+                  {t(a.label)}
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <label htmlFor="person">Nutzer-ID</label>
+            <label htmlFor="person">{t("Nutzer-ID")}</label>
             <input id="person" name="person" type="text" inputMode="numeric" defaultValue={person ?? ""} placeholder="optional" />
           </div>
           <div style={{ alignSelf: "end" }}>
             <button type="submit" className="secondary">
-              Filtern
-            </button>
+              {t("Filtern")}</button>
           </div>
         </div>
       </form>
@@ -81,21 +84,21 @@ export default async function AuditPage({
       <section className="card">
         <div className="card-title">
           <Icon name="file" />
-          <h2>Änderungen</h2>
+          <h2>{t("Änderungen")}</h2>
         </div>
         {shown.length === 0 ? (
           <p className="empty" style={{ paddingTop: 0 }}>
-            Noch keine Änderungen{bereich || person ? " für diesen Filter" : ""}.
+            {t("Noch keine Änderungen")}{bereich || person ? t(" für diesen Filter") : ""}.
           </p>
         ) : (
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Wann</th>
-                  <th>Wer</th>
-                  <th>Bereich</th>
-                  <th>Was</th>
+                  <th>{t("Wann")}</th>
+                  <th>{t("Wer")}</th>
+                  <th>{t("Bereich")}</th>
+                  <th>{t("Was")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -117,8 +120,8 @@ export default async function AuditPage({
         )}
         {(page > 1 || more) && (
           <div className="savebar">
-            {page > 1 ? <Link className="button secondary" href={link(page - 1)}>Neuere</Link> : <span />}
-            {more && <Link className="button secondary" href={link(page + 1)}>Ältere</Link>}
+            {page > 1 ? <Link className="button secondary" href={link(page - 1)}>{t("Neuere")}</Link> : <span />}
+            {more && <Link className="button secondary" href={link(page + 1)}>{t("Ältere")}</Link>}
           </div>
         )}
       </section>

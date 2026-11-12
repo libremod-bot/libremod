@@ -8,8 +8,12 @@ import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
 import { CHANNEL_ANNOUNCEMENT, CHANNEL_TEXT, getBotTopPosition, getGuildChannels, getGuildRoles, getMembers } from "@/lib/discord";
 import { saveBirthdays } from "../actions";
+import { t, initLocale } from "@/lib/i18n";
 
-export const metadata = { title: "Geburtstage · Libremod" };
+export async function generateMetadata() {
+  await initLocale();
+  return { title: t("{n0} · Libremod", { n0: t("Geburtstage") }) };
+}
 
 const DEFAULT_MESSAGE = "🎉 Alles Gute zum Geburtstag, {user}!";
 
@@ -45,8 +49,8 @@ export default async function BirthdaysPage({
     <>
       <PageHeader
         icon="cake"
-        title="Geburtstage"
-        description="Mitglieder tragen ihren Geburtstag mit /birthday set ein. Libremod gratuliert am Tag selbst und vergibt auf Wunsch für 24 Stunden eine Rolle."
+        title={t("Geburtstage")}
+        description={t("Mitglieder tragen ihren Geburtstag mit /birthday set ein. Libremod gratuliert am Tag selbst und vergibt auf Wunsch für 24 Stunden eine Rolle.")}
       />
       <Notice saved={gespeichert} error={fehler} />
 
@@ -54,14 +58,14 @@ export default async function BirthdaysPage({
         <Switch
           name="enabled"
           defaultChecked={s?.enabled ?? false}
-          label="Geburtstage feiern"
-          description="Eintragen geht immer. Glückwünsche und Rolle gibt es nur, solange das hier eingeschaltet ist."
+          label={t("Geburtstage feiern")}
+          description={t("Eintragen geht immer. Glückwünsche und Rolle gibt es nur, solange das hier eingeschaltet ist.")}
         />
         <div className="grid-3" style={{ marginTop: "1rem" }}>
           <div>
-            <label htmlFor="channelId">Kanal für Glückwünsche</label>
+            <label htmlFor="channelId">{t("Kanal für Glückwünsche")}</label>
             <select id="channelId" name="channelId" defaultValue={s?.channelId ?? ""}>
-              <option value="">Keine Nachricht</option>
+              <option value="">{t("Keine Nachricht")}</option>
               {textChannels.map((c) => (
                 <option key={c.id} value={c.id}>
                   #{c.name}
@@ -70,9 +74,9 @@ export default async function BirthdaysPage({
             </select>
           </div>
           <div>
-            <label htmlFor="roleId">Geburtstagsrolle</label>
+            <label htmlFor="roleId">{t("Geburtstagsrolle")}</label>
             <select id="roleId" name="roleId" defaultValue={s?.roleId ?? ""}>
-              <option value="">Keine Rolle</option>
+              <option value="">{t("Keine Rolle")}</option>
               {assignable.map((r) => (
                 <option key={r.id} value={r.id}>
                   @{r.name}
@@ -81,45 +85,41 @@ export default async function BirthdaysPage({
             </select>
           </div>
           <div>
-            <label htmlFor="hour">Uhrzeit (deutsche Zeit)</label>
+            <label htmlFor="hour">{t("Uhrzeit (deutsche Zeit)")}</label>
             <select id="hour" name="hour" defaultValue={String(s?.hour ?? 9)}>
               {Array.from({ length: 24 }, (_, h) => (
                 <option key={h} value={h}>
-                  {String(h).padStart(2, "0")}:00 Uhr
-                </option>
+                  {String(h).padStart(2, "0")}{t(":00 Uhr")}</option>
               ))}
             </select>
           </div>
         </div>
-        <label htmlFor="message">Glückwunsch</label>
-        <textarea id="message" name="message" rows={3} maxLength={1000} defaultValue={s?.message ?? DEFAULT_MESSAGE} />
+        <label htmlFor="message">{t("Glückwunsch")}</label>
+        <textarea id="message" name="message" rows={3} maxLength={1000} defaultValue={s?.message ?? t(DEFAULT_MESSAGE)} />
         <div className="chips">
           {BIRTHDAY_PLACEHOLDERS.map((p) => (
             <span key={p.key} className="chip">
-              <code>{p.key}</code> {p.description}
+              <code>{p.key}</code> {t(p.description)}
             </span>
           ))}
         </div>
         <div className="hint">
-          Wer am 29. Februar Geburtstag hat, wird in Jahren ohne Schalttag am 28. Februar gefeiert. Das Geburtsjahr ist freiwillig und
-          wird nur für <code>{"{age}"}</code> genutzt.
-        </div>
+          {t("Wer am 29. Februar Geburtstag hat, wird in Jahren ohne Schalttag am 28. Februar gefeiert. Das Geburtsjahr ist freiwillig und wird nur für")}{" "}<code>{"{age}"}</code> {" "}{t("genutzt.")}</div>
         <div className="savebar">
           <span className="muted small">
-            {rows.length} {rows.length === 1 ? "Geburtstag" : "Geburtstage"} eingetragen
-          </span>
-          <button type="submit">Speichern</button>
+            {rows.length} {rows.length === 1 ? "Geburtstag" : "Geburtstage"} {" "}{t("eingetragen")}</span>
+          <button type="submit">{t("Speichern")}</button>
         </div>
       </form>
 
       <section className="card">
         <div className="card-title">
           <Icon name="cake" />
-          <h2>Die nächsten Geburtstage</h2>
+          <h2>{t("Die nächsten Geburtstage")}</h2>
         </div>
         {upcoming.length === 0 ? (
           <p className="empty" style={{ paddingTop: 0 }}>
-            Noch hat niemand einen Geburtstag eingetragen. Mitglieder machen das mit <code>/birthday set</code>.
+            {t("Noch hat niemand einen Geburtstag eingetragen. Mitglieder machen das mit")}{" "}<code>{t("/birthday set")}</code>.
           </p>
         ) : (
           <div className="table-wrap">
@@ -132,15 +132,15 @@ export default async function BirthdaysPage({
                       <td style={{ whiteSpace: "nowrap" }}>{formatBirthday({ day: next.day, month: next.month })}</td>
                       <td>
                         {name(b.userId)}
-                        {age !== null && <span className="muted small"> · wird {age}</span>}
+                        {age !== null && <span className="muted small"> {" "}{t("· wird")}{" "}{age}</span>}
                       </td>
                       <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                         {next.inDays === 0 ? (
-                          <span className="badge on">Heute 🎂</span>
+                          <span className="badge on">{t("Heute 🎂")}</span>
                         ) : next.inDays === 1 ? (
                           "morgen"
                         ) : (
-                          `in ${next.inDays} Tagen`
+                          t("in {inDays} Tagen", { inDays: next.inDays })
                         )}
                       </td>
                     </tr>

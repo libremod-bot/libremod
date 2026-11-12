@@ -39,6 +39,7 @@ import {
   wordChainChannels,
   type Db,
 } from "@libremod/db";
+import { t } from "@/lib/i18n";
 
 /**
  * Export und Import aller Einstellungen eines Servers als JSON. Nur Einstellungen, keine Mitgliederdaten
@@ -106,8 +107,8 @@ export const BACKUP_TABLE_COUNT = TABLES.length;
 // Drizzle-Tabellen sind stark typisiert; hier wird bewusst generisch gearbeitet.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Row = Record<string, any>;
-const cols = (t: unknown) => getTableColumns(t as AnyTable) as Record<string, { notNull: boolean; columnType: string; hasDefault: boolean }>;
-const guildCol = (t: unknown) => (t as any).guildId;
+const cols = (tItem: unknown) => getTableColumns(tItem as AnyTable) as Record<string, { notNull: boolean; columnType: string; hasDefault: boolean }>;
+const guildCol = (tItem: unknown) => (tItem as any).guildId;
 
 export interface BackupFile {
   format: typeof BACKUP_FORMAT;
@@ -132,14 +133,14 @@ export function parseBackup(text: string): BackupFile | string {
   try {
     data = JSON.parse(text);
   } catch {
-    return "Die Datei ist kein gültiges JSON.";
+    return t("Die Datei ist kein gültiges JSON.");
   }
-  if (data?.format !== BACKUP_FORMAT) return "Das ist keine Libremod-Einstellungsdatei.";
-  if (typeof data.version !== "number" || data.version > BACKUP_VERSION) return "Diese Datei stammt aus einer neueren Libremod-Version. Bitte erst Libremod aktualisieren.";
-  if (!data.tables || typeof data.tables !== "object") return "In der Datei fehlen die Einstellungen.";
+  if (data?.format !== BACKUP_FORMAT) return t("Das ist keine Libremod-Einstellungsdatei.");
+  if (typeof data.version !== "number" || data.version > BACKUP_VERSION) return t("Diese Datei stammt aus einer neueren Libremod-Version. Bitte erst Libremod aktualisieren.");
+  if (!data.tables || typeof data.tables !== "object") return t("In der Datei fehlen die Einstellungen.");
   for (const [name, rows] of Object.entries(data.tables)) {
-    if (!TABLES.some((t) => t.name === name)) continue;
-    if (!Array.isArray(rows) || rows.length > 2000 || rows.some((r) => !r || typeof r !== "object" || Array.isArray(r))) return `Fehlerhafte Daten bei „${name}“.`;
+    if (!TABLES.some((tItem) => tItem.name === name)) continue;
+    if (!Array.isArray(rows) || rows.length > 2000 || rows.some((r) => !r || typeof r !== "object" || Array.isArray(r))) return t("Fehlerhafte Daten bei „{name}“.", { name });
   }
   return data as BackupFile;
 }

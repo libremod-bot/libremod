@@ -7,8 +7,12 @@ import { database } from "@/lib/db";
 import { LOG_INFO } from "@/lib/logging";
 import { CHANNEL_ANNOUNCEMENT, CHANNEL_CATEGORY, CHANNEL_TEXT, getGuildChannels } from "@/lib/discord";
 import { quickLogging, saveLogging } from "../actions";
+import { t, initLocale } from "@/lib/i18n";
 
-export const metadata = { title: "Logging · Libremod" };
+export async function generateMetadata() {
+  await initLocale();
+  return { title: t("{n0} · Libremod", { n0: t("Logging") }) };
+}
 
 export default async function LoggingPage({
   params,
@@ -35,22 +39,21 @@ export default async function LoggingPage({
     <>
       <PageHeader
         icon="log"
-        title="Logging"
-        description="Libremod protokolliert, was auf deinem Server passiert. Wähle für jede Log-Art einen Kanal, oder lass sie aus."
+        title={t("Logging")}
+        description={t("Libremod protokolliert, was auf deinem Server passiert. Wähle für jede Log-Art einen Kanal, oder lass sie aus.")}
       />
       <Notice saved={gespeichert} error={fehler} />
 
       <form className="card quick" action={quickLogging.bind(null, guildId)}>
         <div className="card-title">
           <Icon name="check" />
-          <h2>Schnell einrichten</h2>
+          <h2>{t("Schnell einrichten")}</h2>
         </div>
-        <p className="card-sub">Alle Log-Arten in einen Kanal. Einzelne Arten kannst du danach unten umstellen.</p>
+        <p className="card-sub">{t("Alle Log-Arten in einen Kanal. Einzelne Arten kannst du danach unten umstellen.")}</p>
         <div className="inline-form">
-          <select name="channelId" aria-label="Kanal für alle Logs" defaultValue="" required>
+          <select name="channelId" aria-label={t("Kanal für alle Logs")} defaultValue="" required>
             <option value="" disabled>
-              Kanal wählen …
-            </option>
+              {t("Kanal wählen …")}</option>
             {textChannels.map((c) => (
               <option key={c.id} value={c.id}>
                 #{c.name}
@@ -58,15 +61,14 @@ export default async function LoggingPage({
             ))}
           </select>
           <button type="submit" className="secondary">
-            Alles dorthin loggen
-          </button>
+            {t("Alles dorthin loggen")}</button>
         </div>
-        <div className="hint">Tipp: Ein Kanal wie #server-log, den nur dein Team sehen kann.</div>
+        <div className="hint">{t("Tipp: Ein Kanal wie #server-log, den nur dein Team sehen kann.")}</div>
       </form>
 
       <form action={saveLogging.bind(null, guildId)} className="stack">
         <section>
-          <h2 style={{ marginBottom: "0.85rem" }}>Log-Arten</h2>
+          <h2 style={{ marginBottom: "0.85rem" }}>{t("Log-Arten")}</h2>
           <div className="filters">
             {(logCategory.enumValues as readonly LogCategory[]).map((cat) => {
               const info = LOG_INFO[cat];
@@ -79,12 +81,12 @@ export default async function LoggingPage({
                       <Icon name={info.icon} />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <h3>{info.label}</h3>
+                      <h3>{t(info.label)}</h3>
                     </div>
                     {current ? (
                       <span className="badge on">{name ? `#${name}` : "Aktiv"}</span>
                     ) : (
-                      <span className="badge">Aus</span>
+                      <span className="badge">{t("Aus")}</span>
                     )}
                   </div>
                   <ul className="log-events">
@@ -93,10 +95,10 @@ export default async function LoggingPage({
                     ))}
                   </ul>
                   <div className="field" style={{ marginBottom: 0 }}>
-                    <label htmlFor={`${cat}.channel`}>Log-Kanal</label>
+                    <label htmlFor={`${cat}.channel`}>{t("Log-Kanal")}</label>
                     <select id={`${cat}.channel`} name={`${cat}.channel`} defaultValue={current ?? ""}>
-                      <option value="">Aus</option>
-                      {current && !name && <option value={current}>Gelöschter Kanal ({current})</option>}
+                      <option value="">{t("Aus")}</option>
+                      {current && !name && <option value={current}>{t("Gelöschter Kanal (")}{current})</option>}
                       {textChannels.map((c) => (
                         <option key={c.id} value={c.id}>
                           #{c.name}
@@ -113,13 +115,11 @@ export default async function LoggingPage({
         <section className="card">
           <div className="card-title">
             <Icon name="users" />
-            <h2>Nicht loggen</h2>
+            <h2>{t("Nicht loggen")}</h2>
           </div>
           <p className="card-sub">
-            Gelöschte und bearbeitete Nachrichten aus diesen Kanälen oder Kategorien landen nicht im Log. Die Log-Kanäle selbst sind immer
-            ausgenommen. Mehrfachauswahl mit Strg bzw. Cmd.
-          </p>
-          <select id="ignoredChannels" name="ignoredChannels" multiple defaultValue={ignored.map((i) => i.channelId)} aria-label="Ignorierte Kanäle">
+            {t("Gelöschte und bearbeitete Nachrichten aus diesen Kanälen oder Kategorien landen nicht im Log. Die Log-Kanäle selbst sind immer ausgenommen. Mehrfachauswahl mit Strg bzw. Cmd.")}</p>
+          <select id="ignoredChannels" name="ignoredChannels" multiple defaultValue={ignored.map((i) => i.channelId)} aria-label={t("Ignorierte Kanäle")}>
             {channels.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.type === CHANNEL_CATEGORY ? `▸ ${c.name}` : `#${c.name}`}
@@ -129,8 +129,8 @@ export default async function LoggingPage({
         </section>
 
         <div className="savebar">
-          <span className="small muted">Bot-Nachrichten werden nicht geloggt. Kicks und Bans stehen im Mod-Log.</span>
-          <button type="submit">Speichern</button>
+          <span className="small muted">{t("Bot-Nachrichten werden nicht geloggt. Kicks und Bans stehen im Mod-Log.")}</span>
+          <button type="submit">{t("Speichern")}</button>
         </div>
       </form>
     </>

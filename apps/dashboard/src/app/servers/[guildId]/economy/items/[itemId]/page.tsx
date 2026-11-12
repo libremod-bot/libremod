@@ -9,8 +9,12 @@ import { database } from "@/lib/db";
 import { getBotTopPosition, getGuildRoles } from "@/lib/discord";
 import { updateShopItem } from "../../../actions";
 import { ItemFields } from "../../ItemFields";
+import { t, initLocale } from "@/lib/i18n";
 
-export const metadata = { title: "Artikel bearbeiten · Libremod" };
+export async function generateMetadata() {
+  await initLocale();
+  return { title: t("{n0} · Libremod", { n0: t("Artikel bearbeiten") }) };
+}
 
 export default async function EditItemPage({
   params,
@@ -33,15 +37,14 @@ export default async function EditItemPage({
   if (!item) notFound();
   return (
     <>
-      <PageHeader icon="coin" title={`${item.name} bearbeiten`} description="Änderungen gelten sofort im Shop." />
+      <PageHeader icon="coin" title={t("{name} bearbeiten", { name: item.name })} description={t("Änderungen gelten sofort im Shop.")} />
       <Notice saved={gespeichert} error={fehler} />
       <Link href={`/servers/${guildId}/economy`} className="small back-link">
-        <Icon name="back" size={15} /> Zurück zum Shop
-      </Link>
+        <Icon name="back" size={15} /> {" "}{t("Zurück zum Shop")}</Link>
       <form action={updateShopItem.bind(null, guildId, id)} className="card">
         <ItemFields item={item} roles={roles} botTop={botTop} />
         <input type="hidden" name="enabled" value={item.enabled ? "on" : "off"} />
-        <button type="submit">Speichern</button>
+        <button type="submit">{t("Speichern")}</button>
       </form>
     </>
   );

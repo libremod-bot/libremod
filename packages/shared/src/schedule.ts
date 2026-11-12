@@ -1,5 +1,6 @@
 /** Zeitpläne für wiederkehrende Nachrichten. Uhrzeiten gelten in deutscher Zeit (Sommer- und Winterzeit). */
 
+import { t } from "./i18n.js";
 export const SCHEDULE_TIME_ZONE = "Europe/Berlin";
 export const MIN_INTERVAL_MINUTES = 10;
 
@@ -71,7 +72,7 @@ export function nextRun(schedule: Schedule, after: Date): Date {
     const candidate = berlinToDate(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate(), time.hour, time.minute);
     if (candidate.getTime() > after.getTime()) return candidate;
   }
-  throw new Error("Kein nächster Termin gefunden");
+  throw new Error(t("Kein nächster Termin gefunden"));
 }
 
 export const WEEKDAY_NAMES = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
@@ -79,12 +80,12 @@ export const WEEKDAY_NAMES = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "F
 export function describeSchedule(s: Schedule): string {
   if (s.kind === "interval") {
     const m = s.intervalMinutes;
-    if (m % 1440 === 0) return m === 1440 ? "jeden Tag" : `alle ${m / 1440} Tage`;
-    if (m % 60 === 0) return m === 60 ? "jede Stunde" : `alle ${m / 60} Stunden`;
-    return `alle ${m} Minuten`;
+    if (m % 1440 === 0) return m === 1440 ? t("jeden Tag") : t("alle {n0} Tage", { n0: m / 1440 });
+    if (m % 60 === 0) return m === 60 ? t("jede Stunde") : t("alle {n0} Stunden", { n0: m / 60 });
+    return t("alle {m} Minuten", { m });
   }
-  if (s.kind === "daily") return `täglich um ${s.timeOfDay} Uhr`;
-  return `jeden ${WEEKDAY_NAMES[s.weekday - 1]} um ${s.timeOfDay} Uhr`;
+  if (s.kind === "daily") return t("täglich um {timeOfDay} Uhr", { timeOfDay: s.timeOfDay });
+  return t("jeden {n0} um {timeOfDay} Uhr", { n0: t(WEEKDAY_NAMES[s.weekday - 1]), timeOfDay: s.timeOfDay });
 }
 
 /** Baut einen Zeitplan aus einer Datenbankzeile. */

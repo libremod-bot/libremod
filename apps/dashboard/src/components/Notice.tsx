@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n";
 export function Notice({ saved, error }: { saved?: string; error?: string }) {
   if (error)
     return (
@@ -8,8 +9,7 @@ export function Notice({ saved, error }: { saved?: string; error?: string }) {
   if (saved)
     return (
       <div className="toast" role="status">
-        Gespeichert. Libremod übernimmt die Änderung sofort.
-      </div>
+        {t("Gespeichert. Libremod übernimmt die Änderung sofort.")}</div>
     );
   return null;
 }

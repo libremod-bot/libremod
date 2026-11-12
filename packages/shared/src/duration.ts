@@ -1,3 +1,4 @@
+import { t } from "./i18n.js";
 const UNITS: Record<string, number> = {
   s: 1,
   m: 60,
@@ -39,7 +40,7 @@ export function formatDuration(seconds: number): string {
       rest -= n * size;
     }
   }
-  return parts.length ? parts.slice(0, 2).join(" ") : "0 Sekunden";
+  return parts.length ? parts.slice(0, 2).join(" ") : t("0 Sekunden");
 }
 
 /** Discord erlaubt Timeouts von höchstens 28 Tagen. */

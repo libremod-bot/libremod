@@ -1,19 +1,38 @@
-import { MessageFlags, type ChatInputCommandInteraction, type GuildMember, type User } from "discord.js";
+import {
+  MessageFlags,
+  type ChatInputCommandInteraction,
+  type GuildMember,
+  type User,
+} from "discord.js";
 import { moderationBlocker } from "../../lib/permissions.js";
+import { t } from "@libremod/shared";
 
 export type GuildInteraction = ChatInputCommandInteraction<"cached">;
 
 /** Antwortet nur für den Ausführenden sichtbar. */
-export async function replyPrivate(interaction: ChatInputCommandInteraction, content: string): Promise<void> {
-  const payload = { content, flags: MessageFlags.Ephemeral, allowedMentions: { parse: [] } } as const;
-  if (interaction.deferred || interaction.replied) await interaction.editReply(content);
+export async function replyPrivate(
+  interaction: ChatInputCommandInteraction,
+  content: string,
+): Promise<void> {
+  const payload = {
+    content,
+    flags: MessageFlags.Ephemeral,
+    allowedMentions: { parse: [] },
+  } as const;
+  if (interaction.deferred || interaction.replied)
+    await interaction.editReply(content);
   else await interaction.reply(payload);
 }
 
 /** Stellt sicher, dass der Befehl auf einem Server läuft, auf dem der Bot geladen ist. */
-export function inGuild(interaction: ChatInputCommandInteraction): interaction is GuildInteraction {
+export function inGuild(
+  interaction: ChatInputCommandInteraction,
+): interaction is GuildInteraction {
   if (interaction.inCachedGuild()) return true;
-  void replyPrivate(interaction, "Dieser Befehl funktioniert nur auf einem Server.");
+  void replyPrivate(
+    interaction,
+    t("Dieser Befehl funktioniert nur auf einem Server."),
+  );
   return false;
 }
 
@@ -26,10 +45,15 @@ export async function resolveTarget(
   user: User,
   { mustBeMember }: { mustBeMember: boolean },
 ): Promise<GuildMember | null | undefined> {
-  const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+  const member = await interaction.guild.members
+    .fetch(user.id)
+    .catch(() => null);
   if (!member) {
     if (mustBeMember) {
-      await replyPrivate(interaction, "Diese Person ist nicht auf dem Server.");
+      await replyPrivate(
+        interaction,
+        t("Diese Person ist nicht auf dem Server."),
+      );
       return undefined;
     }
     return null;

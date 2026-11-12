@@ -9,11 +9,15 @@ import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
 import { CHANNEL_ANNOUNCEMENT, CHANNEL_TEXT, getGuildChannels, getGuildRoles, getMembers } from "@/lib/discord";
 import { deleteTicketCategory, deleteTicketPanel, saveTicketSettings } from "../actions";
+import { t, dateFmt, numFmt, initLocale } from "@/lib/i18n";
 
-export const metadata = { title: "Tickets · Libremod" };
+export async function generateMetadata() {
+  await initLocale();
+  return { title: t("{n0} · Libremod", { n0: t("Tickets") }) };
+}
 
-const when = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Berlin" });
-const nf1 = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 });
+const when = dateFmt({ dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Berlin" });
+const nf1 = numFmt({ maximumFractionDigits: 1 });
 
 export default async function TicketsPage({
   params,
@@ -62,37 +66,37 @@ export default async function TicketsPage({
     getGuildChannels(guildId),
     getGuildRoles(guildId),
   ]);
-  const people = await getMembers(guildId, [...new Set([...open, ...closed].flatMap((t) => [t.ownerId, t.claimedBy ?? ""]).filter(Boolean))]);
+  const people = await getMembers(guildId, [...new Set([...open, ...closed].flatMap((tItem) => [tItem.ownerId, tItem.claimedBy ?? ""]).filter(Boolean))]);
   const person = (id: string | null) => (id ? (people.find((p) => p.id === id)?.name ?? id) : "–");
   const textChannels = channels.filter((c) => c.type === CHANNEL_TEXT || c.type === CHANNEL_ANNOUNCEMENT);
-  const channelName = (id: string | null) => channels.find((c) => c.id === id)?.name ?? "gelöschter Kanal";
+  const channelName = (id: string | null) => channels.find((c) => c.id === id)?.name ?? t("gelöschter Kanal");
   const catName = (id: number) => categories.find((c) => c.id === id)?.name;
 
   return (
     <>
       <PageHeader
         icon="ticket"
-        title="Tickets"
-        description="Mitglieder öffnen über ein Panel einen privaten Kanal oder Thread mit dem Team. Mit Formularfragen, Übernahme, Transkripten und Bewertungen."
+        title={t("Tickets")}
+        description={t("Mitglieder öffnen über ein Panel einen privaten Kanal oder Thread mit dem Team. Mit Formularfragen, Übernahme, Transkripten und Bewertungen.")}
       />
       <Notice saved={gespeichert} error={fehler} />
 
       <div className="stats">
         <div className="card stat">
-          <div className="stat-label">Offen</div>
+          <div className="stat-label">{t("Offen")}</div>
           <div className="stat-value">{open.length}</div>
         </div>
         <div className="card stat">
-          <div className="stat-label">Geschlossen (7 Tage)</div>
+          <div className="stat-label">{t("Geschlossen (7 Tage)")}</div>
           <div className="stat-value">{stats?.closedWeek ?? 0}</div>
         </div>
         <div className="card stat">
-          <div className="stat-label">Ø Bearbeitungszeit</div>
+          <div className="stat-label">{t("Ø Bearbeitungszeit")}</div>
           <div className="stat-value small-value">{stats?.avgMinutes != null ? ticketDuration(stats.avgMinutes * 60_000) : "–"}</div>
         </div>
         <div className="card stat">
-          <div className="stat-label">Ø Bewertung</div>
-          <div className="stat-value small-value" title={`${stats?.ratings ?? 0} Bewertungen`}>
+          <div className="stat-label">{t("Ø Bewertung")}</div>
+          <div className="stat-value small-value" title={t("{n0} Bewertungen", { n0: stats?.ratings ?? 0 })}>
             {stats?.avgRating != null ? `${nf1.format(stats.avgRating)} / 5` : "–"}
           </div>
         </div>
@@ -100,11 +104,11 @@ export default async function TicketsPage({
 
       {categories.length === 0 && (
         <div className="card">
-          <h2 style={{ marginTop: 0 }}>So geht&apos;s los</h2>
+          <h2 style={{ marginTop: 0 }}>{t("So geht's los")}</h2>
           <ol className="steps-list">
-            <li>Lege unten eine Ticket-Art an, z. B. „Support“ oder „Bewerbung“, mit Team-Rollen und optionalen Fragen.</li>
-            <li>Erstelle ein Panel in einem Kanal, den alle sehen. Dort öffnen Mitglieder per Klick ein Ticket.</li>
-            <li>Wähle einen Log-Kanal, damit Transkripte und Bewertungen beim Team ankommen.</li>
+            <li>{t("Lege unten eine Ticket-Art an, z. B. „Support“ oder „Bewerbung“, mit Team-Rollen und optionalen Fragen.")}</li>
+            <li>{t("Erstelle ein Panel in einem Kanal, den alle sehen. Dort öffnen Mitglieder per Klick ein Ticket.")}</li>
+            <li>{t("Wähle einen Log-Kanal, damit Transkripte und Bewertungen beim Team ankommen.")}</li>
           </ol>
         </div>
       )}
@@ -112,22 +116,21 @@ export default async function TicketsPage({
       <section className="card">
         <div className="card-title">
           <Icon name="ticket" />
-          <h2>Ticket-Arten</h2>
+          <h2>{t("Ticket-Arten")}</h2>
           <Link href={`${base}/categories/new`} className="button small" style={{ marginLeft: "auto" }}>
-            <Icon name="plus" size={15} /> Neue Ticket-Art
-          </Link>
+            <Icon name="plus" size={15} /> {" "}{t("Neue Ticket-Art")}</Link>
         </div>
         {categories.length === 0 ? (
-          <p className="empty">Noch keine Ticket-Arten.</p>
+          <p className="empty">{t("Noch keine Ticket-Arten.")}</p>
         ) : (
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Als</th>
-                  <th>Team</th>
-                  <th>Fragen</th>
+                  <th>{t("Name")}</th>
+                  <th>{t("Als")}</th>
+                  <th>{t("Team")}</th>
+                  <th>{t("Fragen")}</th>
                   <th />
                 </tr>
               </thead>
@@ -141,17 +144,16 @@ export default async function TicketsPage({
                       </strong>
                       {c.description && <div className="small muted">{c.description}</div>}
                     </td>
-                    <td className="small">{c.mode === "thread" ? `Thread in #${channelName(c.parentId)}` : "eigener Kanal"}</td>
+                    <td className="small">{c.mode === "thread" ? t("Thread in #{parentId}", { parentId: channelName(c.parentId) }) : t("eigener Kanal")}</td>
                     <td className="small">
-                      {c.staffRoleIds.length ? c.staffRoleIds.map((r) => `@${roles.find((x) => x.id === r)?.name ?? "gelöscht"}`).join(", ") : "alle mit „Kanäle verwalten“"}
+                      {c.staffRoleIds.length ? c.staffRoleIds.map((r) => `@${roles.find((x) => x.id === r)?.name ?? t("gelöscht")}`).join(", ") : t("alle mit „Kanäle verwalten“")}
                     </td>
                     <td>{c.questions.length || "–"}</td>
                     <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                       <Link href={`${base}/categories/${c.id}`} className="button secondary small">
-                        <Icon name="edit" size={15} /> Bearbeiten
-                      </Link>{" "}
+                        <Icon name="edit" size={15} /> {" "}{t("Bearbeiten")}</Link>{" "}
                       <form action={deleteTicketCategory.bind(null, guildId, c.id)} style={{ display: "inline" }}>
-                        <button className="danger small" type="submit" aria-label={`${c.name} löschen`}>
+                        <button className="danger small" type="submit" aria-label={t("{name} löschen", { name: c.name })}>
                           <Icon name="trash" size={15} />
                         </button>
                       </form>
@@ -167,15 +169,14 @@ export default async function TicketsPage({
       <section className="card">
         <div className="card-title">
           <Icon name="message" />
-          <h2>Panels</h2>
+          <h2>{t("Panels")}</h2>
           {categories.length > 0 && (
             <Link href={`${base}/panels/new`} className="button small" style={{ marginLeft: "auto" }}>
-              <Icon name="plus" size={15} /> Neues Panel
-            </Link>
+              <Icon name="plus" size={15} /> {" "}{t("Neues Panel")}</Link>
           )}
         </div>
         {panels.length === 0 ? (
-          <p className="empty">{categories.length ? "Noch kein Panel. Erstelle eins, damit Mitglieder Tickets öffnen können." : "Lege zuerst eine Ticket-Art an."}</p>
+          <p className="empty">{categories.length ? t("Noch kein Panel. Erstelle eins, damit Mitglieder Tickets öffnen können.") : t("Lege zuerst eine Ticket-Art an.")}</p>
         ) : (
           <div className="table-wrap">
             <table>
@@ -185,17 +186,16 @@ export default async function TicketsPage({
                     <td>
                       <strong>{p.title}</strong>
                       <div className="small muted">
-                        #{channelName(p.channelId)} · {p.style === "select" ? "Auswahlmenü" : "Buttons"} ·{" "}
-                        {p.categoryIds.map(catName).filter(Boolean).join(", ") || "keine Ticket-Arten"}
+                        #{channelName(p.channelId)} · {p.style === "select" ? t("Auswahlmenü") : "Buttons"} ·{" "}
+                        {p.categoryIds.map(catName).filter(Boolean).join(", ") || t("keine Ticket-Arten")}
                       </div>
                     </td>
-                    <td>{p.messageId ? <span className="badge on">gepostet</span> : <span className="badge warn">nicht gepostet</span>}</td>
+                    <td>{p.messageId ? <span className="badge on">{t("gepostet")}</span> : <span className="badge warn">{t("nicht gepostet")}</span>}</td>
                     <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                       <Link href={`${base}/panels/${p.id}`} className="button secondary small">
-                        <Icon name="edit" size={15} /> Bearbeiten
-                      </Link>{" "}
+                        <Icon name="edit" size={15} /> {" "}{t("Bearbeiten")}</Link>{" "}
                       <form action={deleteTicketPanel.bind(null, guildId, p.id)} style={{ display: "inline" }}>
-                        <button className="danger small" type="submit" aria-label="Panel löschen">
+                        <button className="danger small" type="submit" aria-label={t("Panel löschen")}>
                           <Icon name="trash" size={15} />
                         </button>
                       </form>
@@ -211,38 +211,38 @@ export default async function TicketsPage({
       <section className="card">
         <div className="card-title">
           <Icon name="circle" />
-          <h2>Offene Tickets</h2>
+          <h2>{t("Offene Tickets")}</h2>
         </div>
         {open.length === 0 ? (
-          <p className="empty">Gerade ist kein Ticket offen.</p>
+          <p className="empty">{t("Gerade ist kein Ticket offen.")}</p>
         ) : (
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Art</th>
-                  <th>Von</th>
-                  <th>Übernommen</th>
-                  <th>Offen seit</th>
+                  <th>{t("Art")}</th>
+                  <th>{t("Von")}</th>
+                  <th>{t("Übernommen")}</th>
+                  <th>{t("Offen seit")}</th>
                 </tr>
               </thead>
               <tbody>
-                {open.map((t) => (
-                  <tr key={t.id}>
+                {open.map((tItem) => (
+                  <tr key={tItem.id}>
                     <td>
-                      {t.channelId ? (
-                        <a href={`https://discord.com/channels/${guildId}/${t.channelId}`} target="_blank" rel="noreferrer noopener">
-                          #{t.number}
+                      {tItem.channelId ? (
+                        <a href={`https://discord.com/channels/${guildId}/${tItem.channelId}`} target="_blank" rel="noreferrer noopener">
+                          #{tItem.number}
                         </a>
                       ) : (
-                        `#${t.number}`
+                        `#${tItem.number}`
                       )}
                     </td>
-                    <td>{t.categoryName}</td>
-                    <td>{person(t.ownerId)}</td>
-                    <td>{person(t.claimedBy)}</td>
-                    <td className="small">{ticketDuration(Date.now() - t.createdAt.getTime())}</td>
+                    <td>{tItem.categoryName}</td>
+                    <td>{person(tItem.ownerId)}</td>
+                    <td>{person(tItem.claimedBy)}</td>
+                    <td className="small">{ticketDuration(Date.now() - tItem.createdAt.getTime())}</td>
                   </tr>
                 ))}
               </tbody>
@@ -254,39 +254,38 @@ export default async function TicketsPage({
       <section className="card">
         <div className="card-title">
           <Icon name="file" />
-          <h2>Zuletzt geschlossen</h2>
+          <h2>{t("Zuletzt geschlossen")}</h2>
         </div>
         {closed.length === 0 ? (
-          <p className="empty">Noch keine geschlossenen Tickets.</p>
+          <p className="empty">{t("Noch keine geschlossenen Tickets.")}</p>
         ) : (
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Art</th>
-                  <th>Von</th>
-                  <th>Geschlossen</th>
-                  <th>Bewertung</th>
+                  <th>{t("Art")}</th>
+                  <th>{t("Von")}</th>
+                  <th>{t("Geschlossen")}</th>
+                  <th>{t("Bewertung")}</th>
                   <th />
                 </tr>
               </thead>
               <tbody>
-                {closed.map((t) => (
-                  <tr key={t.id}>
-                    <td>#{t.number}</td>
-                    <td>{t.categoryName}</td>
-                    <td>{person(t.ownerId)}</td>
+                {closed.map((tItem) => (
+                  <tr key={tItem.id}>
+                    <td>#{tItem.number}</td>
+                    <td>{tItem.categoryName}</td>
+                    <td>{person(tItem.ownerId)}</td>
                     <td className="small">
-                      {t.closedAt ? when.format(t.closedAt) : "–"}
-                      {t.closeReason && <div className="muted">{t.closeReason}</div>}
+                      {tItem.closedAt ? when.format(tItem.closedAt) : "–"}
+                      {tItem.closeReason && <div className="muted">{tItem.closeReason}</div>}
                     </td>
-                    <td className="rating">{t.rating ? ratingStars(t.rating) : <span className="muted">–</span>}</td>
+                    <td className="rating">{tItem.rating ? ratingStars(tItem.rating) : <span className="muted">–</span>}</td>
                     <td style={{ textAlign: "right" }}>
-                      {t.hasTranscript && (
-                        <a href={`${base}/${t.id}/transcript`} target="_blank" rel="noreferrer" className="button secondary small">
-                          Transkript
-                        </a>
+                      {tItem.hasTranscript && (
+                        <a href={`${base}/${tItem.id}/transcript`} target="_blank" rel="noreferrer" className="button secondary small">
+                          {t("Transkript")}</a>
                       )}
                     </td>
                   </tr>
@@ -300,13 +299,13 @@ export default async function TicketsPage({
       <form action={saveTicketSettings.bind(null, guildId)} className="card">
         <div className="card-title">
           <Icon name="usercog" />
-          <h2>Einstellungen</h2>
+          <h2>{t("Einstellungen")}</h2>
         </div>
         <div className="grid-2">
           <div className="field">
-            <label htmlFor="logChannelId">Log-Kanal für Transkripte und Bewertungen</label>
+            <label htmlFor="logChannelId">{t("Log-Kanal für Transkripte und Bewertungen")}</label>
             <select id="logChannelId" name="logChannelId" defaultValue={settings?.logChannelId ?? ""}>
-              <option value="">Keiner</option>
+              <option value="">{t("Keiner")}</option>
               {textChannels.map((c) => (
                 <option key={c.id} value={c.id}>
                   #{c.name}
@@ -315,11 +314,11 @@ export default async function TicketsPage({
             </select>
           </div>
           <div className="field">
-            <label htmlFor="autoCloseHours">Automatisch schließen ohne Aktivität</label>
+            <label htmlFor="autoCloseHours">{t("Automatisch schließen ohne Aktivität")}</label>
             <select id="autoCloseHours" name="autoCloseHours" defaultValue={String(settings?.autoCloseHours ?? 0)}>
               {AUTO_CLOSE_OPTIONS.map((h) => (
                 <option key={h} value={h}>
-                  {h === 0 ? "Nie" : h < 48 ? `nach ${h} Stunden` : `nach ${h / 24} Tagen`}
+                  {h === 0 ? "Nie" : h < 48 ? t("nach {h} Stunden", { h }) : t("nach {n0} Tagen", { n0: h / 24 })}
                 </option>
               ))}
             </select>
@@ -329,23 +328,23 @@ export default async function TicketsPage({
         <Switch
           name="transcriptDm"
           defaultChecked={settings?.transcriptDm ?? true}
-          label="Transkript per Direktnachricht"
-          description="Wer das Ticket geöffnet hat, bekommt beim Schließen den Verlauf als Datei."
+          label={t("Transkript per Direktnachricht")}
+          description={t("Wer das Ticket geöffnet hat, bekommt beim Schließen den Verlauf als Datei.")}
         />
         <Switch
           name="ratingEnabled"
           defaultChecked={settings?.ratingEnabled ?? true}
-          label="Nach Bewertung fragen"
-          description="Nach dem Schließen kommt eine Direktnachricht mit 1 bis 5 Sternen."
+          label={t("Nach Bewertung fragen")}
+          description={t("Nach dem Schließen kommt eine Direktnachricht mit 1 bis 5 Sternen.")}
         />
         <Switch
           name="ownerCanClose"
           defaultChecked={settings?.ownerCanClose ?? true}
-          label="Mitglieder dürfen ihr eigenes Ticket schließen"
-          description="Sonst kann nur das Team schließen."
+          label={t("Mitglieder dürfen ihr eigenes Ticket schließen")}
+          description={t("Sonst kann nur das Team schließen.")}
         />
         <div className="field" style={{ marginTop: "1rem" }}>
-          <label htmlFor="blockedRoleIds">Gesperrte Rollen (dürfen keine Tickets öffnen)</label>
+          <label htmlFor="blockedRoleIds">{t("Gesperrte Rollen (dürfen keine Tickets öffnen)")}</label>
           <select id="blockedRoleIds" name="blockedRoleIds" multiple defaultValue={settings?.blockedRoleIds ?? []} style={{ minHeight: 110 }}>
             {roles.map((r) => (
               <option key={r.id} value={r.id}>
@@ -353,9 +352,9 @@ export default async function TicketsPage({
               </option>
             ))}
           </select>
-          <div className="hint">Mehrfachauswahl mit Strg bzw. Cmd.</div>
+          <div className="hint">{t("Mehrfachauswahl mit Strg bzw. Cmd.")}</div>
         </div>
-        <button type="submit">Speichern</button>
+        <button type="submit">{t("Speichern")}</button>
       </form>
     </>
   );
