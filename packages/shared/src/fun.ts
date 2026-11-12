@@ -73,7 +73,7 @@ export function buildGiveawayMessage(g: GiveawayView, entrants: number) {
   const rules: string[] = [];
   if (g.requiredRoleId) rules.push(t("Rolle <@&{requiredRoleId}>", { requiredRoleId: g.requiredRoleId }));
   if (g.minLevel > 0) rules.push(t("mindestens Level {minLevel}", { minLevel: g.minLevel }));
-  if (rules.length) lines.push(t("Teilnahme nur mit: {n0}", { n0: rules.join(" und ") }));
+  if (rules.length) lines.push(t("Teilnahme nur mit: {n0}", { n0: rules.join(t(" und ")) }));
   lines.push(t("Veranstaltet von <@{hostId}>", { hostId: g.hostId }));
 
   return {
@@ -110,7 +110,9 @@ export function giveawayResultText(prize: string, winnerIds: string[], reroll = 
   if (!winnerIds.length) return t("Beim Gewinnspiel um **{n0}** gab es keine gültigen Teilnahmen.", { n0: clip(prize, 200) });
   const who = winnerIds.map((id) => `<@${id}>`).join(", ");
   return reroll
-    ? t("🎲 Neu ausgelost: {who} {n1} **{n2}**!", { who, n1: winnerIds.length === 1 ? "gewinnt" : "gewinnen", n2: clip(prize, 200) })
+    ? winnerIds.length === 1
+      ? t("🎲 Neu ausgelost: {who} gewinnt **{n2}**!", { who, n2: clip(prize, 200) })
+      : t("🎲 Neu ausgelost: {who} gewinnen **{n2}**!", { who, n2: clip(prize, 200) })
     : t("🎉 Glückwunsch {who}! {n1} **{n2}** gewonnen.", { who, n1: winnerIds.length === 1 ? t("Du hast") : t("Ihr habt"), n2: clip(prize, 200) });
 }
 

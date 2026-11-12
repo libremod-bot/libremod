@@ -67,8 +67,8 @@ export interface QuoteView {
 
 /** Embed für ein Zitat (Discord-API-Form). */
 export function quoteEmbed(q: QuoteView, avatarUrl?: string) {
-  const who = q.authorId ? `<@${q.authorId}>` : (q.authorName ?? "Unbekannt");
-  const link = q.channelId && q.messageId ? ` · [zur Nachricht](https://discord.com/channels/${q.guildId}/${q.channelId}/${q.messageId})` : "";
+  const who = q.authorId ? `<@${q.authorId}>` : (q.authorName ?? t("Unbekannt"));
+  const link = q.channelId && q.messageId ? t(" · [zur Nachricht]({url})", { url: `https://discord.com/channels/${q.guildId}/${q.channelId}/${q.messageId}` }) : "";
   return {
     description: `„${q.text.length > 3900 ? `${q.text.slice(0, 3899)}…` : q.text}“\n\n— ${who}${link}`,
     color: 0xf5c542,

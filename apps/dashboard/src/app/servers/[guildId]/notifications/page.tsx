@@ -88,7 +88,7 @@ export default async function NotificationsPage({
                 {!f.enabled ? (
                   <span className="badge">{t("pausiert")}</span>
                 ) : f.lastError ? (
-                  <span className="badge danger" title={f.lastError}>
+                  <span className="badge danger" title={t(f.lastError)}>
                     {t("Problem")}</span>
                 ) : f.live ? (
                   <span className="badge on">{t("live")}</span>
@@ -97,7 +97,7 @@ export default async function NotificationsPage({
               <p className="preview">{f.message}</p>
               <div className="small muted" style={{ marginBottom: ".75rem" }}>
                 {f.lastError
-                  ? t("Letzte Abfrage fehlgeschlagen: {lastError}", { lastError: f.lastError })
+                  ? t("Letzte Abfrage fehlgeschlagen: {lastError}", { lastError: t(f.lastError) })
                   : f.lastCheckedAt
                     ? t("Zuletzt geprüft {n0}{n1}", { n0: when.format(f.lastCheckedAt), n1: f.lastPostAt ? t(" · zuletzt gemeldet {n0}", { n0: when.format(f.lastPostAt) }) : "" })
                     : t("Wird in den nächsten Minuten zum ersten Mal geprüft.")}
@@ -146,7 +146,7 @@ export default async function NotificationsPage({
                 <input id="source" name="source" type="text" required maxLength={500} placeholder={t("@kanalname, r/de oder https://…")} />
                 <div className="hint">
                   {NOTIFY_PLATFORMS.filter((p) => platformAvailable(p, creds))
-                    .map((p) => `${t(PLATFORM_INFO[p].label)}: ${PLATFORM_INFO[p].source}`)
+                    .map((p) => `${t(PLATFORM_INFO[p].label)}: ${t(PLATFORM_INFO[p].source)}`)
                     .join(" · ")}
                 </div>
               </div>
@@ -159,7 +159,7 @@ export default async function NotificationsPage({
         )}
         <div className="hint" style={{ marginTop: "1rem" }}>
           {t("Geprüft wird alle")}{" "}{POLL_MINUTES.twitch} {" "}{t("Minuten (Livestreams) bzw.")}{" "}{POLL_MINUTES.youtube} {" "}{t("bis")}{" "}{POLL_MINUTES.rss} {" "}{t("Minuten (Videos, Beiträge, Feeds). Beim Einrichten merkt sich Libremod, was es schon gibt, und meldet nur Neues.")}{unavailable.length > 0 &&
-            t(" {n0} brauchen eigene Zugangsdaten in der .env (siehe README).", { n0: unavailable.map((p) => t(PLATFORM_INFO[p].label)).join(" und ") })}
+            t(" {n0} brauchen eigene Zugangsdaten in der .env (siehe README).", { n0: unavailable.map((p) => t(PLATFORM_INFO[p].label)).join(t(" und ")) })}
         </div>
       </section>
     </>

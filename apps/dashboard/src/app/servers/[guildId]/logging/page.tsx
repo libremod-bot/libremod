@@ -84,14 +84,14 @@ export default async function LoggingPage({
                       <h3>{t(info.label)}</h3>
                     </div>
                     {current ? (
-                      <span className="badge on">{name ? `#${name}` : "Aktiv"}</span>
+                      <span className="badge on">{name ? `#${name}` : t("Aktiv")}</span>
                     ) : (
                       <span className="badge">{t("Aus")}</span>
                     )}
                   </div>
                   <ul className="log-events">
                     {info.events.map((e) => (
-                      <li key={e}>{e}</li>
+                      <li key={e}>{t(e)}</li>
                     ))}
                   </ul>
                   <div className="field" style={{ marginBottom: 0 }}>

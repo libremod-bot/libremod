@@ -449,7 +449,7 @@ export const automod: Command = {
         channel && channelMention(channel.id),
       ]
         .filter(Boolean)
-        .join(" und ");
+        .join(t(" und "));
       return done(
         sub === "add"
           ? t("Ausnahme hinzugefügt: {names}", { names })

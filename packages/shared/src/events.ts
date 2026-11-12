@@ -39,24 +39,34 @@ export function parseEventCustomId(customId: string): { id: number; choice: Rsvp
   return m ? { id: Number(m[1]), choice: m[2] as RsvpChoice } : null;
 }
 
-const WORD_DAYS: Record<string, number> = { heute: 0, morgen: 1, übermorgen: 2, uebermorgen: 2 };
+const WORD_DAYS: Record<string, number> = { heute: 0, morgen: 1, übermorgen: 2, uebermorgen: 2, today: 0, tonight: 0, tomorrow: 1, "day after tomorrow": 2 };
 
 /**
  * Liest einen Startzeitpunkt in deutscher Zeit:
  * „24.12.2026 18:00“, „24.12. 18:00“, „2026-12-24 18:00“, „morgen 19:30“, „heute 20 Uhr“ oder „in 2h“.
+ * Englisch geht auch: „tomorrow 7:30 pm“, „today at 8pm“, „in 2 hours“.
  * Ohne Jahr gilt der nächste passende Tag. Gibt null zurück, wenn nichts verstanden wird.
  */
 export function parseEventStart(input: string, now = new Date()): Date | null {
-  const s = input.trim().toLowerCase().replace(/\s+/g, " ").replace(/ uhr$/, "").replace(/,/g, "");
+  let s = input.trim().toLowerCase().replace(/\s+/g, " ").replace(/ uhr$/, "").replace(/,/g, "");
   if (!s) return null;
+  // 12-Stunden-Uhr: „8pm“, „8:30 pm“, „12 am“
+  const ampm = /(?:^| )([01]?\d)(?::([0-5]\d))? ?(am|pm)$/.exec(s);
+  if (ampm) {
+    let h = Number(ampm[1]);
+    if (h < 1 || h > 12) return null;
+    if (ampm[3] === "pm" && h < 12) h += 12;
+    if (ampm[3] === "am" && h === 12) h = 0;
+    s = `${s.slice(0, ampm.index)} ${h}:${ampm[2] ?? "00"}`.trim();
+  }
 
   const rel = /^in (.+)$/.exec(s);
   if (rel) {
-    const secs = parseDuration(rel[1]!.replace(/ ?(minuten?|min)$/, "m").replace(/ ?(stunden?|std)$/, "h").replace(/ ?(tagen?|tage)$/, "d"));
+    const secs = parseDuration(rel[1]!.replace(/ ?(minuten?|minutes?|min)$/, "m").replace(/ ?(stunden?|std|hours?|hrs?)$/, "h").replace(/ ?(tagen?|tage|days?)$/, "d"));
     return secs ? new Date(now.getTime() + secs * 1000) : null;
   }
 
-  const time = /(?:^| )(?:um )?([01]?\d|2[0-3])(?::|\.|h)?([0-5]\d)?(?: uhr)?$/.exec(s);
+  const time = /(?:^| )(?:um |at )?([01]?\d|2[0-3])(?::|\.|h)?([0-5]\d)?(?: uhr)?$/.exec(s);
   if (!time) return null;
   const hour = Number(time[1]);
   const minute = Number(time[2] ?? 0);

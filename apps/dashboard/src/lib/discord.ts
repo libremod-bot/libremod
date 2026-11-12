@@ -108,13 +108,13 @@ export async function exchangeCode(code: string) {
 export function getCurrentUser(accessToken: string) {
   return discord<{ id: string; username: string; global_name: string | null; avatar: string | null }>(
     "/users/@me",
-    t("Bearer {accessToken}", { accessToken }),
+    `Bearer ${accessToken}`,
   );
 }
 
 /** Alle Server des Nutzers (aus dem Login). */
 export function getUserGuilds(userId: string, accessToken: string) {
-  return cached(`user-guilds:${userId}`, 60_000, () => discord<PartialGuild[]>("/users/@me/guilds", t("Bearer {accessToken}", { accessToken })));
+  return cached(`user-guilds:${userId}`, 60_000, () => discord<PartialGuild[]>("/users/@me/guilds", `Bearer ${accessToken}`));
 }
 
 export const canManage = (g: PartialGuild) => {
@@ -129,7 +129,7 @@ export async function getManageableGuilds(userId: string, accessToken: string) {
 
 // --- Bot-Anfragen ---
 
-const bot = () => t("Bot {botToken}", { botToken: env.botToken });
+const bot = () => `Bot ${env.botToken}`;
 
 /** Prüft, ob der Bot auf dem Server ist. */
 export function botIsInGuild(guildId: string) {

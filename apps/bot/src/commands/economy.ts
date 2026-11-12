@@ -260,12 +260,12 @@ export const shop: Command = {
             [
               i.description,
               i.roleId
-                ? `Rolle: <@&${i.roleId}>${i.roleDays ? ` für ${i.roleDays} ${i.roleDays === 1 ? "Tag" : "Tage"}` : ""}`
+                ? t("Rolle: <@&{id}>{n1}", { id: i.roleId, n1: i.roleDays ? (i.roleDays === 1 ? t(" für 1 Tag") : t(" für {n} Tage", { n: i.roleDays })) : "" })
                 : "",
               i.stock !== null
                 ? i.stock > 0
-                  ? `Noch ${i.stock} übrig`
-                  : "Ausverkauft"
+                  ? t("Noch {n} übrig", { n: i.stock })
+                  : t("Ausverkauft")
                 : "",
             ]
               .filter(Boolean)

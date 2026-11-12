@@ -41,9 +41,9 @@ export const welcome: Command = {
         ),
       ));
     const status = [
-      `Willkommensnachricht: ${s.welcomeEnabled && s.welcomeChannelId ? `an, in <#${s.welcomeChannelId}>` : "aus"}`,
-      `Direktnachricht: ${s.dmEnabled ? "an" : "aus"}`,
-      `Abschied: ${s.goodbyeEnabled && s.goodbyeChannelId ? `an, in <#${s.goodbyeChannelId}>` : "aus"}`,
+      t("Willkommensnachricht: {n0}", { n0: s.welcomeEnabled && s.welcomeChannelId ? t("an, in <#{id}>", { id: s.welcomeChannelId }) : t("aus") }),
+      t("Direktnachricht: {n0}", { n0: s.dmEnabled ? t("an") : t("aus") }),
+      t("Abschied: {n0}", { n0: s.goodbyeEnabled && s.goodbyeChannelId ? t("an, in <#{id}>", { id: s.goodbyeChannelId }) : t("aus") }),
     ].join("\n");
     const welcomeMsg = await fullWelcomePayload(
       s,

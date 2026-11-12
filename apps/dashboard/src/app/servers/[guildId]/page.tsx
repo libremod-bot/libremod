@@ -49,7 +49,8 @@ import type { AreaKey } from "@/lib/areas";
 import { Notice } from "@/components/Notice";
 import { database } from "@/lib/db";
 import { getGuildChannels } from "@/lib/discord";
-import { t, relFmt, initLocale } from "@/lib/i18n";
+import { t, relFmt, initLocale, LOCALES, LOCALE_NAMES } from "@/lib/i18n";
+import { saveBotLanguage } from "./actions";
 
 export async function generateMetadata() {
   await initLocale();
@@ -137,7 +138,7 @@ export default async function OverviewPage({
     db.select({ n: count() }).from(guildEvents).where(and(eq(guildEvents.guildId, guildId), eq(guildEvents.state, "open"))),
   ]);
   const countBadge = (n: number | undefined, one: string, many: string) =>
-    n ? <span className="badge on">{n === 1 ? one : `${n} ${many}`}</span> : <span className="badge">{t("Keine")}</span>;
+    n ? <span className="badge on">{n === 1 ? t(one) : t(many, { n })}</span> : <span className="badge">{t("Keine")}</span>;
   const welcomeOn = !!(welcome?.welcomeEnabled || welcome?.goodbyeEnabled || welcome?.dmEnabled);
   const roleFeatures = (autoRoleRows[0]?.n ?? 0) + (panels[0]?.n ?? 0);
 
@@ -163,7 +164,7 @@ export default async function OverviewPage({
       text: t("Support-Tickets mit Formularen, Team-Rollen, Übernahme, Transkripten und Bewertungen."),
       href: `${base}/tickets`,
       status: panelCount?.n ? (
-        <span className="badge on">{openTickets?.n ? `${openTickets.n} offen` : "Aktiv"}</span>
+        <span className="badge on">{openTickets?.n ? t("{n} offen", { n: openTickets.n }) : t("Aktiv")}</span>
       ) : (
         <span className="badge">{t("Aus")}</span>
       ),
@@ -173,7 +174,7 @@ export default async function OverviewPage({
       title: t("Einsprüche"),
       text: t("Gebannte können über eine eigene Seite Einspruch einlegen, das Team entscheidet hier."),
       href: `${base}/appeals`,
-      status: appealCfg?.enabled ? <span className={`badge ${openAppeals?.n ? "warn" : "on"}`}>{openAppeals?.n ? `${openAppeals.n} offen` : "Aktiv"}</span> : <span className="badge">{t("Aus")}</span>,
+      status: appealCfg?.enabled ? <span className={`badge ${openAppeals?.n ? "warn" : "on"}`}>{openAppeals?.n ? t("{n} offen", { n: openAppeals.n }) : t("Aktiv")}</span> : <span className="badge">{t("Aus")}</span>,
     },
     {
       icon: "usercheck",
@@ -187,7 +188,7 @@ export default async function OverviewPage({
       title: t("Lockdown"),
       text: t("Im Notfall einzelne Kanäle oder den ganzen Server sperren, auf Wunsch befristet. Mit /lockdown und /unlock."),
       href: `${base}/moderation#lockdown`,
-      status: lockCount?.n ? <span className="badge danger">{lockCount.n === 1 ? "1 Kanal gesperrt" : `${lockCount.n} Kanäle gesperrt`}</span> : <span className="badge">{t("Nichts gesperrt")}</span>,
+      status: lockCount?.n ? <span className="badge danger">{lockCount.n === 1 ? t("1 Kanal gesperrt") : t("{n} Kanäle gesperrt", { n: lockCount.n })}</span> : <span className="badge">{t("Nichts gesperrt")}</span>,
     },
     {
       icon: "gavel",
@@ -243,28 +244,28 @@ export default async function OverviewPage({
       title: t("Eigene Befehle"),
       text: t("Slash-Befehle wie /regeln mit eigenem Text oder Embed, auf Wunsch mit Zufallsantworten."),
       href: `${base}/commands`,
-      status: countBadge(cmdCount?.n, "1 Befehl", "Befehle"),
+      status: countBadge(cmdCount?.n, "1 Befehl", "{n} Befehle"),
     },
     {
       icon: "clock",
       title: t("Geplante Nachrichten"),
       text: t("Erinnerungen und Hinweise, die Libremod täglich, wöchentlich oder in festen Abständen postet."),
       href: `${base}/schedule`,
-      status: countBadge(schedCount?.n, "1 aktiv", "aktiv"),
+      status: countBadge(schedCount?.n, "1 aktiv", "{n} aktiv"),
     },
     {
       icon: "mic",
       title: t("Sprachkanäle & Zähler"),
       text: t("Sprachkanäle, die sich selbst erstellen und löschen, und Kanäle mit Mitgliederzahl."),
       href: `${base}/channels`,
-      status: countBadge((counterCount?.n ?? 0) + (hubCount?.n ?? 0), "1 eingerichtet", "eingerichtet"),
+      status: countBadge((counterCount?.n ?? 0) + (hubCount?.n ?? 0), "1 eingerichtet", "{n} eingerichtet"),
     },
     {
       icon: "bell",
       title: t("Benachrichtigungen"),
       text: t("Neue Videos, Livestreams, Reddit-Beiträge und RSS-Feeds automatisch im Kanal melden."),
       href: `${base}/notifications`,
-      status: countBadge(feedCount?.n, "1 aktiv", "aktiv"),
+      status: countBadge(feedCount?.n, "1 aktiv", "{n} aktiv"),
     },
     {
       icon: "coin",
@@ -272,7 +273,7 @@ export default async function OverviewPage({
       text: t("Eigene Währung mit täglichem Bonus, Arbeiten, Überweisungen und einem Shop für Rollen und Artikel."),
       href: `${base}/economy`,
       status: eco?.enabled ? (
-        <span className="badge on">{itemCount?.n ? `Aktiv · ${itemCount.n} im Shop` : "Aktiv"}</span>
+        <span className="badge on">{itemCount?.n ? t("Aktiv · {n} im Shop", { n: itemCount.n }) : t("Aktiv")}</span>
       ) : (
         <span className="badge">{t("Aus")}</span>
       ),
@@ -282,14 +283,14 @@ export default async function OverviewPage({
       title: t("Gewinnspiele"),
       text: t("Preise verlosen mit Mitmach-Knopf, Bedingungen wie Rolle oder Level und fairer Auslosung."),
       href: `${base}/giveaways`,
-      status: countBadge(gwCount?.n, "1 läuft", "laufen"),
+      status: countBadge(gwCount?.n, "1 läuft", "{n} laufen"),
     },
     {
       icon: "calendar",
       title: t("Events"),
       text: t("Termine planen mit Zu- und Absagen, Warteliste, Event-Rolle und Erinnerung vor Beginn."),
       href: `${base}/events`,
-      status: countBadge(eventCount?.n, "1 geplant", "geplant"),
+      status: countBadge(eventCount?.n, "1 geplant", "{n} geplant"),
     },
     {
       icon: "cake",
@@ -297,7 +298,7 @@ export default async function OverviewPage({
       text: t("Mitglieder tragen ihren Geburtstag ein, Libremod gratuliert und vergibt für einen Tag eine Rolle."),
       href: `${base}/birthdays`,
       status: bday?.enabled ? (
-        <span className="badge on">{bdayCount?.n ? `Aktiv · ${bdayCount.n} eingetragen` : "Aktiv"}</span>
+        <span className="badge on">{bdayCount?.n ? t("Aktiv · {n} eingetragen", { n: bdayCount.n }) : t("Aktiv")}</span>
       ) : (
         <span className="badge">{t("Aus")}</span>
       ),
@@ -307,7 +308,7 @@ export default async function OverviewPage({
       title: t("Vorschläge"),
       text: t("Ideen sammeln, mit 👍 und 👎 abstimmen lassen und als Team entscheiden."),
       href: `${base}/suggestions`,
-      status: sugg?.enabled ? <span className="badge on">{openSugg?.n ? `${openSugg.n} offen` : "Aktiv"}</span> : <span className="badge">{t("Aus")}</span>,
+      status: sugg?.enabled ? <span className="badge on">{openSugg?.n ? t("{n} offen", { n: openSugg.n }) : t("Aktiv")}</span> : <span className="badge">{t("Aus")}</span>,
     },
     {
       icon: "hash",
@@ -328,14 +329,14 @@ export default async function OverviewPage({
       title: t("Zitate"),
       text: t("Denkwürdige Sätze per Rechtsklick speichern und mit /quote random wieder hervorholen."),
       href: `${base}/quotes`,
-      status: countBadge(quoteCount?.n, "1 Zitat", "Zitate"),
+      status: countBadge(quoteCount?.n, "1 Zitat", "{n} Zitate"),
     },
     {
       icon: "sparkle",
       title: t("Highlights & Kanal-Pflege"),
       text: t("Beliebte Nachrichten sammeln, Kanäle regelmäßig leeren und Langsam-Modus nach Aktivität."),
       href: `${base}/tools`,
-      status: countBadge((hl?.enabled ? 1 : 0) + (purgeCount?.n ?? 0) + (slowCount?.n ?? 0), "1 aktiv", "aktiv"),
+      status: countBadge((hl?.enabled ? 1 : 0) + (purgeCount?.n ?? 0) + (slowCount?.n ?? 0), "1 aktiv", "{n} aktiv"),
     },
   ];
 
@@ -476,6 +477,23 @@ export default async function OverviewPage({
           </div>
         )}
       </section>
+      )}
+
+      {access.full && (
+        <form className="card" action={saveBotLanguage.bind(null, guildId)}>
+          <h2>{t("Sprache des Bots")}</h2>
+          <p className="muted small">{t("In dieser Sprache antwortet Libremod auf dem Server, auch in Logs, Begrüßungen und Erinnerungen. Die Slash-Befehle zeigt Discord in der Sprache an, die jede Person in Discord eingestellt hat.")}</p>
+          <div className="inline-form">
+            <select name="locale" defaultValue={settings?.locale ?? "de"} aria-label={t("Sprache des Bots")}>
+              {LOCALES.map((l) => (
+                <option key={l} value={l}>
+                  {LOCALE_NAMES[l]}
+                </option>
+              ))}
+            </select>
+            <button type="submit">{t("Speichern")}</button>
+          </div>
+        </form>
       )}
     </>
   );

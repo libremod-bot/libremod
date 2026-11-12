@@ -16,6 +16,15 @@ test("Event-Start: deutsche Schreibweisen", () => {
   for (const bad of ["", "irgendwann", "31.02.2027 10:00", "24.12.2026", "morgen", "25:00", "in bald"]) assert.equal(parseEventStart(bad, now), null, bad);
 });
 
+test("Event-Start: englische Schreibweisen", () => {
+  assert.equal(parseEventStart("tomorrow 7:30 pm", now)?.toISOString(), "2026-11-13T18:30:00.000Z");
+  assert.equal(parseEventStart("today at 10pm", now)?.toISOString(), "2026-11-12T21:00:00.000Z");
+  assert.equal(parseEventStart("tomorrow 12 am", now)?.toISOString(), "2026-11-12T23:00:00.000Z");
+  assert.equal(parseEventStart("in 2 hours", now)?.toISOString(), "2026-11-12T22:00:00.000Z");
+  assert.equal(parseEventStart("2026-12-24 6pm", now)?.toISOString(), "2026-12-24T17:00:00.000Z");
+  for (const bad of ["tomorrow", "13pm", "someday 8pm"]) assert.equal(parseEventStart(bad, now), null, bad);
+});
+
 test("Event-Zeit prüfen", () => {
   assert.equal(validateEventTime(new Date(now.getTime() + 3_600_000), 120, now), null);
   assert.match(validateEventTime(new Date(now.getTime() - 1), 120, now)!, /Zukunft/);

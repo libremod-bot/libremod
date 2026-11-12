@@ -32,21 +32,21 @@ export async function renderWelcomeCard(d: WelcomeCardData): Promise<Buffer> {
 
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
-  ctx.font = t("bold 50px Inter");
+  ctx.font = "bold 50px Inter";
   ctx.fillStyle = "#ffffff";
   ctx.fillText(
     fit(ctx, clean(d.title) || t("Willkommen!"), W - 120),
     W / 2,
     285,
   );
-  ctx.font = t("bold 32px Inter");
+  ctx.font = "bold 32px Inter";
   ctx.fillStyle = accent;
   ctx.fillText(
     fit(ctx, clean(d.name) || t("Neues Mitglied"), W - 160),
     W / 2,
     333,
   );
-  ctx.font = t("24px Inter");
+  ctx.font = "24px Inter";
   ctx.fillStyle = "#9aa4b5";
   ctx.fillText(
     t("Mitglied #{n0}", { n0: nf.format(d.memberCount) }),

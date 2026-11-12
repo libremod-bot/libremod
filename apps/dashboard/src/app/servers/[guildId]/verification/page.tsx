@@ -159,7 +159,7 @@ export default async function VerificationPage({
             <h2>{t("Nachricht mit dem Knopf")}</h2>
           </div>
           <label htmlFor="title">{t("Titel")}</label>
-          <input id="title" name="title" type="text" maxLength={256} defaultValue={s?.title ?? "Willkommen! Bitte kurz bestätigen"} />
+          <input id="title" name="title" type="text" maxLength={256} defaultValue={s?.title ?? t("Willkommen! Bitte kurz bestätigen")} />
           <label htmlFor="description">{t("Text (leer = passender Standardtext)")}</label>
           <textarea id="description" name="description" rows={4} maxLength={2000} defaultValue={s?.description ?? ""} />
         </section>

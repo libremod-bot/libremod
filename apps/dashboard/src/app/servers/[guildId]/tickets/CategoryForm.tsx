@@ -117,7 +117,7 @@ export function CategoryForm({
           name="welcomeMessage"
           aria-label={t("Begrüßungstext")}
           maxLength={2000}
-          defaultValue={category?.welcomeMessage ?? "Hallo {user}, danke für dein Ticket! Das Team meldet sich so schnell wie möglich."}
+          defaultValue={category?.welcomeMessage ?? t("Hallo {user}, danke für dein Ticket! Das Team meldet sich so schnell wie möglich.")}
           style={{ minHeight: 90 }}
         />
         <div className="hint">{t("Platzhalter:")}{" "}{TICKET_PLACEHOLDERS.join(", ")}{t(". Die Antworten auf die Fragen stehen automatisch darunter.")}</div>

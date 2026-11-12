@@ -130,11 +130,16 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 - Statusseite im Dashboard für die Besitzer der Installation, Gesundheitsprüfung für Docker, Neustart bei Verbindungsverlust
 - Anleitung: [docs/SELBSTHOSTEN.md](docs/SELBSTHOSTEN.md)
 
+## 0.19 Englisch
+
+- Bot und Dashboard auf Deutsch und Englisch
+- Der Bot antwortet pro Server in der eingestellten Sprache (beim Beitritt aus der Discord-Sprache des Servers übernommen, im Dashboard unter „Übersicht“ änderbar), auch in Logs, Begrüßungen, Erinnerungen und Transkripten
+- Slash-Befehle erscheinen in Discord in der Sprache, die jede Person selbst eingestellt hat
+- Dashboard mit Sprachumschalter DE/EN, ohne Auswahl nach Browser-Sprache
+- Events verstehen auch englische Zeitangaben wie „tomorrow 7:30 pm“
+- `pnpm i18n:check` findet Texte ohne Übersetzung
+
 ## Später
-
-### Dashboard und Bedienung
-
-- Mehrsprachigkeit: Bot und Dashboard auch auf Englisch
 
 ## Dashboard
 

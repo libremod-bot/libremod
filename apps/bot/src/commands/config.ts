@@ -130,17 +130,17 @@ export const config: Command = {
       if (durationInput && !seconds)
         return void (await replyPrivate(
           interaction,
-          "Diese Dauer verstehe ich nicht. Beispiele: 1h, 7d.",
+          t("Diese Dauer verstehe ich nicht. Beispiele: 1h, 7d."),
         ));
       if (action === "timeout" && !seconds)
         return void (await replyPrivate(
           interaction,
-          "Für einen Timeout brauche ich eine Dauer.",
+          t("Für einen Timeout brauche ich eine Dauer."),
         ));
       if (action === "timeout" && seconds! > MAX_TIMEOUT_SECONDS)
         return void (await replyPrivate(
           interaction,
-          "Timeouts dürfen höchstens 28 Tage dauern.",
+          t("Timeouts dürfen höchstens 28 Tage dauern."),
         ));
 
       const durationSeconds = action === "kick" ? null : seconds;
@@ -152,13 +152,13 @@ export const config: Command = {
           set: { action, durationSeconds },
         });
       const suffix = durationSeconds
-        ? ` für ${formatDuration(durationSeconds)}`
+        ? t(" für {n}", { n: formatDuration(durationSeconds) })
         : action === "ban"
-          ? " (dauerhaft)"
+          ? t(" (dauerhaft)")
           : "";
       return void (await replyPrivate(
         interaction,
-        `Bei ${warnCount} Verwarnungen: ${t(ACTION_LABELS[action])}${suffix}.`,
+        t("Bei {n} Verwarnungen: {action}{suffix}.", { n: warnCount, action: t(ACTION_LABELS[action]), suffix }),
       ));
     }
 
@@ -176,8 +176,8 @@ export const config: Command = {
       return void (await replyPrivate(
         interaction,
         removed.length
-          ? `Stufe bei ${warnCount} Verwarnungen entfernt.`
-          : "Diese Stufe gibt es nicht.",
+          ? t("Stufe bei {n} Verwarnungen entfernt.", { n: warnCount })
+          : t("Diese Stufe gibt es nicht."),
       ));
     }
 
@@ -192,8 +192,8 @@ export const config: Command = {
       return void (await replyPrivate(
         interaction,
         channel
-          ? `Mod-Log geht jetzt nach ${channelMention(channel.id)}.`
-          : "Mod-Log ausgeschaltet.",
+          ? t("Mod-Log geht jetzt nach {channel}.", { channel: channelMention(channel.id) })
+          : t("Mod-Log ausgeschaltet."),
       ));
     }
 
@@ -206,8 +206,8 @@ export const config: Command = {
       return void (await replyPrivate(
         interaction,
         active
-          ? "Betroffene werden per Direktnachricht informiert."
-          : "Keine Direktnachrichten mehr bei Strafen.",
+          ? t("Betroffene werden per Direktnachricht informiert.")
+          : t("Keine Direktnachrichten mehr bei Strafen."),
       ));
     }
 
@@ -219,19 +219,19 @@ export const config: Command = {
       .where(eq(warnEscalations.guildId, guildId))
       .orderBy(warnEscalations.warnCount);
     const lines = [
-      `**Mod-Log:** ${settings.modLogChannelId ? channelMention(settings.modLogChannelId) : "aus"}`,
-      `**Direktnachricht bei Strafen:** ${settings.dmOnAction ? "an" : "aus"}`,
-      "**Verwarnungsstufen:**",
+      `**Mod-Log:** ${settings.modLogChannelId ? channelMention(settings.modLogChannelId) : t("aus")}`,
+      t("**Direktnachricht bei Strafen:** {n0}", { n0: settings.dmOnAction ? t("an") : t("aus") }),
+      t("**Verwarnungsstufen:**"),
       ...(rules.length
         ? rules.map((r) => {
             const d = r.durationSeconds
-              ? ` für ${formatDuration(r.durationSeconds)}`
+              ? t(" für {n}", { n: formatDuration(r.durationSeconds) })
               : r.action === "ban"
-                ? " (dauerhaft)"
+                ? t(" (dauerhaft)")
                 : "";
-            return `• ${r.warnCount} Verwarnungen → ${t(ACTION_LABELS[r.action])}${d}`;
+            return t("• {n} Verwarnungen → {action}{d}", { n: r.warnCount, action: t(ACTION_LABELS[r.action]), d });
           })
-        : ["keine"]),
+        : [t("keine")]),
     ];
     await replyPrivate(interaction, lines.join("\n"));
   },

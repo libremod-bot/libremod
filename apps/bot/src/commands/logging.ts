@@ -202,7 +202,7 @@ export const logging: Command = {
     const lines = [
       ...logCategory.enumValues.map(
         (c) =>
-          `**${t(LOG_LABELS[c])}:** ${byCat.has(c) ? channelMention(byCat.get(c)!) : "aus"}`,
+          `**${t(LOG_LABELS[c])}:** ${byCat.has(c) ? channelMention(byCat.get(c)!) : t("aus")}`,
       ),
       t("**Ignorierte Kanäle:** {n0}", {
         n0: ignored.length

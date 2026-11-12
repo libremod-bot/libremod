@@ -96,7 +96,7 @@ export default async function ChannelsPage({
           <div className="grid-3">
             <div>
               <label htmlFor="hubName">{t("Name des Kanals")}</label>
-              <input id="hubName" name="hubName" type="text" maxLength={100} defaultValue="➕ Kanal erstellen" required />
+              <input id="hubName" name="hubName" type="text" maxLength={100} defaultValue={t("➕ Kanal erstellen")} required />
             </div>
             <div>
               <label htmlFor="parentId">{t("Kategorie")}</label>
@@ -104,7 +104,7 @@ export default async function ChannelsPage({
             </div>
             <div>
               <label htmlFor="nameTemplate">{t("Name neuer Kanäle")}</label>
-              <input id="nameTemplate" name="nameTemplate" type="text" maxLength={100} defaultValue="Kanal von {username}" />
+              <input id="nameTemplate" name="nameTemplate" type="text" maxLength={100} defaultValue={t("Kanal von {username}")} />
             </div>
             <div>
               <label htmlFor="userLimit">{t("Max. Personen (0 = egal)")}</label>
@@ -158,7 +158,7 @@ export default async function ChannelsPage({
           <div className="grid-2">
             <div className="field">
               <label htmlFor="template">{t("Name mit Platzhalter")}</label>
-              <input id="template" name="template" type="text" required maxLength={90} defaultValue="👥 Mitglieder: {members}" />
+              <input id="template" name="template" type="text" required maxLength={90} defaultValue={t("👥 Mitglieder: {members}")} />
             </div>
             <div className="field">
               <label htmlFor="counterParent">{t("Kategorie")}</label>

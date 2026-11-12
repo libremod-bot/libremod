@@ -64,7 +64,7 @@ export function CommandForm({ action, command, submitLabel }: { action: (form: F
         toggleName="embed"
         initial={{ title: command?.embedTitle ?? undefined, color: command?.embedColor ?? undefined, ...(command?.design ?? {}) }}
         defaults={{ thumbnail: "none" }}
-        sample={{ user: "@Mitglied", username: "Mitglied" }}
+        sample={{ user: t("@Mitglied"), username: t("Mitglied") }}
       />
       <label className="check-inline" style={{ marginTop: "0.5rem" }}>
         <input type="checkbox" name="ephemeral" defaultChecked={command?.ephemeral ?? false} />

@@ -112,7 +112,7 @@ export default async function WelcomePage({
           <div className="grid-2" style={{ marginTop: ".75rem" }}>
             <div className="field">
               <label htmlFor="welcomeImageTitle">{t("Überschrift im Bild")}</label>
-              <input id="welcomeImageTitle" name="welcomeImageTitle" type="text" maxLength={40} defaultValue={s?.welcomeImageTitle ?? "Willkommen!"} />
+              <input id="welcomeImageTitle" name="welcomeImageTitle" type="text" maxLength={40} defaultValue={s?.welcomeImageTitle ?? t("Willkommen!")} />
             </div>
             <div className="field">
               <label htmlFor="welcomeImageColor">{t("Farbe")}</label>

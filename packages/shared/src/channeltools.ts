@@ -77,7 +77,7 @@ export function nextSlowmode(current: number, messagesLastMinute: number, cfg: S
 }
 
 export function formatSeconds(s: number) {
-  if (s === 0) return "aus";
+  if (s === 0) return t("aus");
   if (s < 60) return t("{s} Sek.", { s });
   return t("{n0} Min.", { n0: s / 60 });
 }

@@ -43,7 +43,7 @@ export function TicketPanelForm({
           name="description"
           maxLength={2000}
           style={{ minHeight: 90 }}
-          defaultValue={panel?.description ?? "Du brauchst Hilfe oder möchtest etwas melden? Wähle unten aus, worum es geht. Es öffnet sich ein privater Bereich nur für dich und das Team."}
+          defaultValue={panel?.description ?? t("Du brauchst Hilfe oder möchtest etwas melden? Wähle unten aus, worum es geht. Es öffnet sich ein privater Bereich nur für dich und das Team.")}
         />
       </div>
       <div className="grid-2">

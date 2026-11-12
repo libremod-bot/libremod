@@ -216,9 +216,9 @@ async function run(
     ready.length > 30 ? t(" und {n0} weitere", { n0: ready.length - 30 }) : "";
   const notes = [
     skipped.length
-      ? `${skipped.length} übersprungen (Rolle zu hoch o. Ä.)`
+      ? t("{n} übersprungen (Rolle zu hoch o. Ä.)", { n: skipped.length })
       : "",
-    missing.length ? `${missing.length} nicht gefunden` : "",
+    missing.length ? t("{n} nicht gefunden", { n: missing.length }) : "",
   ]
     .filter(Boolean)
     .join(", ");

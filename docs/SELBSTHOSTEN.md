@@ -132,7 +132,7 @@ Die meisten Einstellungen machst du im Dashboard. In der `.env` stehen nur Dinge
 | ------------------------------------------ | ------------------------------------------------------------- |
 | `DASHBOARD_URL`                            | Adresse des Dashboards                                        |
 | `BACKUP_KEEP`                              | Wie viele tägliche Sicherungen behalten werden (Standard 14)  |
-| `LIBREMOD_VERSION`                         | `latest` für die neueste Version oder fest, z. B. `0.18`      |
+| `LIBREMOD_VERSION`                         | `latest` für die neueste Version oder fest, z. B. `0.19`      |
 | `PHISHING_LISTS`                           | `off` schaltet das Laden der öffentlichen Betrugslink-Listen ab |
 | `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` | Für Twitch-Livestream-Meldungen ([Anwendung anlegen](https://dev.twitch.tv/console/apps), OAuth-Redirect z. B. `http://localhost`) |
 | `KICK_CLIENT_ID`, `KICK_CLIENT_SECRET`     | Für Kick-Livestream-Meldungen ([Anwendung anlegen](https://kick.com/settings/developer)) |
@@ -178,7 +178,7 @@ Das sichert zuerst die Datenbank, holt dann das neueste Install-Skript und die n
 
 Was sich geändert hat, steht in der [Roadmap](../ROADMAP.md) bzw. bei den Releases auf GitHub.
 
-Willst du nicht automatisch die neueste Version, setze in der `.env` `LIBREMOD_VERSION` auf eine feste Version, z. B. `0.18`. Dann bekommst du nur noch Fehlerbehebungen dieser Version.
+Willst du nicht automatisch die neueste Version, setze in der `.env` `LIBREMOD_VERSION` auf eine feste Version, z. B. `0.19`. Dann bekommst du nur noch Fehlerbehebungen dieser Version.
 
 ## 9. Eigener Webserver (nginx, Apache)
 
@@ -291,4 +291,4 @@ docker compose up -d --build
 docker compose run --rm bot node dist/deploy-commands.js
 ```
 
-Die fertigen Images heißen `ghcr.io/libremod-bot/libremod-bot` und `ghcr.io/libremod-bot/libremod-dashboard` (Tags: `latest`, Versionsnummern wie `0.18`, `edge` für den neuesten Entwicklungsstand). Das Dashboard braucht die Datenbank und dieselben Discord-Werte wie der Bot. Es lauscht auf Port 3000 und gehört hinter einen Reverse Proxy mit HTTPS.
+Die fertigen Images heißen `ghcr.io/libremod-bot/libremod-bot` und `ghcr.io/libremod-bot/libremod-dashboard` (Tags: `latest`, Versionsnummern wie `0.19`, `edge` für den neuesten Entwicklungsstand). Das Dashboard braucht die Datenbank und dieselben Discord-Werte wie der Bot. Es lauscht auf Port 3000 und gehört hinter einen Reverse Proxy mit HTTPS.

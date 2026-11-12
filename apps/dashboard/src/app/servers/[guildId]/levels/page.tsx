@@ -171,7 +171,7 @@ export default async function LevelsPage({
               name="announceMessage"
               type="text"
               maxLength={500}
-              defaultValue={s?.announceMessage ?? "Glückwunsch {user}, du bist jetzt **Level {level}**!"}
+              defaultValue={s?.announceMessage ?? t("Glückwunsch {user}, du bist jetzt **Level {level}**!")}
             />
             <div className="hint">
               {t("Platzhalter:")}{" "}{"{user}"}, {"{username}"}, {"{level}"}, {"{server}"}, {"{coins}"} {" "}{t("(Münzen für diesen Aufstieg).")}</div>

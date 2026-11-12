@@ -634,7 +634,7 @@ export async function closeTicket(
     setTimeout(
       () =>
         void channel
-          .delete(`Ticket #${ticket.number} geschlossen`)
+          .delete(t("Ticket #{number} geschlossen", { number: ticket.number }))
           .catch((err) => logger.warn({ err }, "Ticket-Kanal nicht löschbar")),
       5000,
     );

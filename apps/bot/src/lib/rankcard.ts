@@ -44,11 +44,11 @@ export async function renderRankCard(d: RankCardData): Promise<Buffer> {
   ctx.textAlign = "right";
   let x = right;
   const stat = (label: string, value: string, color: string) => {
-    ctx.font = t("bold 54px Inter");
+    ctx.font = "bold 54px Inter";
     ctx.fillStyle = color;
     ctx.fillText(value, x, 92);
     x -= ctx.measureText(value).width + 10;
-    ctx.font = t("26px Inter");
+    ctx.font = "26px Inter";
     ctx.fillStyle = "#9aa4b5";
     ctx.fillText(label, x, 92);
     x -= ctx.measureText(label).width + 30;
@@ -58,10 +58,10 @@ export async function renderRankCard(d: RankCardData): Promise<Buffer> {
 
   // Name
   ctx.textAlign = "left";
-  ctx.font = t("bold 40px Inter");
+  ctx.font = "bold 40px Inter";
   ctx.fillStyle = "#ffffff";
   ctx.fillText(fit(ctx, clean(d.name) || d.username, right - left), left, 160);
-  ctx.font = t("24px Inter");
+  ctx.font = "24px Inter";
   ctx.fillStyle = "#9aa4b5";
   const sub = d.season
     ? t("@{username} · Saison {season}", {
@@ -73,7 +73,7 @@ export async function renderRankCard(d: RankCardData): Promise<Buffer> {
 
   // XP rechts neben dem Namen
   ctx.textAlign = "right";
-  ctx.font = t("bold 26px Inter");
+  ctx.font = "bold 26px Inter";
   ctx.fillStyle = "#ffffff";
   const xpText = t("{current} / {needed} XP", {
     current: compactNumber(d.current),

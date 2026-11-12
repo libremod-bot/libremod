@@ -88,7 +88,7 @@ export default async function AppealsPage({
         </div>
         <div className="field">
           <label htmlFor="question">{t("Frage an die gebannte Person")}</label>
-          <input id="question" name="question" type="text" maxLength={300} defaultValue={s?.question ?? "Warum sollten wir deinen Ban aufheben?"} />
+          <input id="question" name="question" type="text" maxLength={300} defaultValue={s?.question ?? t("Warum sollten wir deinen Ban aufheben?")} />
         </div>
         <div style={{ marginTop: "1rem" }}>
           <button type="submit">{t("Speichern")}</button>

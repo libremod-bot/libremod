@@ -374,7 +374,7 @@ export async function fetchTwitch(logins: string[], creds: Credentials, f: Fetch
   if (!creds.twitch) throw new SourceError(t("Twitch ist nicht eingerichtet"));
   const out = new Map<string, LiveResult>();
   const token = await appToken("twitch", creds.twitch, f);
-  const headers = { "client-id": creds.twitch.clientId, authorization: t("Bearer {token}", { token }) };
+  const headers = { "client-id": creds.twitch.clientId, authorization: `Bearer ${token}` };
   for (let i = 0; i < logins.length; i += 100) {
     const chunk = logins.slice(i, i + 100);
     const q = chunk.map((l) => `login=${encodeURIComponent(l)}`).join("&");

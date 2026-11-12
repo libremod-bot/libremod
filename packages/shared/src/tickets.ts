@@ -3,7 +3,7 @@
  * Nachrichten-JSON, Komponenten-IDs, Kanalnamen und das HTML-Transkript.
  */
 
-import { t } from "./i18n.js";
+import { currentLocale, intlLocale, t } from "./i18n.js";
 export const MAX_TICKET_CATEGORIES = 25;
 export const MAX_TICKET_QUESTIONS = 5;
 export const MAX_TICKET_PANELS = 10;
@@ -186,7 +186,7 @@ const safeUrl = (u: string) => (/^https:\/\//i.test(u) ? escapeHtml(u) : "#");
 /** Escaped Text mit klickbaren Links und Zeilenumbrüchen. */
 function richText(s: string) {
   return escapeHtml(s)
-    .replace(/https:\/\/[^\s<]+[^\s<.,;:!?)'"&]/g, (u) => t("<a href=\"{u}\" rel=\"noreferrer noopener\" target=\"_blank\">{u}</a>", { u }))
+    .replace(/https:\/\/[^\s<]+[^\s<.,;:!?)'"&]/g, (u) => `<a href="${u}" rel="noreferrer noopener" target="_blank">${u}</a>`)
     .replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>")
     .replace(/`([^`\n]+)`/g, "<code>$1</code>")
     .replace(/\n/g, "<br>");
@@ -194,29 +194,57 @@ function richText(s: string) {
 
 /** Eigenständige HTML-Seite ohne Skripte, auch ohne Internetverbindung lesbar (bis auf Bilder). */
 export function formatTranscriptHtml(meta: TranscriptMeta, messages: TranscriptEntry[]) {
-  const dt = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Berlin" });
+  const dt = new Intl.DateTimeFormat(intlLocale(), { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Berlin" });
   const sorted = [...messages].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   const rows = sorted
     .map((m) => {
       const files = m.attachments
         .map((a) =>
           a.image
-            ? t("<a href=\"{url}\" target=\"_blank\" rel=\"noreferrer noopener\"><img src=\"{url}\" alt=\"{name}\" loading=\"lazy\"></a>", { url: safeUrl(a.url), name: escapeHtml(a.name) })
-            : t("<a class=\"file\" href=\"{url}\" target=\"_blank\" rel=\"noreferrer noopener\">📎 {name}</a>", { url: safeUrl(a.url), name: escapeHtml(a.name) }),
+            ? `<a href="${safeUrl(a.url)}" target="_blank" rel="noreferrer noopener"><img src="${safeUrl(a.url)}" alt="${escapeHtml(a.name)}" loading="lazy"></a>`
+            : `<a class="file" href="${safeUrl(a.url)}" target="_blank" rel="noreferrer noopener">📎 ${escapeHtml(a.name)}</a>`,
         )
         .join("");
       const embeds = m.embeds
         .filter((e) => e.title || e.description)
-        .map((e) => t("<div class=\"embed\">{n0}{n1}</div>", { n0: e.title ? `<strong>${escapeHtml(e.title)}</strong><br>` : "", n1: e.description ? richText(e.description) : "" }))
+        .map((e) => `<div class="embed">${e.title ? `<strong>${escapeHtml(e.title)}</strong><br>` : ""}${e.description ? richText(e.description) : ""}</div>`)
         .join("");
-      const avatar = m.authorAvatar ? t("<img class=\"avatar\" src=\"{authorAvatar}\" alt=\"\">", { authorAvatar: safeUrl(m.authorAvatar) }) : t("<div class=\"avatar\"></div>");
-      const tag = m.bot ? t("<span class=\"tag\">BOT</span>") : m.staff ? t("<span class=\"tag staff\">TEAM</span>") : "";
-      return t("<div class=\"msg\">{avatar}<div class=\"body\"><div class=\"head\"><span class=\"name\">{authorName}</span>{tag}<time>{n3}{n4}</time></div>{n5}{embeds}{n7}</div></div>", { avatar, authorName: escapeHtml(m.authorName), tag, n3: dt.format(m.createdAt), n4: m.editedAt ? " (bearbeitet)" : "", n5: m.content ? t("<div class=\"text\">{content}</div>", { content: richText(m.content) }) : "", embeds, n7: files ? t("<div class=\"files\">{files}</div>", { files }) : "" });
+      const avatar = m.authorAvatar ? `<img class="avatar" src="${safeUrl(m.authorAvatar)}" alt="">` : `<div class="avatar"></div>`;
+      const tag = m.bot ? `<span class="tag">BOT</span>` : m.staff ? `<span class="tag staff">TEAM</span>` : "";
+      return `<div class="msg">${avatar}<div class="body"><div class="head"><span class="name">${escapeHtml(m.authorName)}</span>${tag}<time>${dt.format(m.createdAt)}${m.editedAt ? t(" (bearbeitet)") : ""}</time></div>${m.content ? `<div class="text">${richText(m.content)}</div>` : ""}${embeds}${files ? `<div class="files">${files}</div>` : ""}</div></div>`;
     })
     .join("\n");
   const answers = meta.answers.length
     ? `<dl>${meta.answers.map((a) => `<dt>${escapeHtml(a.question)}</dt><dd>${richText(a.answer || "–")}</dd>`).join("")}</dl>`
     : "";
   const title = t("Ticket #{number} · {server}", { number: meta.number, server: meta.server });
-  return t("<!doctype html>\n<html lang=\"de\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<title>{title}</title>\n<style>\n:root{color-scheme:dark;--bg:#0f1218;--card:#171b23;--line:#262c38;--text:#e6e9ef;--muted:#8b93a3;--accent:#4cb4ff}\n@media (prefers-color-scheme:light){:root{color-scheme:light;--bg:#f6f7f9;--card:#fff;--line:#e2e5ea;--text:#1b1f27;--muted:#636b7a;--accent:#1677c9}}\n*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,\"Segoe UI\",sans-serif}\nmain{max-width:860px;margin:0 auto;padding:24px 16px 48px}\nheader{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:20px}\nh1{font-size:20px;margin:0 0 8px}.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px 18px;color:var(--muted);font-size:13px}\n.meta b{color:var(--text);font-weight:600}dl{margin:14px 0 0;border-top:1px solid var(--line);padding-top:12px}dt{font-weight:600;font-size:13px;color:var(--muted)}dd{margin:2px 0 10px}\n.msg{display:flex;gap:12px;padding:10px 4px;border-bottom:1px solid var(--line)}.avatar{width:36px;height:36px;border-radius:50%;flex:none;background:var(--line);object-fit:cover}\n.body{min-width:0;flex:1}.head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}.name{font-weight:600}time{color:var(--muted);font-size:12px}\n.tag{font-size:10px;font-weight:700;background:var(--accent);color:#fff;border-radius:4px;padding:1px 5px}.tag.staff{background:#2f9e6a}\n.text{overflow-wrap:anywhere}a{color:var(--accent)}code{background:var(--line);border-radius:4px;padding:0 4px}\n.embed{border-left:3px solid var(--accent);background:var(--card);padding:8px 12px;border-radius:6px;margin-top:6px}\n.files{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.files img{max-width:min(100%,360px);max-height:280px;border-radius:8px;display:block}\n.file{display:inline-block;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px;text-decoration:none}\nfooter{color:var(--muted);font-size:12px;margin-top:20px;text-align:center}\n</style></head><body><main>\n<header><h1>{title}</h1><div class=\"meta\">\n<div>Art: <b>{category}</b></div><div>Geöffnet von: <b>{ownerName}</b></div>\n<div>Geöffnet: <b>{n4}</b></div><div>Geschlossen: <b>{n5}</b></div>\n<div>Geschlossen von: <b>{closedByName}</b></div><div>Dauer: <b>{n7}</b></div>\n{n8}\n</div>{answers}</header>\n{n10}\n<footer>{length} Nachrichten · Transkript erstellt von Libremod</footer>\n</main></body></html>", { title: escapeHtml(title), category: escapeHtml(meta.category), ownerName: escapeHtml(meta.ownerName), n4: dt.format(meta.openedAt), n5: dt.format(meta.closedAt), closedByName: escapeHtml(meta.closedByName), n7: ticketDuration(meta.closedAt.getTime() - meta.openedAt.getTime()), n8: meta.reason ? t("<div style=\"grid-column:1/-1\">Grund: <b>{reason}</b></div>", { reason: escapeHtml(meta.reason) }) : "", answers, n10: rows || t("<p style=\"color:var(--muted)\">Keine Nachrichten.</p>"), length: sorted.length });
+  return `<!doctype html>
+<html lang="${currentLocale()}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escapeHtml(title)}</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1218;--card:#171b23;--line:#262c38;--text:#e6e9ef;--muted:#8b93a3;--accent:#4cb4ff}
+@media (prefers-color-scheme:light){:root{color-scheme:light;--bg:#f6f7f9;--card:#fff;--line:#e2e5ea;--text:#1b1f27;--muted:#636b7a;--accent:#1677c9}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:860px;margin:0 auto;padding:24px 16px 48px}
+header{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:20px}
+h1{font-size:20px;margin:0 0 8px}.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px 18px;color:var(--muted);font-size:13px}
+.meta b{color:var(--text);font-weight:600}dl{margin:14px 0 0;border-top:1px solid var(--line);padding-top:12px}dt{font-weight:600;font-size:13px;color:var(--muted)}dd{margin:2px 0 10px}
+.msg{display:flex;gap:12px;padding:10px 4px;border-bottom:1px solid var(--line)}.avatar{width:36px;height:36px;border-radius:50%;flex:none;background:var(--line);object-fit:cover}
+.body{min-width:0;flex:1}.head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}.name{font-weight:600}time{color:var(--muted);font-size:12px}
+.tag{font-size:10px;font-weight:700;background:var(--accent);color:#fff;border-radius:4px;padding:1px 5px}.tag.staff{background:#2f9e6a}
+.text{overflow-wrap:anywhere}a{color:var(--accent)}code{background:var(--line);border-radius:4px;padding:0 4px}
+.embed{border-left:3px solid var(--accent);background:var(--card);padding:8px 12px;border-radius:6px;margin-top:6px}
+.files{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.files img{max-width:min(100%,360px);max-height:280px;border-radius:8px;display:block}
+.file{display:inline-block;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px;text-decoration:none}
+footer{color:var(--muted);font-size:12px;margin-top:20px;text-align:center}
+</style></head><body><main>
+<header><h1>${escapeHtml(title)}</h1><div class="meta">
+<div>${t("Art:")} <b>${escapeHtml(meta.category)}</b></div><div>${t("Geöffnet von:")} <b>${escapeHtml(meta.ownerName)}</b></div>
+<div>${t("Geöffnet:")} <b>${dt.format(meta.openedAt)}</b></div><div>${t("Geschlossen:")} <b>${dt.format(meta.closedAt)}</b></div>
+<div>${t("Geschlossen von:")} <b>${escapeHtml(meta.closedByName)}</b></div><div>${t("Dauer:")} <b>${ticketDuration(meta.closedAt.getTime() - meta.openedAt.getTime())}</b></div>
+${meta.reason ? `<div style="grid-column:1/-1">${t("Grund:")} <b>${escapeHtml(meta.reason)}</b></div>` : ""}
+</div>${answers}</header>
+${rows || `<p style="color:var(--muted)">${t("Keine Nachrichten.")}</p>`}
+<footer>${t("{n} Nachrichten · Transkript erstellt von Libremod", { n: sorted.length })}</footer>
+</main></body></html>`;
 }

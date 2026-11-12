@@ -4,6 +4,7 @@ Kostenloser, quelloffener Moderations- und Administrations-Bot für Discord.
 
 - **Keine Paywall.** Jede Funktion ist für jeden Server frei nutzbar, ohne Premium-Stufen.
 - **Selbst gehostet.** Läuft auf deinem eigenen Server, mit Install-Skript in wenigen Minuten eingerichtet. Deine Daten bleiben bei dir.
+- **Deutsch und Englisch.** Bot und Dashboard sprechen beide Sprachen, die Sprache des Bots stellst du pro Server ein.
 - **Open Source.** Lizenziert unter der [AGPL-3.0](LICENSE): Wer Libremod verändert und öffentlich betreibt, muss seinen Code ebenfalls offenlegen.
 
 Website: [libremod.dev](https://libremod.dev) · Geplante Funktionen: [ROADMAP.md](ROADMAP.md)
@@ -110,7 +111,11 @@ pnpm dev:bot
 pnpm --filter @libremod/dashboard dev   # Dashboard auf http://localhost:3000
 ```
 
-Vor einem Pull Request: `pnpm typecheck && pnpm build && pnpm test`.
+Vor einem Pull Request: `pnpm typecheck && pnpm build && pnpm test && pnpm i18n:check`.
+
+### Übersetzungen
+
+Texte stehen im Code auf Deutsch und laufen durch `t("…")` (Bot, Dashboard und `packages/shared`). Der deutsche Text ist zugleich der Schlüssel, Platzhalter schreibst du als `{name}`: `t("Hallo {user}!", { user })`. Die englischen Übersetzungen liegen in [`packages/shared/src/i18n/en.ts`](packages/shared/src/i18n/en.ts). Fehlt eine, erscheint der deutsche Text. `pnpm i18n:check` listet alle Texte ohne Übersetzung, `node scripts/i18n.mjs --unused` die Einträge, die nicht mehr gebraucht werden. Namen von Slash-Befehlen und Optionen bleiben im Code deutsch, ihre englischen Namen stehen im Wörterbuch unter `cmd:name`.
 
 ## Datenschutz
 

@@ -47,7 +47,7 @@ export default async function EventsPage({
   const textChannels = channels.filter((c) => c.type === CHANNEL_TEXT || c.type === CHANNEL_ANNOUNCEMENT);
   const channelName = (id: string) => channels.find((c) => c.id === id)?.name ?? t("gelöschter Kanal");
   const roleName = (id: string) => roles.find((r) => r.id === id)?.name ?? t("gelöschte Rolle");
-  const reminderLabel = (m: number) => EVENT_REMINDERS.find((r) => r.value === m)?.label ?? t("{m} Minuten vorher", { m });
+  const reminderLabel = (m: number) => t(EVENT_REMINDERS.find((r) => r.value === m)?.label) || t("{m} Minuten vorher", { m });
 
   return (
     <>

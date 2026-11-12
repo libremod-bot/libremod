@@ -30,7 +30,7 @@ import { handleMessageCoins, invalidateEconomy } from "./services/economy.js";
 import { startPhishingLists } from "./services/phishlists.js";
 import { startEventJobs } from "./services/events.js";
 import { startHeartbeat, VERSION } from "./services/heartbeat.js";
-import { initI18n, localizeListeners } from "./i18n.js";
+import { initI18n, invalidateLocale, localizeListeners } from "./i18n.js";
 import {
   countJoin,
   countLeave,
@@ -94,6 +94,7 @@ logger.info("Datenbank ist auf dem neuesten Stand");
 
 const { db, close, onSettingsChanged } = createDb(config.DATABASE_URL);
 await onSettingsChanged((guildId) => {
+  invalidateLocale(guildId);
   invalidateAutomod(guildId);
   log.invalidateLogging(guildId);
   invalidateWelcome(guildId);

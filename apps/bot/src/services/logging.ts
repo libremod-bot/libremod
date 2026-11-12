@@ -438,7 +438,7 @@ const CHANNEL_KIND: Partial<Record<ChannelType, string>> = {
 };
 
 const channelLabel = (c: GuildBasedChannel) =>
-  `${CHANNEL_KIND[c.type] ?? "Kanal"} **${c.name}**`;
+  `${t(CHANNEL_KIND[c.type] ?? "Kanal")} **${c.name}**`;
 
 export async function onChannelCreate(
   channel: NonThreadGuildBasedChannel,
@@ -578,12 +578,12 @@ export async function onRoleUpdate(before: Role, after: Role, db: Db) {
   if (before.hoist !== after.hoist)
     changes.push({
       name: t("Getrennt anzeigen"),
-      value: after.hoist ? "an" : "aus",
+      value: after.hoist ? t("an") : t("aus"),
     });
   if (before.mentionable !== after.mentionable)
     changes.push({
       name: t("Erwähnbar"),
-      value: after.mentionable ? "an" : "aus",
+      value: after.mentionable ? t("an") : t("aus"),
     });
   if (before.permissions.bitfield !== after.permissions.bitfield) {
     const { added, removed } = diffIds(

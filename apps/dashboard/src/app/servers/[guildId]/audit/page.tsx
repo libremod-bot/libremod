@@ -7,6 +7,12 @@ import { AREAS, areaLabel } from "@/lib/areas";
 import { database } from "@/lib/db";
 import { t, dateFmt, initLocale } from "@/lib/i18n";
 
+/** Gespeichert wird der deutsche Text, angezeigt in der Sprache der Person (Details hinter „: “ bleiben, wie sie sind). */
+function actionLabel(action: string) {
+  const i = action.indexOf(": ");
+  return i < 0 ? t(action) : `${t(action.slice(0, i))}: ${action.slice(i + 2)}`;
+}
+
 export async function generateMetadata() {
   await initLocale();
   return { title: t("{n0} · Libremod", { n0: t("Änderungsprotokoll") }) };
@@ -109,9 +115,9 @@ export default async function AuditPage({
                       <Link href={`${base}?person=${r.userId}`}>{r.userName}</Link>
                     </td>
                     <td>
-                      <Link href={`${base}?bereich=${r.area}`}>{areaLabel(r.area)}</Link>
+                      <Link href={`${base}?bereich=${r.area}`}>{t(areaLabel(r.area))}</Link>
                     </td>
-                    <td>{r.action}</td>
+                    <td>{actionLabel(r.action)}</td>
                   </tr>
                 ))}
               </tbody>

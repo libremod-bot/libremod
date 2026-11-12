@@ -33,7 +33,7 @@ export default async function EditCommandPage({
 
   return (
     <>
-      <PageHeader icon="slash" title={`/${command.name} bearbeiten`} description={t("Änderungen sind nach wenigen Sekunden in Discord sichtbar.")} />
+      <PageHeader icon="slash" title={t("/{name} bearbeiten", { name: command.name })} description={t("Änderungen sind nach wenigen Sekunden in Discord sichtbar.")} />
       <Notice saved={gespeichert} error={fehler} />
       <Link href={`/servers/${guildId}/commands`} className="small back-link">
         <Icon name="back" size={15} /> {" "}{t("Zurück zu den Befehlen")}</Link>

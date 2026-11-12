@@ -163,7 +163,7 @@ export default async function ToolsPage({
               <select id="intervalHours" name="intervalHours" defaultValue="24">
                 {PURGE_INTERVALS.map((i) => (
                   <option key={i.hours} value={i.hours}>
-                    {i.label[0]!.toUpperCase() + i.label.slice(1)}
+                    {t(i.label)[0]!.toUpperCase() + t(i.label).slice(1)}
                   </option>
                 ))}
               </select>

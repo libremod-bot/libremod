@@ -1,6 +1,5 @@
 import { fileURLToPath } from "node:url";
 import { GlobalFonts, loadImage, type SKRSContext2D } from "@napi-rs/canvas";
-import { t } from "@libremod/shared";
 
 // Inter (SIL Open Font License, siehe assets/fonts/OFL.txt) liegt dem Bot bei, weil das Docker-Image keine Schriften hat.
 let fontsReady = false;
@@ -75,7 +74,7 @@ export async function drawAvatar(
     ctx.fillStyle = accent;
     ctx.fillRect(cx - size / 2, cy - size / 2, size, size);
     ctx.fillStyle = "#0d1017";
-    ctx.font = t("bold {n0}px Inter", { n0: Math.round(size * 0.47) });
+    ctx.font = `bold ${Math.round(size * 0.47)}px Inter`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText((clean(name)[0] ?? "?").toUpperCase(), cx, cy + size * 0.02);
