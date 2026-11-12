@@ -141,6 +141,8 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 
 ## Später
 
+Ideen und Wünsche gerne als Issue auf GitHub.
+
 ## Dashboard
 
 Alles oben Genannte wird über das Web-Dashboard einstellbar sein. Das Dashboard entsteht parallel ab Version 0.1.
