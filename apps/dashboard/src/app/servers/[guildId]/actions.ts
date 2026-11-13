@@ -123,11 +123,13 @@ import {
   MAX_EVENT_TITLE,
   parseEventStart,
   validateEventTime,
+  parseSetupAnswers,
+  planSetup,
 } from "@libremod/shared";
 import { recordChange, requireGuildAccess } from "@/lib/access";
 import { isTeamArea } from "@/lib/areas";
 import { importSettings, MAX_BACKUP_BYTES, parseBackup, type BackupFile } from "@/lib/backup";
-import { restoreSnapshot, snapshotArea, stillAsAfter, undoActionText } from "@/lib/undo";
+import { diffSnapshots, restoreSnapshot, snapshotArea, stillAsAfter, undoActionText, type Snapshot } from "@/lib/undo";
 import { database } from "@/lib/db";
 import {
   CHANNEL_ANNOUNCEMENT,
@@ -2088,4 +2090,96 @@ export async function undoChange(guildId: string, entryId: number) {
     after: entry!.before,
   });
   redirect(`${path}?rueckgaengig=1`);
+}
+
+// --- Einrichtungs-Assistent ---
+
+const SETUP_AREAS = ["moderation", "automod", "logging", "welcome", "levels", "economy", "suggestions", "birthdays"] as const;
+
+export async function applySetup(guildId: string, form: FormData) {
+  const { user, access } = await requireGuildAccess(guildId);
+  const path = `/servers/${guildId}/setup`;
+  if (!access.full) back(path, t("Den Assistenten können nur Personen mit „Server verwalten“ nutzen."));
+  const answers = parseSetupAnswers(
+    (k) => text(form, k),
+    (k) => form.getAll(k).filter((v): v is string => typeof v === "string"),
+  );
+  if (!answers) back(path, t("Bitte wähle eine Vorlage und wie streng Libremod sein soll."));
+  const known = await textChannelIds(guildId);
+  for (const id of [answers!.modLogChannelId, answers!.logChannelId, answers!.welcomeChannelId, answers!.suggestionChannelId]) {
+    if (id && !known.text.has(id)) back(path, t("Bitte einen Textkanal dieses Servers wählen."));
+  }
+  const plan = planSetup(answers!);
+  const { db, notifySettingsChanged } = database();
+
+  const before = new Map<string, Snapshot | null>();
+  for (const area of SETUP_AREAS) before.set(area, await snapshotArea(db, guildId, area));
+
+  try {
+    await db.transaction(async (tx) => {
+      const g = { ...plan.guild, modLogChannelId: plan.guild.modLogChannelId ?? undefined };
+      await tx.insert(guildSettings).values({ guildId, ...g }).onConflictDoUpdate({ target: guildSettings.guildId, set: g });
+
+      const existing = await tx.select().from(automodRules).where(eq(automodRules.guildId, guildId));
+      for (const r of plan.rules) {
+        const old = existing.find((e) => e.filter === r.filter);
+        const config = { ...(old?.config ?? {}) };
+        if (r.threshold !== undefined) config.threshold = r.threshold;
+        if (r.allowedDomains) config.allowedDomains = [...new Set([...(config.allowedDomains ?? []), ...r.allowedDomains])];
+        const values = { enabled: r.enabled, action: r.action, durationSeconds: r.durationSeconds, config };
+        await tx
+          .insert(automodRules)
+          .values({ guildId, filter: r.filter, ...values })
+          .onConflictDoUpdate({ target: [automodRules.guildId, automodRules.filter], set: values });
+      }
+
+      await tx.delete(warnEscalations).where(eq(warnEscalations.guildId, guildId));
+      if (plan.escalations.length) await tx.insert(warnEscalations).values(plan.escalations.map((e) => ({ guildId, ...e })));
+
+      if (plan.logChannelId) {
+        for (const category of plan.logCategories) {
+          await tx
+            .insert(logChannels)
+            .values({ guildId, category, channelId: plan.logChannelId })
+            .onConflictDoUpdate({ target: [logChannels.guildId, logChannels.category], set: { channelId: plan.logChannelId } });
+        }
+      }
+
+      if (plan.welcome) {
+        const w = { welcomeEnabled: true, welcomeChannelId: plan.welcome.channelId };
+        await tx.insert(welcomeSettings).values({ guildId, ...w }).onConflictDoUpdate({ target: welcomeSettings.guildId, set: w });
+      }
+      if (plan.levels) await tx.insert(levelSettings).values({ guildId, enabled: true }).onConflictDoUpdate({ target: levelSettings.guildId, set: { enabled: true } });
+      if (plan.economy) await tx.insert(economySettings).values({ guildId, enabled: true }).onConflictDoUpdate({ target: economySettings.guildId, set: { enabled: true } });
+      if (plan.suggestions) {
+        const v = { enabled: true, channelId: plan.suggestions.channelId };
+        await tx.insert(suggestionSettings).values({ guildId, ...v }).onConflictDoUpdate({ target: suggestionSettings.guildId, set: v });
+      }
+      if (plan.birthdays) {
+        const v = { enabled: true, channelId: plan.birthdays.channelId };
+        await tx.insert(birthdaySettings).values({ guildId, ...v }).onConflictDoUpdate({ target: birthdaySettings.guildId, set: v });
+      }
+    });
+  } catch (err) {
+    console.error("Einrichtung fehlgeschlagen", err);
+    back(path, t("Das hat nicht geklappt. Es wurde nichts geändert."));
+  }
+  await notifySettingsChanged(guildId);
+
+  // Ein Eintrag pro Bereich im Änderungsprotokoll, jeder einzeln rückgängig zu machen.
+  const action = "Mit dem Einrichtungs-Assistenten eingerichtet";
+  for (const area of SETUP_AREAS) {
+    const changed = diffSnapshots(before.get(area) ?? null, await snapshotArea(db, guildId, area));
+    if (!changed) continue;
+    await db.insert(dashboardAudit).values({
+      guildId,
+      userId: user.id,
+      userName: user.username.slice(0, 100),
+      area,
+      action,
+      before: changed.before,
+      after: changed.after,
+    });
+  }
+  redirect(`/servers/${guildId}?eingerichtet=1`);
 }

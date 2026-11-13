@@ -35,6 +35,14 @@ export function Search({ guildId, allowed }: { guildId: string; allowed: string[
         haystack: normalize(`${a.label} ${title} ${t(a.group)} ${AREA_KEYWORDS[a.key]}`),
       });
     }
+    if (!allowed) {
+      list.push({
+        title: t("Einrichtungs-Assistent"),
+        hint: t("Start"),
+        href: `${base}/setup`,
+        haystack: normalize(`${t("Einrichtungs-Assistent")} einrichten assistent wizard setup vorlage preset schnellstart quick start`),
+      });
+    }
     list.push({ title: t("Alle Server"), hint: t("Wechseln"), href: "/servers", haystack: "server wechseln switch alle all" });
     return list;
   }, [guildId, allowed, t]);

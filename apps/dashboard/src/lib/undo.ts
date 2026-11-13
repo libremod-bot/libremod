@@ -48,6 +48,12 @@ export function undoActionText(action: string): string {
   return UNDO_PREFIX + action;
 }
 
+/** guildSettings teilen sich Moderation und Auto-Mod: Jeder Bereich sieht nur seine eigenen Spalten. */
+const GUILD_COLUMNS: Partial<Record<AreaKey, string[]>> = {
+  moderation: ["locale", "modLogChannelId", "dmOnAction"],
+  automod: ["automodEnabled", "raidEnabled", "raidJoinThreshold", "raidWindowSeconds", "raidAction"],
+};
+
 export const canUndoArea = (area: string) => area in AREA_TABLES;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -75,7 +81,10 @@ export async function snapshotArea(db: Db, guildId: string, area: string): Promi
   for (const name of names) {
     const spec = specOf(name);
     const rows = (await db.select().from(spec.table as any).where(eq((spec.table as any).guildId, guildId))) as Row[];
-    snap[name] = rows.map((r) => clean(spec, r)).sort((a, b) => keyOf(spec, a).localeCompare(keyOf(spec, b), undefined, { numeric: true }));
+    const own = name === "guildSettings" ? GUILD_COLUMNS[area as AreaKey] : undefined;
+    snap[name] = rows
+      .map((r) => clean(spec, r))
+      .map((r) => (own ? Object.fromEntries(Object.entries(r).filter(([k]) => own.includes(k))) : r)).sort((a, b) => keyOf(spec, a).localeCompare(keyOf(spec, b), undefined, { numeric: true }));
   }
   return snap;
 }

@@ -88,10 +88,10 @@ export default async function OverviewPage({
   searchParams,
 }: {
   params: Promise<{ guildId: string }>;
-  searchParams: Promise<{ fehler?: string }>;
+  searchParams: Promise<{ fehler?: string; eingerichtet?: string }>;
 }) {
   const { guildId } = await params;
-  const { fehler } = await searchParams;
+  const { fehler, eingerichtet } = await searchParams;
   const { access, guild } = await requireGuildAccess(guildId);
   const session = await getUser();
   const visible = (href: string) => {
@@ -355,6 +355,11 @@ export default async function OverviewPage({
     <>
       <PageHeader icon="home" title={t("Übersicht")} description={t("Was Libremod auf deinem Server gerade macht und was du noch einrichten kannst.")} />
       <Notice error={fehler} />
+      {eingerichtet && (
+        <div className="toast" role="status">
+          {t("Fertig! Libremod ist eingerichtet und legt sofort los. Alles Weitere stellst du in den einzelnen Bereichen ein.")}
+        </div>
+      )}
       {!access.full && (
         <div className="card small muted">
           {t("Du hast einen Team-Zugang und siehst nur die Bereiche, die das Server-Team für deine Rolle freigegeben hat.")}</div>
@@ -391,6 +396,20 @@ export default async function OverviewPage({
           </div>
         </div>
       </section>
+
+      {access.full && doneCount < steps.length && (
+        <section className="card setup-callout">
+          <div>
+            <h2>
+              <Icon name="sparkle" /> {t("In zwei Minuten startklar")}
+            </h2>
+            <p className="card-sub">{t("Der Einrichtungs-Assistent fragt kurz, was für ein Server das ist, und stellt Schutz, Logs und Module passend ein.")}</p>
+          </div>
+          <Link className="button" href={`${base}/setup`}>
+            {t("Assistent starten")}
+          </Link>
+        </section>
+      )}
 
       {steps.length > 0 && doneCount < steps.length && (
         <section className="card">

@@ -1993,3 +1993,95 @@ form[data-dirty] .savebar-discard {
     display: none;
   }
 }
+
+/* ---------- Einrichtungs-Assistent ---------- */
+.wizard-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+}
+.wizard-steps button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-weight: 500;
+  text-decoration: none;
+}
+.wizard-steps button:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.wizard-dot {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 0.85rem;
+}
+.wizard-steps li[aria-current="step"] button {
+  color: var(--text);
+}
+.wizard-steps li[aria-current="step"] .wizard-dot {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.wizard-steps li[data-done] .wizard-dot {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.wizard-cards {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  margin-top: 1.25rem;
+}
+.wizard-cards .radio-card {
+  padding: 1rem 1.1rem;
+}
+.wizard-cards strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.wizard-summary {
+  list-style: none;
+  margin: 1rem 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+.wizard-summary li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.wizard-summary .icon {
+  color: var(--accent);
+}
+.wizard-nav {
+  justify-content: space-between;
+}
+.setup-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+.setup-callout h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.setup-callout .icon {
+  color: var(--accent);
+}

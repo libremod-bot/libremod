@@ -25,6 +25,10 @@
     "./snapshot": {
       "types": "./dist/snapshot.d.ts",
       "default": "./dist/snapshot.js"
+    },
+    "./presets": {
+      "types": "./dist/presets.d.ts",
+      "default": "./dist/presets.js"
     }
   },
   "scripts": {
