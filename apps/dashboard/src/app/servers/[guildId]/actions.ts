@@ -1674,9 +1674,11 @@ export async function addMemberNote(guildId: string, userId: string, form: FormD
   const { user } = await requireGuildAccess(guildId, "cases", "Notiz hinzugefügt");
   const path = `/servers/${guildId}/cases`;
   if (!SNOWFLAKE.test(userId)) back(path, t("Ungültige Nutzer-ID."));
+  // Von der Mitglieder-Seite aus geht es dorthin zurück.
+  const target = form.get("ziel") === "mitglied" ? `/servers/${guildId}/members/${userId}?` : `${path}?nutzer=${userId}&`;
   const back2 = (e?: string) => {
     if (!e) recordChange();
-    return redirect(`${path}?nutzer=${userId}&${e ? `fehler=${encodeURIComponent(e)}` : "gespeichert=1"}`);
+    return redirect(`${target}${e ? `fehler=${encodeURIComponent(e)}` : "gespeichert=1"}`);
   };
   const note = text(form, "note");
   if (!note || note.length > 1000) back2(t("Bitte eine Notiz mit höchstens 1000 Zeichen schreiben."));
@@ -1687,11 +1689,12 @@ export async function addMemberNote(guildId: string, userId: string, form: FormD
   back2();
 }
 
-export async function deleteMemberNote(guildId: string, noteId: number) {
+export async function deleteMemberNote(guildId: string, noteId: number, form?: FormData) {
   await requireGuildAccess(guildId, "cases", "Notiz gelöscht");
   const { db } = database();
   const [gone] = await db.delete(memberNotes).where(and(eq(memberNotes.guildId, guildId), eq(memberNotes.id, noteId))).returning();
   recordChange();
+  if (gone && form?.get("ziel") === "mitglied") redirect(`/servers/${guildId}/members/${gone.userId}?gespeichert=1`);
   redirect(`/servers/${guildId}/cases?${gone ? `nutzer=${gone.userId}&` : ""}gespeichert=1`);
 }
 

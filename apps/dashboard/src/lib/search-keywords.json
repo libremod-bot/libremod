@@ -3,6 +3,7 @@
   "automod": "spam links einladungen invites phishing betrug scam großbuchstaben caps emojis erwähnungen mentions wortfilter wörter badwords zalgo raid namensschutz name guard ausnahmen exemptions filter",
   "verification": "verifizieren captcha code knopf button frage neue mitglieder kontoalter account age verify",
   "logging": "log protokoll nachrichten gelöscht bearbeitet beitritt austritt join leave rollen sprachkanal voice server-log deleted edited",
+  "members": "mitglieder member nutzer person user suchen profil rollen notizen notes verlauf",
   "cases": "fälle fallakte verlauf historie zurücknehmen widerrufen modstats team cases history revoke",
   "tickets": "support ticket panel kategorien fragen formular transkript bewertung claim übernehmen transcript rating",
   "appeals": "einspruch entbannen ban appeal unban",

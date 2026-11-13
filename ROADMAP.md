@@ -156,6 +156,13 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 - Speichern-Leiste erscheint unten, sobald etwas geändert wurde, mit „Verwerfen“
 - Schnellsuche mit Strg+K (Mac: Cmd+K) oder „/“: findet jede Seite, auch über Stichwörter wie „Spam“ oder „XP“
 
+## 0.22 Leichter einrichten
+
+- Einrichtungs-Assistent: fünf kurze Schritte (Art des Servers, wie streng, Module, Kanäle), danach ist alles passend eingestellt
+- Vorlagen für Community, Gaming, Lernen & Schule, Creator & Streams und Freundeskreis, mit den Schutzstufen Entspannt, Normal und Streng
+- Rückgängig im Änderungsprotokoll: jede Änderung im Dashboard mit einem Klick zurücknehmen, auch das Zurücknehmen lässt sich wiederherstellen
+- Mitglieder-Seite: Person suchen und Rollen, Fallakte, Team-Notizen, Level, Münzen, Geburtstag und Tickets auf einen Blick sehen, auch nach dem Verlassen des Servers
+
 ## Später
 
 Ideen und Wünsche gerne als Issue auf GitHub.

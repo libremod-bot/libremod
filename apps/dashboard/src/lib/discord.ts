@@ -325,3 +325,71 @@ export async function sendDirectMessage(userId: string, body: unknown) {
     return false;
   }
 }
+
+// --- Mitglieder-Seite ---
+
+export interface GuildMember {
+  id: string;
+  username: string;
+  displayName: string;
+  avatar: string;
+  roles: string[];
+  joinedAt: string | null;
+  /** Gesetzt, solange ein Timeout läuft. */
+  timeoutUntil: string | null;
+  bot: boolean;
+}
+
+type RawMember = {
+  nick: string | null;
+  roles: string[];
+  joined_at?: string | null;
+  communication_disabled_until?: string | null;
+  user: { id: string; username: string; global_name: string | null; avatar: string | null; bot?: boolean };
+};
+
+const toMember = (m: RawMember): GuildMember => ({
+  id: m.user.id,
+  username: m.user.username,
+  displayName: m.nick ?? m.user.global_name ?? m.user.username,
+  avatar: avatarUrl(m.user),
+  roles: m.roles,
+  joinedAt: m.joined_at ?? null,
+  timeoutUntil: m.communication_disabled_until && new Date(m.communication_disabled_until) > new Date() ? m.communication_disabled_until : null,
+  bot: !!m.user.bot,
+});
+
+/** Mitglieder nach Name suchen (Anfang von Nutzername oder Spitzname, wie in Discord). */
+export async function searchMembers(guildId: string, query: string, limit = 25): Promise<GuildMember[]> {
+  const q = encodeURIComponent(query.slice(0, 100));
+  return cached(`member-search:${guildId}:${query.toLowerCase()}`, 30_000, async () =>
+    (await discord<RawMember[]>(`/guilds/${guildId}/members/search?query=${q}&limit=${limit}`, bot())).map(toMember),
+  );
+}
+
+/** Ein Mitglied mit Rollen und Beitrittsdatum. null: nicht (mehr) auf dem Server. */
+export async function getMember(guildId: string, userId: string): Promise<GuildMember | null> {
+  try {
+    return toMember(await discord<RawMember>(`/guilds/${guildId}/members/${userId}`, bot()));
+  } catch (err) {
+    if (err instanceof DiscordError && err.status === 404) return null;
+    throw err;
+  }
+}
+
+/** Name und Avatar auch von Personen, die nicht (mehr) auf dem Server sind. */
+export async function getDiscordUser(userId: string): Promise<{ id: string; username: string; displayName: string; avatar: string } | null> {
+  return cached(`user:${userId}`, 10 * 60_000, async () => {
+    try {
+      const u = await discord<{ id: string; username: string; global_name: string | null; avatar: string | null }>(`/users/${userId}`, bot());
+      return { id: u.id, username: u.username, displayName: u.global_name ?? u.username, avatar: avatarUrl(u) };
+    } catch {
+      return null;
+    }
+  });
+}
+
+/** Zeitpunkt, an dem ein Discord-Konto erstellt wurde (steckt in der ID). */
+export function snowflakeDate(id: string): Date {
+  return new Date(Number((BigInt(id) >> 22n) + 1420070400000n));
+}

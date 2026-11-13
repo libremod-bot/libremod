@@ -6,6 +6,7 @@ export const AREAS = [
   { key: "automod", label: "Auto-Mod", icon: "shield", group: "Schutz" },
   { key: "verification", label: "Verifizierung", icon: "usercheck", group: "Schutz" },
   { key: "logging", label: "Logging", icon: "log", group: "Schutz" },
+  { key: "members", label: "Mitglieder", icon: "users", group: "Schutz" },
   { key: "cases", label: "Fallakte", icon: "list", group: "Schutz" },
   { key: "tickets", label: "Tickets", icon: "ticket", group: "Schutz" },
   { key: "appeals", label: "Einsprüche", icon: "mail", group: "Schutz" },

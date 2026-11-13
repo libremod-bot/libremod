@@ -5,7 +5,7 @@
 <br>
 
 [![Lizenz: AGPL-3.0](https://img.shields.io/badge/Lizenz-AGPL--3.0-7c66e8?style=flat-square)](LICENSE)
-[![Version 0.21](https://img.shields.io/badge/Version-0.21-4cb4ff?style=flat-square)](ROADMAP.md)
+[![Version 0.22](https://img.shields.io/badge/Version-0.22-4cb4ff?style=flat-square)](ROADMAP.md)
 [![Selbst gehostet mit Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed?style=flat-square&logo=docker&logoColor=white)](docs/SELBSTHOSTEN.md)
 [![discord.js 14](https://img.shields.io/badge/discord.js-14-5865f2?style=flat-square&logo=discord&logoColor=white)](https://discord.js.org)
 [![Keine Paywall](https://img.shields.io/badge/Paywall-keine-2f7d5b?style=flat-square)](#warum-libremod)
@@ -40,7 +40,7 @@ Bot und Dashboard sprechen beide Sprachen. Die Sprache des Bots stellst du pro S
 
 ## So sieht es aus
 
-Alles stellst du im Web-Dashboard ein, mit Discord-Login und auch am Handy. Hell oder dunkel, ganz wie du magst, und mit <kbd>Strg</kbd> + <kbd>K</kbd> findest du jede Einstellung sofort.
+Alles stellst du im Web-Dashboard ein, mit Discord-Login und auch am Handy. Hell oder dunkel, ganz wie du magst, und mit <kbd>Strg</kbd> + <kbd>K</kbd> findest du jede Einstellung sofort. Neu dabei? Der Einrichtungs-Assistent stellt in fünf kurzen Schritten alles passend für deinen Server ein, und jede Änderung lässt sich im Änderungsprotokoll mit einem Klick zurücknehmen.
 
 <img src="docs/assets/overview-de.webp" alt="Übersicht im Dashboard mit Auto-Mod, Logging, Fällen und allen Modulen" width="100%">
 

@@ -2085,3 +2085,85 @@ form[data-dirty] .savebar-discard {
 .setup-callout .icon {
   color: var(--accent);
 }
+
+/* ---------- Mitglieder ---------- */
+.inline-field {
+  display: flex;
+  gap: 0.75rem;
+  max-width: 640px;
+}
+.inline-field input {
+  flex: 1;
+}
+.member-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.75rem;
+}
+.member-list a {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  text-decoration: none;
+}
+.member-list a:hover {
+  border-color: var(--accent);
+}
+.member-list a > span {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-wrap: anywhere;
+}
+.member-list .avatar {
+  width: 40px;
+  height: 40px;
+}
+.member-list .icon {
+  color: var(--muted);
+}
+.member-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1.25rem 1.5rem;
+  align-items: center;
+}
+.member-head .stats,
+.member-head > .small {
+  grid-column: 1 / -1;
+}
+.member-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+}
+.member-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.member-status p {
+  flex-basis: 100%;
+  margin: 0;
+}
+.role-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.role-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--muted);
+}
