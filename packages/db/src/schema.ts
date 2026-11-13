@@ -1279,3 +1279,39 @@ export const instanceStatus = pgTable("instance_status", {
 });
 
 export type InstanceStatus = typeof instanceStatus.$inferSelect;
+
+/** Modmail: Mitglieder schreiben dem Bot privat, das Team antwortet in einem Thread. */
+export const modmailSettings = pgTable("modmail_settings", {
+  guildId: varchar("guild_id", { length: 32 }).primaryKey(),
+  enabled: boolean("enabled").notNull().default(false),
+  /** Textkanal, in dem pro Gespräch ein Thread entsteht. Am besten nur fürs Team sichtbar. */
+  channelId: varchar("channel_id", { length: 32 }),
+  /** Diese Rolle wird bei neuen Gesprächen erwähnt. */
+  pingRoleId: varchar("ping_role_id", { length: 32 }),
+  greeting: varchar("greeting", { length: 1000 }).notNull().default("Danke für deine Nachricht! Das Team meldet sich hier, sobald jemand Zeit hat."),
+  closing: varchar("closing", { length: 1000 }).notNull().default("Das Gespräch wurde geschlossen. Schreib einfach wieder, wenn du noch etwas brauchst."),
+  /** Antworten mit Namen der Person aus dem Team statt nur „Team“. */
+  showStaffNames: boolean("show_staff_names").notNull().default(false),
+  /** Gesperrte Personen können keine neuen Gespräche starten. */
+  blockedUserIds: jsonb("blocked_user_ids").$type<string[]>().notNull().default([]),
+});
+
+export type ModmailSettings = typeof modmailSettings.$inferSelect;
+
+export const modmailThreads = pgTable(
+  "modmail_threads",
+  {
+    id: serial("id").primaryKey(),
+    guildId: varchar("guild_id", { length: 32 }).notNull(),
+    userId: varchar("user_id", { length: 32 }).notNull(),
+    threadId: varchar("thread_id", { length: 32 }).notNull(),
+    open: boolean("open").notNull().default(true),
+    messages: integer("messages").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    closedBy: varchar("closed_by", { length: 32 }),
+  },
+  (t) => [index("modmail_threads_user").on(t.userId, t.open), uniqueIndex("modmail_threads_thread").on(t.threadId)],
+);
+
+export type ModmailThread = typeof modmailThreads.$inferSelect;

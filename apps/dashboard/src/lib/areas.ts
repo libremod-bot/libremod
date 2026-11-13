@@ -9,6 +9,7 @@ export const AREAS = [
   { key: "members", label: "Mitglieder", icon: "users", group: "Schutz" },
   { key: "cases", label: "Fallakte", icon: "list", group: "Schutz" },
   { key: "tickets", label: "Tickets", icon: "ticket", group: "Schutz" },
+  { key: "modmail", label: "Modmail", icon: "mail", group: "Schutz" },
   { key: "appeals", label: "Einsprüche", icon: "mail", group: "Schutz" },
   { key: "welcome", label: "Begrüßung", icon: "wave", group: "Community" },
   { key: "roles", label: "Rollen", icon: "tag", group: "Community" },

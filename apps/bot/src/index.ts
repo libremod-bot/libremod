@@ -3,6 +3,7 @@ import { createDb } from "@libremod/db";
 import { runMigrations } from "@libremod/db/migrate";
 import { config } from "./config.js";
 import { logger } from "./logger.js";
+import { handleDirectMessage, handleThreadMessage } from "./services/modmail.js";
 import { onInteractionCreate } from "./events/interactionCreate.js";
 import { onGuildCreate } from "./events/guildCreate.js";
 import { startTempBanScheduler } from "./services/tempbans.js";
@@ -139,6 +140,8 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.GuildMessageReactions,
+    // Für Modmail: Direktnachrichten an den Bot.
+    GatewayIntentBits.DirectMessages,
   ],
   // Damit auch Ereignisse zu nicht zwischengespeicherten Nachrichten und Mitgliedern ankommen (Logging).
   partials: [
@@ -146,6 +149,8 @@ const client = new Client({
     Partials.GuildMember,
     Partials.User,
     Partials.Reaction,
+    // Direktnachrichten-Kanäle sind nie im Cache.
+    Partials.Channel,
   ],
 });
 // Jede Antwort und Meldung in der Sprache des jeweiligen Servers
@@ -180,6 +185,12 @@ client.on(Events.InteractionCreate, (i) => void onInteractionCreate(i, ctx));
 const logError = (what: string) => (err: unknown) =>
   logger.error({ err }, `${what} fehlgeschlagen`);
 client.on(Events.MessageCreate, (m) => {
+  // Direktnachrichten gehen nur an die Modmail, alles andere hier ist für Server-Nachrichten.
+  if (!m.inGuild()) {
+    void handleDirectMessage(m, db).catch(logError("Modmail"));
+    return;
+  }
+  void handleThreadMessage(m, db).catch(logError("Modmail"));
   countMessage(m);
   trackSlowmodeMessage(m);
   void trackTicketMessage(m, db).catch(logError("Tickets"));
@@ -187,19 +198,18 @@ client.on(Events.MessageCreate, (m) => {
   void handleWordChainMessage(m, db);
   void handleSuggestionMessage(m, db).catch(logError(t("Vorschläge")));
 });
-client.on(
-  Events.MessageCreate,
-  (m) =>
-    void handleMessage(m, db)
-      .catch((err) => (logError("Auto-Mod")(err), false))
-      // Was die Auto-Mod entfernt, bringt keine XP.
-      .then((removed) =>
-        removed
-          ? undefined
-          : Promise.all([handleMessageXp(m, db), handleMessageCoins(m, db)]),
-      )
-      .catch(logError("Level")),
-);
+client.on(Events.MessageCreate, (m) => {
+  if (!m.inGuild()) return;
+  void handleMessage(m, db)
+    .catch((err) => (logError("Auto-Mod")(err), false))
+    // Was die Auto-Mod entfernt, bringt keine XP.
+    .then((removed) =>
+      removed
+        ? undefined
+        : Promise.all([handleMessageXp(m, db), handleMessageCoins(m, db)]),
+    )
+    .catch(logError("Level"));
+});
 client.on(Events.MessageUpdate, (oldMessage, newMessage) => {
   void log
     .onMessageUpdate(oldMessage, newMessage, db)

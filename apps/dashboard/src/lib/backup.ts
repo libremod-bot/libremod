@@ -1,6 +1,7 @@
 import "server-only";
 import {
   appealSettings,
+  modmailSettings,
   autoPurgeChannels,
   autoRoles,
   autoSlowmodeChannels,
@@ -99,6 +100,7 @@ export const TABLES: Spec[] = [
   { name: "wordChainChannels", table: wordChainChannels, state: ["lastWord", "lastUserId", "length", "record", "createdAt"], stateKey: "channelId" },
   { name: "nameGuardSettings", table: nameGuardSettings },
   { name: "appealSettings", table: appealSettings },
+  { name: "modmailSettings", table: modmailSettings },
   { name: "dashboardTeamAccess", table: dashboardTeamAccess, state: ["updatedAt"] },
 ];
 

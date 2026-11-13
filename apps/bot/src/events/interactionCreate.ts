@@ -35,6 +35,7 @@ import {
 } from "../services/phishing.js";
 import { invalidateAutomod } from "../services/automod.js";
 import { handleReportInteraction, isReportInteraction } from "../services/reports.js";
+import { handleModmailInteraction, isModmailInteraction } from "../services/modmail.js";
 import { t } from "@libremod/shared";
 
 export async function onInteractionCreate(
@@ -127,6 +128,10 @@ export async function onInteractionCreate(
           })
           .catch(() => {});
     });
+    return;
+  }
+  if ((interaction.isButton() || interaction.isStringSelectMenu()) && isModmailInteraction(interaction.customId)) {
+    await handleModmailInteraction(interaction, ctx.db);
     return;
   }
   if ((interaction.isButton() || interaction.isModalSubmit()) && isReportInteraction(interaction.customId)) {

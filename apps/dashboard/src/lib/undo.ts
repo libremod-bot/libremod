@@ -20,6 +20,7 @@ const AREA_TABLES: Partial<Record<AreaKey, string[]>> = {
   logging: ["logChannels", "logIgnoredChannels"],
   tickets: ["ticketSettings", "ticketCategories", "ticketPanels"],
   appeals: ["appealSettings"],
+  modmail: ["modmailSettings"],
   welcome: ["welcomeSettings"],
   roles: ["autoRoles", "rolePanels", "voiceRoles"],
   suggestions: ["suggestionSettings"],

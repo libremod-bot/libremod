@@ -60,6 +60,7 @@ import {
   quotes,
   nameGuardSettings,
   appealSettings,
+  modmailSettings,
   banAppeals,
   guildEvents,
   ne,
@@ -1975,6 +1976,34 @@ export async function saveAppealSettings(guildId: string, form: FormData) {
   const { db } = database();
   await db.insert(appealSettings).values({ guildId, ...values }).onConflictDoUpdate({ target: appealSettings.guildId, set: values });
   back(path);
+}
+
+const MODMAIL = (g: string) => `/servers/${g}/modmail`;
+
+export async function saveModmail(guildId: string, form: FormData) {
+  await requireGuildAccess(guildId, "modmail", "Modmail gespeichert");
+  const path = MODMAIL(guildId);
+  const enabled = form.get("enabled") === "on";
+  const channelId = text(form, "channelId") || null;
+  if (channelId && !(await textChannelIds(guildId)).text.has(channelId)) back(path, t("Bitte einen Textkanal dieses Servers wählen."));
+  if (enabled && !channelId) back(path, t("Bitte einen Kanal für die Gespräche wählen."));
+  const pingRoleId = text(form, "pingRoleId") || null;
+  if (pingRoleId && !SNOWFLAKE.test(pingRoleId)) back(path, t("Unbekannte Rolle."));
+  const greeting = text(form, "greeting") || t("Danke für deine Nachricht! Das Team meldet sich hier, sobald jemand Zeit hat.");
+  const closing = text(form, "closing") || t("Das Gespräch wurde geschlossen. Schreib einfach wieder, wenn du noch etwas brauchst.");
+  if (greeting.length > 1000 || closing.length > 1000) back(path, t("Die Texte dürfen höchstens 1000 Zeichen lang sein."));
+  const values = { enabled, channelId, pingRoleId, greeting, closing, showStaffNames: form.get("showStaffNames") === "on" };
+  const { db } = database();
+  await db.insert(modmailSettings).values({ guildId, ...values }).onConflictDoUpdate({ target: modmailSettings.guildId, set: values });
+  back(path);
+}
+
+export async function unblockModmailUser(guildId: string, userId: string) {
+  await requireGuildAccess(guildId, "modmail", "Modmail-Sperre aufgehoben");
+  const { db } = database();
+  const [s] = await db.select().from(modmailSettings).where(eq(modmailSettings.guildId, guildId));
+  if (s) await db.update(modmailSettings).set({ blockedUserIds: s.blockedUserIds.filter((id) => id !== userId) }).where(eq(modmailSettings.guildId, guildId));
+  back(MODMAIL(guildId));
 }
 
 export async function decideAppeal(guildId: string, id: number, accept: boolean, form: FormData) {
