@@ -5,7 +5,7 @@
 <br>
 
 [![Lizenz: AGPL-3.0](https://img.shields.io/badge/Lizenz-AGPL--3.0-7c66e8?style=flat-square)](LICENSE)
-[![Version 0.22](https://img.shields.io/badge/Version-0.22-4cb4ff?style=flat-square)](ROADMAP.md)
+[![Version 0.23](https://img.shields.io/badge/Version-0.23-4cb4ff?style=flat-square)](ROADMAP.md)
 [![Selbst gehostet mit Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed?style=flat-square&logo=docker&logoColor=white)](docs/SELBSTHOSTEN.md)
 [![discord.js 14](https://img.shields.io/badge/discord.js-14-5865f2?style=flat-square&logo=discord&logoColor=white)](https://discord.js.org)
 [![Keine Paywall](https://img.shields.io/badge/Paywall-keine-2f7d5b?style=flat-square)](#warum-libremod)
@@ -104,12 +104,16 @@ Alles stellst du im Web-Dashboard ein, mit Discord-Login und auch am Handy. Hell
 ### 🛡️ Schutz
 
 - **Moderation**: Verwarnen, Timeout, Kick, Ban (auch befristet), Aufräumen, Fallakte mit Gründen
-- **Verwarnungsstufen**: ab X Verwarnungen automatisch Timeout oder Ban
-- **Auto-Mod**: Spam, Einladungen, Links, Wortfilter (auch gegen Tricks wie „1d10t“), Großbuchstaben, Massen-Erwähnungen
+- **Verwarnungsstufen**: ab X Verwarnungen automatisch Timeout oder Ban, Verwarnungen verfallen auf Wunsch nach einigen Tagen
+- **Auto-Mod**: Spam, Einladungen, Links, Wortfilter (auch gegen Tricks wie „1d10t“), Großbuchstaben, Massen-Erwähnungen, gefährliche Dateien wie .exe
+- **Discords eigene AutoMod** direkt im Dashboard anlegen und umschalten
 - **Anti-Phishing**: erkennt nachgemachte Discord- und Steam-Links, Kurzlinks und typische Betrugstexte, dazu zwei freie Listen mit Zehntausenden bekannten Betrugsdomains
+- **Anti-Nuke**: stoppt gekaperte Team-Konten oder Bots, die massenhaft Kanäle und Rollen löschen oder bannen
 - **Raid-Schutz** und **Namensschutz** gegen Leute, die sich als dein Team ausgeben
 - **Verifizierung** neuer Mitglieder per Knopf, Code oder eigener Frage
 - **Lockdown** einzelner Kanäle oder des ganzen Servers
+- **Modmail**: Mitglieder schreiben dem Bot privat, dein Team antwortet in einem Thread
+- **Nachricht melden** per Rechtsklick, dein Team löscht oder verwarnt mit einem Klick
 - **Massenaktionen** gegen Raids, **Team-Notizen**, **Einsprüche** gegen Bans über eine eigene Seite
 - **Logging**: gelöschte und bearbeitete Nachrichten, Beitritte, Rollen, Kanäle, Sprachkanäle
 
@@ -264,6 +268,8 @@ Fast alles stellst du im Dashboard ein. Im Chat gibt es dazu diese Slash-Befehle
 | `/note add/list/delete` | Team-Notizen zu Mitgliedern |
 | `/modstats` | Wer im Team wie viele Fälle bearbeitet hat |
 | `/verify` | Mitglied von Hand verifizieren |
+| Rechtsklick → Apps → Nachricht melden | Für alle: Nachricht ans Team melden |
+| Direktnachricht an Libremod | Modmail: landet als Thread beim Team, Antworten gehen zurück |
 | `/config`, `/automod`, `/logging` | Die wichtigsten Einstellungen auch direkt im Chat |
 
 </details>

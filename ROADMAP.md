@@ -163,6 +163,16 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 - Rückgängig im Änderungsprotokoll: jede Änderung im Dashboard mit einem Klick zurücknehmen, auch das Zurücknehmen lässt sich wiederherstellen
 - Mitglieder-Seite: Person suchen und Rollen, Fallakte, Team-Notizen, Level, Münzen, Geburtstag und Tickets auf einen Blick sehen, auch nach dem Verlassen des Servers
 
+## 0.23 Mehr Schutz für Teams
+
+- Modmail: Mitglieder schreiben Libremod eine Direktnachricht, das Team antwortet in einem eigenen Thread; interne Notizen mit „!“, Sperren per Knopf
+- Nachricht melden: Rechtsklick → Apps → „Nachricht melden“, das Team löscht, verwarnt oder hakt ab
+- Dateifilter in der Auto-Mod gegen gefährliche Anhänge wie .exe, .bat oder .apk, auch getarnt als „bild.jpg.exe“
+- Anti-Nuke: wer in einer Minute massenhaft Kanäle oder Rollen löscht, bannt, kickt oder Webhooks anlegt, verliert seine Rollen (oder wird gekickt/gebannt), der Inhaber bekommt eine Direktnachricht
+- Verwarnungen verfallen auf Wunsch nach einer festen Zahl von Tagen
+- Discords eigene AutoMod-Regeln im Dashboard anlegen, ein- und ausschalten
+- Libremod braucht dafür zusätzlich die Rechte „Audit-Log anzeigen“ und „Server verwalten“
+
 ## Später
 
 Ideen und Wünsche gerne als Issue auf GitHub.

@@ -5,7 +5,7 @@
 <br>
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-7c66e8?style=flat-square)](LICENSE)
-[![Version 0.22](https://img.shields.io/badge/Version-0.22-4cb4ff?style=flat-square)](ROADMAP.md)
+[![Version 0.23](https://img.shields.io/badge/Version-0.23-4cb4ff?style=flat-square)](ROADMAP.md)
 [![Self-hosted with Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed?style=flat-square&logo=docker&logoColor=white)](docs/SELBSTHOSTEN.md)
 [![discord.js 14](https://img.shields.io/badge/discord.js-14-5865f2?style=flat-square&logo=discord&logoColor=white)](https://discord.js.org)
 [![No paywall](https://img.shields.io/badge/Paywall-none-2f7d5b?style=flat-square)](#why-libremod)
@@ -104,12 +104,16 @@ Everything is set up in the web dashboard, with Discord login and on mobile too.
 ### 🛡️ Protection
 
 - **Moderation**: warn, timeout, kick, ban (temporary too), purge, case log with reasons
-- **Warning thresholds**: automatic timeout or ban after X warnings
-- **Auto-mod**: spam, invites, links, word filter (catches tricks like "1d10t"), caps, mass mentions
+- **Warning thresholds**: automatic timeout or ban after X warnings, warnings can expire after a few days
+- **Auto-mod**: spam, invites, links, word filter (catches tricks like "1d10t"), caps, mass mentions, dangerous files like .exe
+- **Discord's own AutoMod**: create and toggle its rules right in the dashboard
 - **Anti-phishing**: spots fake Discord and Steam links, URL shorteners and typical scam texts, plus two free lists with tens of thousands of known scam domains
+- **Anti-nuke**: stops hijacked staff accounts or bots that mass-delete channels and roles or mass-ban
 - **Raid protection** and **name protection** against people impersonating your team
 - **Verification** of new members via button, code or a custom question
 - **Lockdown** of single channels or the whole server
+- **Modmail**: members DM the bot, your team replies in a thread
+- **Report message** via right-click, your team deletes or warns with one click
 - **Mass actions** against raids, **staff notes**, **ban appeals** on their own page
 - **Logging**: deleted and edited messages, joins, roles, channels, voice channels
 
@@ -264,6 +268,8 @@ Almost everything is set up in the dashboard. In chat you have these slash comma
 | `/note add/list/delete` | Staff notes on members |
 | `/modstats` | How many cases each team member handled |
 | `/verify` | Verify a member manually |
+| Right-click → Apps → Report message | For everyone: report a message to the team |
+| Direct message to Libremod | Modmail: arrives as a thread for the team, replies go back |
 | `/config`, `/automod`, `/logging` | The most important settings right in chat |
 
 </details>
