@@ -66,6 +66,18 @@ export default async function ModerationPage({
           </select>
           <div className="hint">{t("Tipp: Ein Kanal, den nur dein Team sehen kann, z. B. #mod-log.")}</div>
         </div>
+        <div className="field">
+          <label htmlFor="reportChannelId">{t("Kanal für Meldungen")}</label>
+          <select id="reportChannelId" name="reportChannelId" defaultValue={settings?.reportChannelId ?? ""}>
+            <option value="">{t("Wie das Mod-Log")}</option>
+            {textChannels.map((c) => (
+              <option key={c.id} value={c.id}>
+                #{c.name}
+              </option>
+            ))}
+          </select>
+          <div className="hint">{t("Mitglieder melden Nachrichten per Rechtsklick → Apps → „Nachricht melden“. Dein Team kann sie dann mit einem Klick löschen, verwarnen oder abhaken.")}</div>
+        </div>
         <div className="divider" />
         <Switch
           name="dmOnAction"

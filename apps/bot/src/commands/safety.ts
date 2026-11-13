@@ -35,6 +35,7 @@ import type { ContextMenu } from "./extras.js";
 import { shortLinkTargets, updatePhishingLists } from "../services/phishing.js";
 import { invalidateAutomod } from "../services/automod.js";
 import { t } from "@libremod/shared";
+import { startReport } from "../services/reports.js";
 
 type MassType = "ban" | "kick" | "timeout";
 
@@ -374,4 +375,13 @@ export const reportPhishingMenu: ContextMenu = {
       flags: MessageFlags.Ephemeral,
     });
   },
+};
+
+/** Rechtsklick → Apps → „Nachricht melden“: für alle Mitglieder. */
+export const reportMessageMenu: ContextMenu = {
+  data: new ContextMenuCommandBuilder()
+    .setName("Nachricht melden")
+    .setType(ApplicationCommandType.Message)
+    .setContexts(InteractionContextType.Guild),
+  execute: (interaction, { db }) => startReport(interaction, db),
 };

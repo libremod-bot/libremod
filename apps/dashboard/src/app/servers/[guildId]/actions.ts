@@ -221,6 +221,8 @@ export async function saveModeration(guildId: string, form: FormData) {
   const path = `/servers/${guildId}/moderation`;
   const channel = text(form, "modLogChannelId");
   if (channel && !SNOWFLAKE.test(channel)) back(path, t("Ungültiger Kanal."));
+  const reportChannel = text(form, "reportChannelId");
+  if (reportChannel && !SNOWFLAKE.test(reportChannel)) back(path, t("Ungültiger Kanal."));
   const expiry = int(form, "warnExpiryDays", 0, 365) ?? 0;
   if (Number.isNaN(expiry)) back(path, t("Bitte eine Zahl von 0 bis 365 Tagen eingeben."));
 
@@ -230,6 +232,7 @@ export async function saveModeration(guildId: string, form: FormData) {
     .update(guildSettings)
     .set({
       modLogChannelId: channel || null,
+      reportChannelId: reportChannel || null,
       dmOnAction: form.get("dmOnAction") === "on",
       warnExpiryDays: expiry,
       updatedAt: new Date(),

@@ -34,6 +34,7 @@ import {
   isPhishingInteraction,
 } from "../services/phishing.js";
 import { invalidateAutomod } from "../services/automod.js";
+import { handleReportInteraction, isReportInteraction } from "../services/reports.js";
 import { t } from "@libremod/shared";
 
 export async function onInteractionCreate(
@@ -126,6 +127,10 @@ export async function onInteractionCreate(
           })
           .catch(() => {});
     });
+    return;
+  }
+  if ((interaction.isButton() || interaction.isModalSubmit()) && isReportInteraction(interaction.customId)) {
+    await handleReportInteraction(interaction, ctx.db);
     return;
   }
   if (interaction.isButton() && isPhishingInteraction(interaction.customId)) {

@@ -43,6 +43,8 @@ export const guildSettings = pgTable("guild_settings", {
   dmOnAction: boolean("dm_on_action").notNull().default(true),
   /** Verwarnungen zählen nach so vielen Tagen nicht mehr für die Verwarnungsstufen. 0 = nie. */
   warnExpiryDays: integer("warn_expiry_days").notNull().default(0),
+  /** Kanal für „Nachricht melden“. Leer = Mod-Log. */
+  reportChannelId: varchar("report_channel_id", { length: 32 }),
   /** Raid-Schutz: ab raidJoinThreshold Beitritten in raidWindowSeconds greift raidAction. */
   raidEnabled: boolean("raid_enabled").notNull().default(false),
   raidJoinThreshold: integer("raid_join_threshold").notNull().default(10),

@@ -22,6 +22,7 @@ import {
   massban,
   masskick,
   masstimeout,
+  reportMessageMenu,
   reportPhishingMenu,
 } from "./safety.js";
 import { quote, saveQuoteMenu, type ContextMenu } from "./extras.js";
@@ -91,7 +92,7 @@ export const commands = new Collection<string, Command>(
 
 /** Befehle im Rechtsklick-Menü von Nachrichten. */
 export const contextMenus = new Collection<string, ContextMenu>(
-  [saveQuoteMenu, reportPhishingMenu].map((c) => [c.data.name, c]),
+  [saveQuoteMenu, reportPhishingMenu, reportMessageMenu].map((c) => [c.data.name, c]),
 );
 
 /** Alles, was bei Discord registriert wird, mit Übersetzungen (Discord zeigt jeder Person ihre Sprache). */
