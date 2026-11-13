@@ -130,6 +130,11 @@ import {
   ANTINUKE_ACTIONS,
   ANTINUKE_MAX,
   ANTINUKE_MIN,
+  buildDiscordRule,
+  cleanKeywords,
+  DISCORD_RULE_KINDS,
+  DISCORD_RULE_NAMES,
+  type DiscordRuleKind,
 } from "@libremod/shared";
 import { recordChange, requireGuildAccess } from "@/lib/access";
 import { isTeamArea } from "@/lib/areas";
@@ -156,6 +161,7 @@ import {
   sendDirectMessage,
   unbanUser,
   getGuildInfo,
+  writeDiscordAutoModRule,
 } from "@/lib/discord";
 import { t } from "@/lib/i18n";
 
@@ -1989,6 +1995,52 @@ export async function saveAppealSettings(guildId: string, form: FormData) {
   const values = { enabled: form.get("enabled") === "on", channelId, question, cooldownDays };
   const { db } = database();
   await db.insert(appealSettings).values({ guildId, ...values }).onConflictDoUpdate({ target: appealSettings.guildId, set: values });
+  back(path);
+}
+
+// --- Discords eigene AutoMod ---
+
+const DISCORD_AUTOMOD = (g: string) => `/servers/${g}/automod#discord-automod`;
+
+function discordError(path: string, err: string) {
+  if (err.startsWith("403") || err.startsWith("401")) back(path, t("Libremod fehlt das Recht „Server verwalten“. Gib es der Rolle von Libremod in den Server-Einstellungen."));
+  if (/maximum|limit/i.test(err)) back(path, t("Discord erlaubt von dieser Art nur eine begrenzte Zahl an Regeln. Bearbeite oder lösche erst eine bestehende."));
+  back(path, t("Discord hat abgelehnt: {err}", { err: err.slice(0, 200) }));
+}
+
+export async function createDiscordAutoModRule(guildId: string, form: FormData) {
+  const { user } = await requireGuildAccess(guildId, "automod", "Discord-AutoMod-Regel angelegt");
+  const path = DISCORD_AUTOMOD(guildId);
+  const kind = text(form, "kind") as DiscordRuleKind;
+  if (!DISCORD_RULE_KINDS.includes(kind)) back(path, t("Unbekannte Regel."));
+  const keywords = kind === "keyword" ? list(form, "keywords") : [];
+  if (kind === "keyword" && cleanKeywords(keywords).length === 0) back(path, t("Bitte mindestens ein Wort eintragen."));
+  const mentionLimit = int(form, "mentionLimit", 3, 50) ?? 6;
+  if (Number.isNaN(mentionLimit)) back(path, t("Erwähnungen bitte zwischen 3 und 50."));
+  const { db } = database();
+  const [s] = await db.select({ modLogChannelId: guildSettings.modLogChannelId }).from(guildSettings).where(eq(guildSettings.guildId, guildId));
+  const alertChannelId = form.get("alert") === "on" ? (s?.modLogChannelId ?? null) : null;
+  const body = { ...buildDiscordRule(kind, { alertChannelId, keywords, mentionLimit }), name: t(DISCORD_RULE_NAMES[kind]) };
+  const err = await writeDiscordAutoModRule(guildId, "POST", null, body, t("Dashboard: {username}", { username: user.username }));
+  if (err) discordError(path, err);
+  back(path);
+}
+
+export async function toggleDiscordAutoModRule(guildId: string, ruleId: string, enabled: boolean) {
+  const { user } = await requireGuildAccess(guildId, "automod", enabled ? "Discord-AutoMod-Regel eingeschaltet" : "Discord-AutoMod-Regel ausgeschaltet");
+  const path = DISCORD_AUTOMOD(guildId);
+  if (!SNOWFLAKE.test(ruleId)) back(path, t("Unbekannte Regel."));
+  const err = await writeDiscordAutoModRule(guildId, "PATCH", ruleId, { enabled }, t("Dashboard: {username}", { username: user.username }));
+  if (err) discordError(path, err);
+  back(path);
+}
+
+export async function deleteDiscordAutoModRule(guildId: string, ruleId: string) {
+  const { user } = await requireGuildAccess(guildId, "automod", "Discord-AutoMod-Regel gelöscht");
+  const path = DISCORD_AUTOMOD(guildId);
+  if (!SNOWFLAKE.test(ruleId)) back(path, t("Unbekannte Regel."));
+  const err = await writeDiscordAutoModRule(guildId, "DELETE", ruleId, undefined, t("Dashboard: {username}", { username: user.username }));
+  if (err && !err.startsWith("404")) discordError(path, err);
   back(path);
 }
 

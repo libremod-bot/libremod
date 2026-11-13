@@ -1,14 +1,14 @@
 import { SaveBar } from "@/components/SaveBar";
 import { automodExemptions, automodFilter, automodRules, eq, guildSettings, nameGuardSettings, type AutomodFilter } from "@libremod/db";
-import { DEFAULT_BLOCKED_EXTENSIONS, DEFAULT_THRESHOLDS, formatDuration, NAME_GUARD_ACTIONS } from "@libremod/shared";
+import { DISCORD_RULE_KINDS, discordRuleKind, DEFAULT_BLOCKED_EXTENSIONS, DEFAULT_THRESHOLDS, formatDuration, NAME_GUARD_ACTIONS } from "@libremod/shared";
 import { Icon, type IconName } from "@/components/Icon";
 import { Notice } from "@/components/Notice";
 import { PageHeader } from "@/components/PageHeader";
 import { Switch } from "@/components/Switch";
 import { requireGuildAccess } from "@/lib/access";
 import { database } from "@/lib/db";
-import { CHANNEL_CATEGORY, getGuildChannels, getGuildRoles } from "@/lib/discord";
-import { saveAutomod, saveNameGuard } from "../actions";
+import { CHANNEL_CATEGORY, getDiscordAutoModRules, getGuildChannels, getGuildRoles } from "@/lib/discord";
+import { createDiscordAutoModRule, deleteDiscordAutoModRule, saveAutomod, saveNameGuard, toggleDiscordAutoModRule } from "../actions";
 import { t, initLocale } from "@/lib/i18n";
 
 export async function generateMetadata() {
@@ -43,6 +43,15 @@ const FILTERS: Record<AutomodFilter, { label: string; description: string; icon:
     icon: "at",
     threshold: "Erwähnungen",
   },
+};
+
+const DISCORD_KIND_LABELS: Record<string, string> = {
+  preset: "Schimpfwörter und anstößige Inhalte",
+  mentions: "Erwähnungs-Spam",
+  spam: "Verdächtige Spam-Inhalte",
+  keyword: "Eigene Wortliste",
+  profile: "Profilnamen",
+  other: "Andere",
 };
 
 const ACTIONS = [
@@ -81,6 +90,8 @@ export default async function AutomodPage({
     getGuildRoles(guildId),
     db.select().from(nameGuardSettings).where(eq(nameGuardSettings.guildId, guildId)),
   ]);
+  // Fehlt das Recht, zeigen wir einen Hinweis statt der Liste. Andere Fehler sollen die Seite nicht kippen.
+  const discordRules = await getDiscordAutoModRules(guildId).catch(() => undefined);
   const byFilter = new Map(rules.map((r) => [r.filter, r]));
   const exemptRoles = exemptions.filter((e) => e.kind === "role").map((e) => e.targetId);
   const exemptChannels = exemptions.filter((e) => e.kind === "channel").map((e) => e.targetId);
@@ -400,6 +411,102 @@ export default async function AutomodPage({
           <button type="submit">{t("Namensschutz speichern")}</button>
         </div>
       </form>
+
+      <section className="card" id="discord-automod">
+        <div className="card-title">
+          <Icon name="shield" />
+          <h2>{t("Discords eigene AutoMod")}</h2>
+        </div>
+        <p className="card-sub">
+          {t("Diese Regeln prüft Discord selbst, noch bevor eine Nachricht erscheint. Sie ergänzen die Filter oben und laufen auch, wenn Libremod einmal offline ist.")}
+        </p>
+        {discordRules === undefined ? (
+          <p className="empty" style={{ paddingTop: 0 }}>{t("Discord ist gerade nicht erreichbar. Versuch es gleich noch einmal.")}</p>
+        ) : discordRules === null ? (
+          <p className="empty" style={{ paddingTop: 0 }}>{t("Libremod fehlt das Recht „Server verwalten“. Gib es der Rolle von Libremod in den Server-Einstellungen.")}</p>
+        ) : (
+          <>
+            {discordRules.length === 0 ? (
+              <p className="empty" style={{ paddingTop: 0 }}>{t("Noch keine Regeln. Leg unten mit einem Klick eine an.")}</p>
+            ) : (
+              <div className="table-wrap" style={{ marginBottom: "1.25rem" }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>{t("Regel")}</th>
+                      <th>{t("Art")}</th>
+                      <th>{t("Status")}</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {discordRules.map((r) => {
+                      const kind = discordRuleKind(r.trigger_type);
+                      return (
+                        <tr key={r.id}>
+                          <td>
+                            {r.name}
+                            {kind === "keyword" && r.trigger_metadata?.keyword_filter?.length ? (
+                              <div className="small muted">{t("{n} Wörter", { n: r.trigger_metadata.keyword_filter.length })}</div>
+                            ) : null}
+                          </td>
+                          <td className="small">{t(DISCORD_KIND_LABELS[kind])}</td>
+                          <td>{r.enabled ? <span className="badge on">{t("An")}</span> : <span className="badge">{t("Aus")}</span>}</td>
+                          <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                            <form action={toggleDiscordAutoModRule.bind(null, guildId, r.id, !r.enabled)} style={{ display: "inline" }}>
+                              <button type="submit" className="secondary small">
+                                {r.enabled ? t("Ausschalten") : t("Einschalten")}
+                              </button>
+                            </form>{" "}
+                            <form action={deleteDiscordAutoModRule.bind(null, guildId, r.id)} style={{ display: "inline" }}>
+                              <button type="submit" className="danger small">
+                                {t("Löschen")}
+                              </button>
+                            </form>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <form action={createDiscordAutoModRule.bind(null, guildId)} className="stack" style={{ gap: ".9rem" }}>
+              <div className="grid-2" style={{ alignItems: "start" }}>
+                <div>
+                  <label htmlFor="discord.kind">{t("Neue Regel")}</label>
+                  <select id="discord.kind" name="kind" defaultValue="preset">
+                    {DISCORD_RULE_KINDS.map((k) => (
+                      <option key={k} value={k}>
+                        {t(DISCORD_KIND_LABELS[k])}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="hint">{t("Schimpfwörter, Spam-Inhalte und Erwähnungs-Spam gibt es bei Discord je einmal, eigene Wortlisten bis zu sechsmal.")}</div>
+                </div>
+                <div>
+                  <label htmlFor="discord.mentionLimit">{t("Erwähnungs-Spam: ab Erwähnungen")}</label>
+                  <input id="discord.mentionLimit" name="mentionLimit" type="number" min={3} max={50} defaultValue={6} />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="discord.keywords">{t("Eigene Wortliste: Wörter")}</label>
+                <textarea id="discord.keywords" name="keywords" placeholder={t("ein Wort pro Zeile\n*betrug*")} style={{ minHeight: 70 }} />
+                <div className="hint">{t("Nur für „Eigene Wortliste“. Ein * steht für beliebige Zeichen, wie bei Discord.")}</div>
+              </div>
+              <label className="check-inline" style={{ padding: 0 }}>
+                <input type="checkbox" name="alert" defaultChecked={!!settings?.modLogChannelId} disabled={!settings?.modLogChannelId} />
+                {t("Blockierte Nachrichten im Mod-Log melden")}
+              </label>
+              <div>
+                <button type="submit">
+                  <Icon name="plus" size={16} /> {t("Regel bei Discord anlegen")}
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+      </section>
     </>
   );
 }

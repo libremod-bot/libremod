@@ -393,3 +393,42 @@ export async function getDiscordUser(userId: string): Promise<{ id: string; user
 export function snowflakeDate(id: string): Date {
   return new Date(Number((BigInt(id) >> 22n) + 1420070400000n));
 }
+
+// --- Discords eigene AutoMod ---
+
+export interface DiscordAutoModRule {
+  id: string;
+  name: string;
+  enabled: boolean;
+  trigger_type: number;
+  trigger_metadata?: { keyword_filter?: string[]; presets?: number[]; mention_total_limit?: number };
+  actions: { type: number; metadata?: { channel_id?: string } }[];
+  creator_id: string;
+}
+
+/** null = Libremod darf die Regeln nicht sehen (Recht „Server verwalten“ fehlt). */
+export async function getDiscordAutoModRules(guildId: string): Promise<DiscordAutoModRule[] | null> {
+  try {
+    return await discord<DiscordAutoModRule[]>(`/guilds/${guildId}/auto-moderation/rules`, bot());
+  } catch (err) {
+    if (err instanceof DiscordError && (err.status === 403 || err.status === 401)) return null;
+    throw err;
+  }
+}
+
+/** Gibt bei Fehlern Discords Fehlertext zurück (z. B. „Höchstzahl erreicht“), sonst null. */
+export async function writeDiscordAutoModRule(guildId: string, method: "POST" | "PATCH" | "DELETE", ruleId: string | null, body?: unknown, reason?: string): Promise<string | null> {
+  const res = await fetch(`${API}/guilds/${guildId}/auto-moderation/rules${ruleId ? `/${ruleId}` : ""}`, {
+    method,
+    headers: {
+      Authorization: bot(),
+      ...(body ? { "Content-Type": "application/json" } : {}),
+      ...(reason ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 400)) } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+    cache: "no-store",
+  });
+  if (res.ok) return null;
+  const data = (await res.json().catch(() => null)) as { message?: string; code?: number } | null;
+  return `${res.status}${data?.message ? `: ${data.message}` : ""}`;
+}
