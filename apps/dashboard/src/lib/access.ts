@@ -8,6 +8,7 @@ import { database } from "./db";
 import { botIsInGuild, canManage, getMemberRoles, getUserGuilds, type PartialGuild } from "./discord";
 import { getUser } from "./session";
 import { t } from "@/lib/i18n";
+import { canUndoArea, diffSnapshots, snapshotArea, type Snapshot } from "./undo";
 
 export interface GuildAccess {
   /** true: „Server verwalten“, alles erlaubt. false: Team-Zugang mit einzelnen Bereichen. */
@@ -51,6 +52,8 @@ interface AuditContext {
   area?: AreaKey;
   action?: string;
   user?: { id: string; name: string };
+  /** Einstellungen des Bereichs vor der Änderung (für „Rückgängig“). */
+  before?: Snapshot | null;
 }
 
 const auditStore = new AsyncLocalStorage<AuditContext>();
@@ -69,10 +72,12 @@ export function recordChange(detail?: string) {
     area: ctx.area,
     action: (detail ? `${ctx.action}: ${detail}` : ctx.action).slice(0, 200),
   };
+  const before = ctx.before;
   ctx.action = undefined; // nur einmal pro Aufruf
   after(async () => {
     const { db } = database();
-    await db.insert(dashboardAudit).values(entry);
+    const changed = before ? diffSnapshots(before, await snapshotArea(db, entry.guildId, entry.area).catch(() => null)) : null;
+    await db.insert(dashboardAudit).values({ ...entry, before: changed?.before ?? null, after: changed?.after ?? null });
     // Ältere Einträge als 1 Jahr gelegentlich aufräumen
     if (Math.random() < 0.02) {
       await db
@@ -111,6 +116,10 @@ export async function requireGuildAccess(guildId: string, area?: AreaKey, action
     if (area && !areas.includes(area)) redirect(`/servers/${guildId}?fehler=${encodeURIComponent(t("Für diesen Bereich hast du keinen Zugang."))}`);
   }
   ctx.user = { id: session.user.id, name: session.user.username };
+  if (action && area && canUndoArea(area)) {
+    const { db } = database();
+    ctx.before = await snapshotArea(db, guildId, area).catch(() => null);
+  }
   return { user: session.user, guild, access };
 }
 

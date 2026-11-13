@@ -1182,6 +1182,11 @@ export const dashboardAudit = pgTable(
     userName: varchar("user_name", { length: 100 }).notNull(),
     area: varchar("area", { length: 32 }).notNull(),
     action: varchar("action", { length: 200 }).notNull(),
+    /** Einstellungen des Bereichs vor und nach der Änderung, für „Rückgängig“. Leer, wenn sich nichts geändert hat. */
+    before: jsonb("before").$type<Record<string, Record<string, unknown>[]>>(),
+    after: jsonb("after").$type<Record<string, Record<string, unknown>[]>>(),
+    undoneAt: timestamp("undone_at", { withTimezone: true }),
+    undoneBy: varchar("undone_by", { length: 100 }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("dashboard_audit_guild").on(t.guildId, t.createdAt)],

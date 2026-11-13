@@ -21,6 +21,10 @@
     "./search": {
       "types": "./dist/search.d.ts",
       "default": "./dist/search.js"
+    },
+    "./snapshot": {
+      "types": "./dist/snapshot.d.ts",
+      "default": "./dist/snapshot.js"
     }
   },
   "scripts": {

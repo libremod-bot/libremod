@@ -51,7 +51,7 @@ export const BACKUP_VERSION = 1;
 export const MAX_BACKUP_BYTES = 2 * 1024 * 1024;
 
 type AnyTable = typeof guildSettings | typeof warnEscalations; // nur für die Typen der Hilfsfunktionen
-interface Spec {
+export interface Spec {
   name: string;
   table: unknown;
   /** Spalten mit Laufzeit-Zustand: werden nicht übernommen, bestehende Werte bleiben (oder Standard). */
@@ -60,7 +60,7 @@ interface Spec {
   stateKey?: string;
 }
 
-const TABLES: Spec[] = [
+export const TABLES: Spec[] = [
   { name: "guildSettings", table: guildSettings, state: ["caseCounter", "createdAt", "updatedAt"] },
   { name: "warnEscalations", table: warnEscalations },
   { name: "automodRules", table: automodRules },

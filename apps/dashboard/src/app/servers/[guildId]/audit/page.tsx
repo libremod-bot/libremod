@@ -1,14 +1,20 @@
 import Link from "next/link";
 import { and, dashboardAudit, desc, eq, type SQL } from "@libremod/db";
 import { Icon } from "@/components/Icon";
+import { Notice } from "@/components/Notice";
 import { PageHeader } from "@/components/PageHeader";
+import { REDO_PREFIX, UNDO_PREFIX } from "@/lib/undo";
+import { undoChange } from "../actions";
 import { requireGuildAccess } from "@/lib/access";
 import { AREAS, areaLabel } from "@/lib/areas";
 import { database } from "@/lib/db";
 import { t, dateFmt, initLocale } from "@/lib/i18n";
 
 /** Gespeichert wird der deutsche Text, angezeigt in der Sprache der Person (Details hinter „: “ bleiben, wie sie sind). */
-function actionLabel(action: string) {
+function actionLabel(action: string): string {
+  for (const prefix of [UNDO_PREFIX, REDO_PREFIX]) {
+    if (action.startsWith(prefix)) return `${t(prefix)}${actionLabel(action.slice(prefix.length))}`;
+  }
   const i = action.indexOf(": ");
   return i < 0 ? t(action) : `${t(action.slice(0, i))}: ${action.slice(i + 2)}`;
 }
@@ -26,11 +32,11 @@ export default async function AuditPage({
   searchParams,
 }: {
   params: Promise<{ guildId: string }>;
-  searchParams: Promise<{ bereich?: string; person?: string; seite?: string }>;
+  searchParams: Promise<{ bereich?: string; person?: string; seite?: string; fehler?: string; rueckgaengig?: string }>;
 }) {
   const { guildId } = await params;
   await requireGuildAccess(guildId, "audit");
-  const { bereich, person, seite } = await searchParams;
+  const { bereich, person, seite, fehler, rueckgaengig } = await searchParams;
   const page = Math.max(1, Math.min(1000, Number(seite) || 1));
   const { db } = database();
   const where: SQL[] = [eq(dashboardAudit.guildId, guildId)];
@@ -60,8 +66,14 @@ export default async function AuditPage({
       <PageHeader
         icon="file"
         title={t("Änderungsprotokoll")}
-        description={t("Wer hat wann im Dashboard was geändert. Einträge bleiben ein Jahr gespeichert.")}
+        description={t("Wer hat wann im Dashboard was geändert. Einträge bleiben ein Jahr gespeichert. Einstellungen lassen sich mit einem Klick zurückdrehen.")}
       />
+      <Notice error={fehler} />
+      {rueckgaengig && (
+        <div className="toast" role="status">
+          {t("Rückgängig gemacht. Libremod übernimmt den alten Stand sofort. Panels oder Nachrichten in Discord postest du bei Bedarf neu.")}
+        </div>
+      )}
 
       <form className="card filterbar" method="get" action={base}>
         <div className="grid-3">
@@ -105,6 +117,7 @@ export default async function AuditPage({
                   <th>{t("Wer")}</th>
                   <th>{t("Bereich")}</th>
                   <th>{t("Was")}</th>
+                  <th aria-label={t("Rückgängig")} />
                 </tr>
               </thead>
               <tbody>
@@ -118,6 +131,19 @@ export default async function AuditPage({
                       <Link href={`${base}?bereich=${r.area}`}>{t(areaLabel(r.area))}</Link>
                     </td>
                     <td>{actionLabel(r.action)}</td>
+                    <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                      {r.undoneAt ? (
+                        <span className="badge" title={t("von {name}", { name: r.undoneBy ?? "?" })}>
+                          {t("zurückgenommen")}
+                        </span>
+                      ) : r.before && r.after ? (
+                        <form action={undoChange.bind(null, guildId, r.id)}>
+                          <button type="submit" className="secondary small">
+                            <Icon name="undo" size={16} /> {t("Rückgängig")}
+                          </button>
+                        </form>
+                      ) : null}
+                    </td>
                   </tr>
                 ))}
               </tbody>

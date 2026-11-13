@@ -4,6 +4,7 @@ import { isLocale } from "@libremod/shared/i18n";
 import { redirect } from "next/navigation";
 import {
   and,
+  dashboardAudit,
   automodExemptions,
   automodFilter,
   automodRules,
@@ -126,6 +127,7 @@ import {
 import { recordChange, requireGuildAccess } from "@/lib/access";
 import { isTeamArea } from "@/lib/areas";
 import { importSettings, MAX_BACKUP_BYTES, parseBackup, type BackupFile } from "@/lib/backup";
+import { restoreSnapshot, snapshotArea, stillAsAfter, undoActionText } from "@/lib/undo";
 import { database } from "@/lib/db";
 import {
   CHANNEL_ANNOUNCEMENT,
@@ -2048,4 +2050,42 @@ export async function importSettingsFile(guildId: string, form: FormData) {
   if (result!.dropped) notes.push(t("{dropped} Einträge ohne passenden Kanal übersprungen", { dropped: result!.dropped }));
   recordChange(t("aus „{n0}“, {n1}", { n0: (parsed as BackupFile).guild?.name ?? "unbekannt", n1: notes.join(", ") }));
   redirect(`${path}?importiert=${encodeURIComponent(notes.join(" · "))}`);
+}
+
+// --- Rückgängig aus dem Änderungsprotokoll ---
+
+export async function undoChange(guildId: string, entryId: number) {
+  const { user } = await requireGuildAccess(guildId, "audit");
+  const path = `/servers/${guildId}/audit`;
+  const { db, notifySettingsChanged } = database();
+  const [entry] = await db
+    .select()
+    .from(dashboardAudit)
+    .where(and(eq(dashboardAudit.id, entryId), eq(dashboardAudit.guildId, guildId)))
+    .limit(1);
+  if (!entry?.before || !entry.after) back(path, t("Diese Änderung lässt sich nicht rückgängig machen."));
+  if (entry!.undoneAt) back(path, t("Diese Änderung wurde schon rückgängig gemacht."));
+  const current = await snapshotArea(db, guildId, entry!.area);
+  if (!current || !stillAsAfter(current, entry!.after!)) {
+    back(path, t("Seitdem wurde in diesem Bereich noch etwas geändert. Mach zuerst die neueren Änderungen rückgängig."));
+  }
+  try {
+    await restoreSnapshot(db, guildId, entry!.before!);
+  } catch (err) {
+    console.error("Rückgängig fehlgeschlagen", err);
+    back(path, t("Das hat nicht geklappt. Es wurde nichts geändert."));
+  }
+  await notifySettingsChanged(guildId);
+  await db.update(dashboardAudit).set({ undoneAt: new Date(), undoneBy: user.username.slice(0, 100) }).where(eq(dashboardAudit.id, entry!.id));
+  // Das Rückgängigmachen ist selbst wieder ein Eintrag, den man rückgängig machen kann.
+  await db.insert(dashboardAudit).values({
+    guildId,
+    userId: user.id,
+    userName: user.username.slice(0, 100),
+    area: entry!.area,
+    action: undoActionText(entry!.action).slice(0, 200),
+    before: entry!.after,
+    after: entry!.before,
+  });
+  redirect(`${path}?rueckgaengig=1`);
 }
