@@ -25,6 +25,21 @@ const schema = z.object({
           (v ?? "").trim().toLowerCase(),
         ),
     ),
+  /** Einmal am Tag bei GitHub nachsehen, ob es eine neue Version gibt (Standard: an). „off“ schaltet es ab. */
+  UPDATE_CHECK: z
+    .string()
+    .optional()
+    .transform(
+      (v) =>
+        !["off", "false", "0", "aus", "no"].includes(
+          (v ?? "").trim().toLowerCase(),
+        ),
+    ),
+  /** Woher die Versionen kommen (GitHub-Repository „besitzer/name“), z. B. für eigene Abspaltungen. */
+  LIBREMOD_REPO: z
+    .string()
+    .regex(/^[\w.-]+\/[\w.-]+$/, "LIBREMOD_REPO muss „besitzer/name“ sein")
+    .default("libremod-bot/libremod"),
   LOG_LEVEL: z
     .enum(["trace", "debug", "info", "warn", "error"])
     .default("info"),

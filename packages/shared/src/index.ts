@@ -19,3 +19,4 @@ export * from "./safety.js";
 export * from "./events.js";
 export * from "./embeds.js";
 export * from "./i18n.js";
+export * from "./updates.js";

@@ -6,7 +6,15 @@ import {
   botOnline,
   getInstanceStatus,
   isInstanceOwner,
+  updatePending,
+  updateRunning,
+  updaterOnline,
 } from "@/lib/instance";
+import type { InstanceStatus } from "@libremod/db";
+import { isNewerVersion } from "@libremod/shared";
+import { AutoRefresh } from "@/components/AutoRefresh";
+import { Notice } from "@/components/Notice";
+import { requestUpdate, saveAutoUpdate } from "./actions";
 import { getUser } from "@/lib/session";
 import pkg from "../../../package.json";
 import { t, dateFmt, numFmt, initLocale } from "@/lib/i18n";
@@ -49,7 +57,121 @@ function size(bytes: number) {
   return t("{n0} MB", { n0: numFmt({ maximumFractionDigits: 1 }).format(bytes / 1024 / 1024) });
 }
 
-export default async function StatusPage() {
+function UpdateCard({ status, now }: { status: InstanceStatus; now: number }) {
+  const current = status.version || pkg.version;
+  const newer = isNewerVersion(status.latestVersion, current);
+  const pending = updatePending(status);
+  const running = updateRunning(status, now);
+  const updater = updaterOnline(status, now);
+  const lastDone =
+    status.updateFinishedAt &&
+    (!status.updateStartedAt || status.updateFinishedAt >= status.updateStartedAt);
+
+  return (
+    <section className="card" style={{ marginBottom: "1rem" }} id="updates">
+      <h2>{t("Updates")}</h2>
+
+      {(pending || running) && <AutoRefresh seconds={5} />}
+      {pending && (
+        <div className="toast" role="status" style={{ display: "block" }}>
+          {updater
+            ? t("Update angefordert. Der Server beginnt innerhalb einer Minute damit.")
+            : t("Update angefordert, aber der Update-Dienst auf dem Server meldet sich gerade nicht.")}
+        </div>
+      )}
+      {running && (
+        <div className="toast" role="status" style={{ display: "block" }}>
+          {t("Das Update läuft seit {n0}. Bot und Dashboard sind dabei kurz nicht erreichbar, diese Seite lädt sich von selbst neu.", { n0: ago(status.updateStartedAt!, now) })}
+        </div>
+      )}
+
+      {newer ? (
+        <p>
+          <span className="badge on">{t("Neu")}</span>{" "}
+          {t("Version {latest} ist erschienen, installiert ist {current}.", { latest: status.latestVersion, current })}{" "}
+          {status.latestUrl && (
+            <a href={status.latestUrl} target="_blank" rel="noreferrer">
+              {t("Was ist neu?")}
+            </a>
+          )}
+        </p>
+      ) : (
+        <p>
+          {status.latestCheckedAt
+            ? t("Libremod ist auf dem neuesten Stand (Version {current}). Zuletzt geprüft {n0}.", { current, n0: ago(status.latestCheckedAt, now) })
+            : t("Installiert ist Version {current}. Ob es eine neuere gibt, prüft der Bot einmal am Tag.", { current })}
+        </p>
+      )}
+
+      {!pending && !running && (newer || updater) && (
+        updater ? (
+          <form action={requestUpdate} style={{ marginBottom: "1rem" }}>
+            <button type="submit" className={newer ? undefined : "secondary"}>
+              {newer
+                ? t("Jetzt auf {latest} aktualisieren", { latest: status.latestVersion })
+                : t("Neu herunterladen und neu starten")}
+            </button>
+            <p className="muted small" style={{ marginTop: "0.5rem" }}>
+              {t("Vorher wird automatisch gesichert. Bot und Dashboard sind dabei 1 bis 2 Minuten nicht erreichbar.")}
+            </p>
+          </form>
+        ) : (
+          <p className="muted small">
+            {t("Auf dem Server aktualisierst du mit")}{" "}<code>{t("libremod update")}</code>.{" "}
+            {t("Danach geht es auch hier per Knopfdruck.")}
+          </p>
+        )
+      )}
+
+      {lastDone && (
+        <details style={{ marginBottom: "1rem" }}>
+          <summary>
+            {status.updateOk
+              ? t("Letztes Update {n0} erfolgreich", { n0: ago(status.updateFinishedAt!, now) })
+              : t("Letztes Update {n0} fehlgeschlagen", { n0: ago(status.updateFinishedAt!, now) })}
+            {status.updateSource === "auto" ? t(" (automatisch)") : ""}
+          </summary>
+          {status.updateLog ? (
+            <pre className="small" style={{ whiteSpace: "pre-wrap", overflowX: "auto", maxHeight: "20rem" }}>
+              {status.updateLog}
+            </pre>
+          ) : (
+            <p className="muted small">{t("Keine Ausgabe.")}</p>
+          )}
+        </details>
+      )}
+
+      {updater ? (
+        <form action={saveAutoUpdate} className="inline-form" style={{ alignItems: "center" }}>
+          <label htmlFor="auto-hours">{t("Automatisch aktualisieren")}</label>
+          <select id="auto-hours" name="hours" defaultValue={String(Math.max(0, status.autoUpdateHours))} style={{ maxWidth: "14rem" }}>
+            <option value="0">{t("Aus")}</option>
+            <option value="24">{t("Alle 24 Stunden")}</option>
+            <option value="48">{t("Alle 48 Stunden")}</option>
+          </select>
+          <button type="submit" className="secondary">{t("Speichern")}</button>
+        </form>
+      ) : null}
+      <p className="muted small" style={{ marginTop: "0.5rem" }}>
+        {updater
+          ? t("Automatische Updates laufen nachts zwischen 4 und 5 Uhr (Zeit des Servers), nur wenn es eine neue Version gibt, und immer mit Sicherung vorher.")
+          : t("Für Updates per Knopfdruck und automatische Updates braucht es den Update-Dienst des Install-Skripts. Er wird bei der Installation und bei jedem „libremod update“ eingerichtet.")}{" "}
+        {status.systemUpdates
+          ? t("Sicherheitsupdates für System und Docker installiert der Server selbst.")
+          : updater
+            ? t("Sicherheitsupdates für System und Docker installiert der Server nicht automatisch (einschalten mit „libremod autoupdate system an“).")
+            : ""}
+      </p>
+    </section>
+  );
+}
+
+export default async function StatusPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ gespeichert?: string; fehler?: string }>;
+}) {
+  const query = await searchParams;
   const session = await getUser();
   if (!session) redirect("/");
   const status = await getInstanceStatus().catch(() => null);
@@ -91,6 +213,8 @@ export default async function StatusPage() {
         title={t("Status")}
         description={t("Zustand dieser Libremod-Installation. Nur die Besitzer der Bot-Anwendung im Discord Developer Portal sehen diese Seite.")}
       />
+
+      <Notice saved={query.gespeichert} error={query.fehler} />
 
       <div style={{ display: "grid", gap: "0.75rem", marginBottom: "1rem" }}>
         {!online && (
@@ -147,6 +271,8 @@ export default async function StatusPage() {
           </div>
         </div>
       </div>
+
+      <UpdateCard status={status} now={now} />
 
       <section className="card">
         <h2>{t("Details")}</h2>
@@ -205,6 +331,7 @@ export default async function StatusPage() {
                 t("libremod update"),
                 t("Holt die neueste Version (mit Sicherung vorher)"),
               ],
+              [t("libremod autoupdate"), t("Automatische Updates ein- oder ausschalten")],
               [t("libremod backup"), t("Sichert die Datenbank sofort")],
               [t("libremod logs bot"), t("Zeigt die Meldungen des Bots")],
               [t("libremod restart"), t("Startet alles neu")],

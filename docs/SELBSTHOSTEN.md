@@ -78,7 +78,8 @@ Das Skript führt dich durch alles:
    - **2) Eigene Domain, eigener Webserver:** Wenn auf dem Server schon nginx, Apache oder ein anderer Webserver läuft. Das Dashboard lauscht dann nur lokal, und du leitest die Domain selbst dorthin weiter (siehe [Abschnitt 9](#9-eigener-webserver-nginx-apache)).
    - **3) Nur zum Ausprobieren:** Das Dashboard ist nur unter `http://localhost` erreichbar.
 4. **Einrichten:** Das Skript erzeugt sichere Passwörter für Datenbank und Login, schreibt alles nach `/opt/libremod/.env` (nur für root lesbar), lädt Libremod herunter, startet es und registriert die Slash-Befehle bei Discord.
-5. **Sicherung:** Eine tägliche Datensicherung um 3:30 Uhr wird eingerichtet.
+5. **Updates:** Du wählst, ob Libremod neue Versionen nachts selbst installiert (alle 24 oder 48 Stunden) oder dir nur im Dashboard Bescheid gibt. Unter Debian und Ubuntu fragt das Skript außerdem, ob es automatische Sicherheitsupdates für das System und Docker einschalten soll (siehe [Abschnitt 8](#8-updates)).
+6. **Sicherung:** Eine tägliche Datensicherung um 3:30 Uhr wird eingerichtet.
 
 Die ganze Installation dauert je nach Server etwa 3 bis 10 Minuten.
 
@@ -105,6 +106,7 @@ Das Install-Skript richtet auf dem Server den Befehl `libremod` ein:
 | `libremod restart`             | Alles neu starten                                                  |
 | `libremod stop` / `start`      | Libremod anhalten bzw. wieder starten                              |
 | `libremod update`              | Neueste Version holen, vorher wird automatisch gesichert           |
+| `libremod autoupdate`          | Automatische Updates anzeigen, mit `24`, `48` oder `aus` ändern; `system an`/`aus` für Sicherheitsupdates von System und Docker |
 | `libremod backup`              | Datenbank jetzt sichern                                            |
 | `libremod restore <Datei>`     | Eine Sicherung wiederherstellen                                    |
 | `libremod config`              | Einstellungen (`.env`) im Editor öffnen und danach neu starten     |
@@ -134,6 +136,9 @@ Die meisten Einstellungen machst du im Dashboard. In der `.env` stehen nur Dinge
 | `BACKUP_KEEP`                              | Wie viele tägliche Sicherungen behalten werden (Standard 14)  |
 | `LIBREMOD_VERSION`                         | `latest` für die neueste Version oder fest, z. B. `0.19`      |
 | `PHISHING_LISTS`                           | `off` schaltet das Laden der öffentlichen Betrugslink-Listen ab |
+| `UPDATE_CHECK`                             | `off` schaltet die tägliche Suche nach neuen Versionen ab       |
+| `AUTO_UPDATE_HOURS`                        | `24` oder `48` für automatische Updates, `0` für aus (Startwert, danach gilt die Einstellung im Dashboard) |
+| `SYSTEM_UPDATES`                           | `on`, wenn Libremod automatische Sicherheitsupdates für System und Docker eingerichtet hat (ändern mit `libremod autoupdate system an`/`aus`) |
 | `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` | Für Twitch-Livestream-Meldungen ([Anwendung anlegen](https://dev.twitch.tv/console/apps), OAuth-Redirect z. B. `http://localhost`) |
 | `KICK_CLIENT_ID`, `KICK_CLIENT_SECRET`     | Für Kick-Livestream-Meldungen ([Anwendung anlegen](https://kick.com/settings/developer)) |
 | `LOG_LEVEL`                                | Wie gesprächig die Logs sind: `debug`, `info`, `warn`, `error` |
@@ -170,11 +175,23 @@ Nur die Einstellungen eines einzelnen Discord-Servers (ohne Mitgliederdaten) kan
 
 ## 8. Updates
 
+Du musst dich um Updates nicht auf der Kommandozeile kümmern. Es gibt drei Wege, und bei allen wird vorher die Datenbank gesichert:
+
+**Im Dashboard per Knopfdruck.** Der Bot sieht einmal am Tag bei GitHub nach, ob es eine neue Version gibt. Dann steht auf der **Statusseite** (nur für die Besitzer der Bot-Anwendung) „Version … ist erschienen“ mit dem Knopf **Jetzt aktualisieren**. Innerhalb einer Minute startet der Server das Update, die Seite zeigt den Fortschritt und danach das Ergebnis mit den letzten Meldungen.
+
+**Automatisch.** Auf der Statusseite unter „Automatisch aktualisieren“ (oder mit `libremod autoupdate 24`) stellst du ein, dass Libremod neue Versionen selbst installiert. Das passiert nachts zwischen 4 und 5 Uhr Serverzeit, nur wenn es wirklich eine neue Version gibt, und höchstens alle 24 bzw. 48 Stunden.
+
+**Von Hand** auf dem Server:
+
 ```bash
 libremod update
 ```
 
-Das sichert zuerst die Datenbank, holt dann das neueste Install-Skript und die neuesten Programme, startet neu und registriert neue Slash-Befehle. Einstellungen und Daten bleiben erhalten. Datenbank-Änderungen spielt der Bot beim Start automatisch ein.
+Alle drei machen dasselbe: Datenbank sichern, das neueste Install-Skript und die neuesten Programme holen, neu starten und neue Slash-Befehle registrieren. Einstellungen und Daten bleiben erhalten. Datenbank-Änderungen spielt der Bot beim Start automatisch ein.
+
+**Wie das sicher bleibt:** Das Dashboard bekommt keinen Zugriff auf Docker oder den Server. Es trägt nur „Update gewünscht“ in die Datenbank ein. Auf dem Server prüft ein kleiner Dienst (`libremod-updater.timer`, läuft jede Minute) diesen Eintrag und startet dann `libremod update`. Anfordern dürfen das nur die Besitzer der Bot-Anwendung.
+
+**System und Docker aktuell halten.** Unter Debian und Ubuntu kann Libremod automatische Sicherheitsupdates einschalten (`libremod autoupdate system an`). Dafür wird das Paket `unattended-upgrades` installiert; es spielt täglich Sicherheitsupdates des Systems und neue Docker-Versionen ein. Der Server wird dabei nicht automatisch neu gestartet. Wird Docker aktualisiert, starten die Libremod-Container kurz neu. Abschalten mit `libremod autoupdate system aus`.
 
 Was sich geändert hat, steht in der [Roadmap](../ROADMAP.md) bzw. bei den Releases auf GitHub.
 
@@ -237,7 +254,8 @@ Libremod meldet nichts an die Entwickler. Es gibt keine Telemetrie, keine Nutzun
 | Gegenstelle                    | Wofür                                                                 |
 | ------------------------------ | --------------------------------------------------------------------- |
 | **Discord**                    | Der Bot selbst und die Anmeldung im Dashboard                         |
-| **GitHub** (`ghcr.io`, `raw.githubusercontent.com`) | Programme und Install-Skript herunterladen (nur bei Installation und `libremod update`) |
+| **GitHub** (`ghcr.io`, `raw.githubusercontent.com`) | Programme und Install-Skript herunterladen (nur bei Installation und Updates) |
+| **GitHub** (`api.github.com`)  | Einmal am Tag nachsehen, ob es eine neue Version gibt. Gesendet wird nur die Anfrage selbst, abschaltbar mit `UPDATE_CHECK=off` |
 | **GitHub** (Betrugslink-Listen) | Alle 6 Stunden zwei öffentliche Listen herunterladen. Es wird dabei nichts gesendet, abschaltbar mit `PHISHING_LISTS=off` |
 | **Docker Hub**                 | Datenbank- und Caddy-Programm herunterladen                           |
 | **Let's Encrypt**              | HTTPS-Zertifikat (nur bei Option 1)                                   |

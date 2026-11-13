@@ -353,6 +353,14 @@ LIBREMOD_VERSION=$LIBREMOD_VERSION
 # Datensicherung: wie viele tägliche Sicherungen behalten werden
 BACKUP_KEEP=14
 
+# Updates. Der Bot sieht einmal am Tag bei GitHub nach neuen Versionen (UPDATE_CHECK=off schaltet das ab).
+# AUTO_UPDATE_HOURS: 24 oder 48 = automatisch nachts aktualisieren, 0 = nur im Dashboard Bescheid geben.
+# Ändern im Dashboard unter Status oder mit: libremod autoupdate
+UPDATE_CHECK=on
+AUTO_UPDATE_HOURS=${AUTO_UPDATE_HOURS:-0}
+# Sicherheitsupdates für System und Docker (unattended-upgrades): on oder off. Ändern: libremod autoupdate system an|aus
+SYSTEM_UPDATES=${SYSTEM_UPDATES:-off}
+
 # Optional: Twitch und Kick für Livestream-Meldungen (siehe Anleitung)
 TWITCH_CLIENT_ID=
 TWITCH_CLIENT_SECRET=
@@ -569,18 +577,138 @@ cmd_restore() {
   ok "Libremod läuft wieder"
 }
 
-cmd_update() {
+db_up() { [[ -n $(dc ps -q --status running db 2>/dev/null) ]]; }
+
+# Ist Version $1 neuer als $2? (z. B. 0.20.0 und 0.19.0)
+newer() { [[ $1 =~ ^[0-9]+(\.[0-9]+)*$ && $2 =~ ^[0-9]+(\.[0-9]+)*$ && $1 != "$2" && $(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -n1) == "$1" ]]; }
+
+# Schlüssel in der .env setzen (ändern oder anhängen)
+env_set() {
+  if grep -qE "^$1=" .env; then sed -i "s|^$1=.*|$1=$2|" .env; else printf '%s=%s\n' "$1" "$2" >>.env; fi
+}
+
+# Prüft jeden Schritt selbst: Wird sie mit „|| true“ aufgerufen, greift set -e nicht.
+do_update() {
   echo "Sichere vor dem Update …"
-  cmd_backup
-  local tmp
+  cmd_backup || return 1
+  local tmp rc=0
   tmp=$(mktemp)
   if curl -fsSL "$SCRIPT_URL" -o "$tmp" && head -n1 "$tmp" | grep -q bash; then
-    LIBREMOD_DIR="$DIR" bash "$tmp" --update
+    LIBREMOD_DIR="$DIR" bash "$tmp" --update || rc=$?
   else
     warn "Neues Install-Skript nicht erreichbar, aktualisiere nur die Programme."
-    dc pull -q && dc up -d --remove-orphans && register_commands
+    { dc pull -q && dc up -d --remove-orphans && register_commands; } || rc=1
   fi
   rm -f "$tmp"
+  return "$rc"
+}
+
+# Update ausführen und Beginn, Ergebnis und Ausgabe für die Statusseite im Dashboard festhalten.
+# UPDATE_SOURCE: cli (von Hand), dashboard (Knopf im Dashboard) oder auto (automatisches Update)
+cmd_update() {
+  local source=${UPDATE_SOURCE:-cli} log="$DIR/update.log" rc ok=false tries=0 out
+  psql_q -c "insert into instance_status (id) values (1) on conflict (id) do nothing;
+    update instance_status set update_started_at = now(), update_finished_at = null, update_ok = null,
+      update_source = '$source', update_log = null where id = 1" >/dev/null 2>&1 || true
+  set +e
+  (do_update) 2>&1 | tee "$log"
+  rc=${PIPESTATUS[0]}
+  set -e
+  ((rc == 0)) && ok=true
+  # Ausgabe ohne Farben, nur die letzten Zeilen
+  out=$(tail -n 80 "$log" | sed $'s/\e\\[[0-9;]*[A-Za-z]//g')
+  # Nach dem Update startet die Datenbank eventuell neu: kurz warten.
+  until db_up && psql_q -c "select 1" >/dev/null 2>&1; do
+    ((++tries > 24)) && break
+    sleep 5
+  done
+  printf "update instance_status set update_finished_at = now(), update_ok = %s, update_log = :'log' where id = 1;\n" "$ok" |
+    dc exec -T db psql -U "$PGUSER" -d "$PGDB" -qAtX -v log="$out" >/dev/null 2>&1 || true
+  return "$rc"
+}
+
+# Läuft jede Minute (Timer libremod-updater). Meldet sich in der Datenbank, führt im Dashboard
+# angeforderte Updates aus und installiert neue Versionen automatisch, wenn das eingeschaltet ist.
+cmd_updater_tick() {
+  exec 9>"$DIR/.updater.lock"
+  flock -n 9 || return 0
+  db_up || return 0
+  local env_hours sys row hours version latest requested stamp="$DIR/.last-auto-update"
+  env_hours=$(env_get AUTO_UPDATE_HOURS)
+  [[ $env_hours =~ ^(0|24|48)$ ]] || env_hours=0
+  sys=false
+  [[ $(env_get SYSTEM_UPDATES) == on ]] && sys=true
+  row=$(psql_q -F '|' -c "insert into instance_status (id) values (1) on conflict (id) do nothing;
+    update instance_status set updater_seen_at = now(), system_updates = $sys,
+      auto_update_hours = case when auto_update_hours < 0 then $env_hours else auto_update_hours end
+    where id = 1
+    returning auto_update_hours, version, latest_version,
+      update_requested_at is not null and (update_started_at is null or update_requested_at > update_started_at)" 2>/dev/null | tail -n1) || return 0
+  [[ -n $row ]] || return 0
+  IFS='|' read -r hours version latest requested <<<"$row"
+  if [[ $requested == t ]]; then
+    UPDATE_SOURCE=dashboard LIBREMOD_YES=1 cmd_update >/dev/null 2>&1 || true
+    return 0
+  fi
+  # Automatisch nur nachts zwischen 4 und 5 Uhr, nur bei neuer Version, höchstens alle $hours Stunden.
+  [[ $hours =~ ^(24|48)$ ]] || return 0
+  [[ $(date +%H) == 04 ]] || return 0
+  newer "$latest" "$version" || return 0
+  if [[ -f $stamp ]] && (($(date +%s) - $(stat -c %Y "$stamp") < hours * 3600 - 7200)); then return 0; fi
+  touch "$stamp"
+  UPDATE_SOURCE=auto LIBREMOD_YES=1 cmd_update >/dev/null 2>&1 || true
+}
+
+SYSTEM_UPDATES_CONF=/etc/apt/apt.conf.d/52libremod-auto-upgrades
+
+system_updates_on() {
+  command -v apt-get >/dev/null 2>&1 || die "Automatische Systemupdates richtet Libremod nur unter Debian und Ubuntu ein."
+  echo "Richte automatische Sicherheitsupdates ein (unattended-upgrades) …"
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq unattended-upgrades >/dev/null
+  cat >"$SYSTEM_UPDATES_CONF" <<'APT'
+// Von Libremod eingerichtet. Abschalten mit: libremod autoupdate system aus
+// Sicherheitsupdates des Systems täglich installieren, dazu Docker-Updates (falls Docker aus dem Docker-Repository kommt).
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+Unattended-Upgrade::Origins-Pattern { "origin=Docker"; };
+APT
+  env_set SYSTEM_UPDATES on
+  ok "Sicherheitsupdates für System und Docker werden automatisch installiert"
+}
+
+system_updates_off() {
+  rm -f "$SYSTEM_UPDATES_CONF"
+  env_set SYSTEM_UPDATES off
+  ok "Libremod richtet keine automatischen Systemupdates mehr ein (die Einstellungen deines Systems bleiben, wie sie sind)"
+}
+
+cmd_autoupdate() {
+  local hours
+  case ${1-} in
+    "" | status)
+      hours=$(psql_q -c "select auto_update_hours from instance_status where id = 1" 2>/dev/null || true)
+      [[ $hours =~ ^(0|24|48)$ ]] || hours=$(env_get AUTO_UPDATE_HOURS)
+      if [[ $hours == 24 || $hours == 48 ]]; then ok "Libremod aktualisiert sich automatisch (höchstens alle $hours Stunden, nachts um 4 Uhr)"
+      else warn "Automatische Updates sind aus. Einschalten: libremod autoupdate 24"; fi
+      if [[ $(env_get SYSTEM_UPDATES) == on ]]; then ok "Sicherheitsupdates für System und Docker: an"
+      else echo "Sicherheitsupdates für System und Docker: aus (einschalten: libremod autoupdate system an)"; fi
+      ;;
+    0 | aus | off | 24 | 48)
+      hours=$1
+      [[ $hours =~ ^[0-9]+$ ]] || hours=0
+      env_set AUTO_UPDATE_HOURS "$hours"
+      psql_q -c "update instance_status set auto_update_hours = $hours where id = 1" >/dev/null 2>&1 || true
+      if ((hours)); then ok "Automatische Updates an (alle $hours Stunden)"; else ok "Automatische Updates aus"; fi
+      ;;
+    system)
+      case ${2-} in
+        an | on) system_updates_on ;;
+        aus | off) system_updates_off ;;
+        *) die "Bitte „libremod autoupdate system an“ oder „… aus“" ;;
+      esac
+      ;;
+    *) die "Bitte: libremod autoupdate [24|48|aus|system an|system aus]" ;;
+  esac
 }
 
 cmd_status() {
@@ -598,6 +726,13 @@ cmd_status() {
   elif ((age < 120)); then ok "Bot online, Version $version, auf $guilds Servern, Ping ${ping} ms"
   else warn "Bot offline (letzte Meldung vor $((age / 60)) Minuten). Meldungen: libremod logs bot"; fi
   if [[ -n $backup ]]; then ok "Letzte Sicherung: $backup"; else warn "Noch keine Sicherung (libremod backup)"; fi
+  local latest
+  latest=$(psql_q -c "select latest_version from instance_status where id = 1" 2>/dev/null || true)
+  if newer "$latest" "$version"; then warn "Version $latest ist erschienen: libremod update (oder im Dashboard unter Status)"; fi
+  local hours
+  hours=$(env_get AUTO_UPDATE_HOURS)
+  hours=$(psql_q -c "select auto_update_hours from instance_status where id = 1" 2>/dev/null || echo "$hours")
+  if [[ $hours == 24 || $hours == 48 ]]; then ok "Automatische Updates: an (alle $hours Stunden)"; else echo "Automatische Updates: aus"; fi
   echo "${DIM}Dashboard: $(env_get DASHBOARD_URL)${R}"
 }
 
@@ -607,7 +742,9 @@ cmd_uninstall() {
   local purge=0
   confirm "Auch alle Daten löschen (Datenbank, Einstellungen, Sicherungen)? Das lässt sich nicht rückgängig machen." && purge=1
   if ((purge)); then dc --profile caddy down -v --remove-orphans; else dc --profile caddy down --remove-orphans; fi
+  command -v systemctl >/dev/null 2>&1 && systemctl disable --now libremod-updater.timer libremod-backup.timer >/dev/null 2>&1 || true
   rm -f /etc/systemd/system/libremod-backup.service /etc/systemd/system/libremod-backup.timer /etc/cron.d/libremod
+  rm -f /etc/systemd/system/libremod-updater.service /etc/systemd/system/libremod-updater.timer "$SYSTEM_UPDATES_CONF"
   command -v systemctl >/dev/null 2>&1 && systemctl daemon-reload 2>/dev/null || true
   if ((purge)); then
     cd /
@@ -630,6 +767,10 @@ ${B}libremod${R} – Libremod auf diesem Server verwalten
   libremod restart             Alles neu starten
   libremod stop | start        Anhalten bzw. wieder starten
   libremod update              Neueste Version holen (sichert vorher)
+  libremod autoupdate [24|48|aus]
+                               Automatische Updates anzeigen oder ändern
+  libremod autoupdate system an|aus
+                               Sicherheitsupdates für System und Docker automatisch
   libremod backup              Datenbank jetzt sichern (läuft auch jede Nacht automatisch)
   libremod restore <Datei>     Sicherung wiederherstellen
   libremod config              Einstellungen (.env) bearbeiten und neu starten
@@ -648,6 +789,8 @@ case ${1-help} in
   stop) dc stop && ok "Angehalten" ;;
   start) dc up -d && ok "Gestartet" ;;
   update) cmd_update ;;
+  updater-tick) cmd_updater_tick ;;
+  autoupdate) shift; cmd_autoupdate "$@" ;;
   backup) shift; cmd_backup "$@" ;;
   restore) shift; cmd_restore "$@" ;;
   config) ${EDITOR:-nano} .env && dc up -d && ok "Einstellungen übernommen" ;;
@@ -692,6 +835,76 @@ EOF
   else
     printf 'LIBREMOD_DIR=%s\n30 3 * * * root %s backup --quiet >/dev/null 2>&1\n' "$LIBREMOD_DIR" "$CLI_PATH" >/etc/cron.d/libremod
     chmod 644 /etc/cron.d/libremod
+  fi
+}
+
+# Update-Dienst: jede Minute nachsehen, ob im Dashboard ein Update angefordert wurde
+# (oder ein automatisches Update fällig ist). Das Dashboard selbst bekommt keinen Zugriff auf Docker.
+install_updater_timer() {
+  if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
+    cat >/etc/systemd/system/libremod-updater.service <<EOF
+[Unit]
+Description=Libremod Update-Dienst
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+Environment=LIBREMOD_DIR=$LIBREMOD_DIR
+ExecStart=$CLI_PATH updater-tick
+TimeoutStartSec=45min
+EOF
+    cat >/etc/systemd/system/libremod-updater.timer <<'EOF'
+[Unit]
+Description=Libremod Update-Dienst jede Minute
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target
+EOF
+    systemctl daemon-reload
+    systemctl enable --now libremod-updater.timer >/dev/null 2>&1
+  else
+    grep -q updater-tick /etc/cron.d/libremod 2>/dev/null ||
+      printf '* * * * * root %s updater-tick >/dev/null 2>&1\n' "$CLI_PATH" >>/etc/cron.d/libremod
+  fi
+}
+
+# --- Updates -----------------------------------------------------------------
+ask_updates() {
+  step "Updates"
+  say "Der Bot sieht einmal am Tag nach, ob es eine neue Version von Libremod gibt. Im Dashboard"
+  say "kannst du sie dann per Knopfdruck installieren. Oder Libremod macht das nachts selbst:"
+  say "  ${B}1${R}) Automatisch aktualisieren, jede Nacht nachsehen ${DIM}(empfohlen)${R}"
+  say "  ${B}2${R}) Automatisch aktualisieren, alle 48 Stunden"
+  say "  ${B}3${R}) Nicht automatisch, nur im Dashboard Bescheid geben"
+  if [[ ! ${AUTO_UPDATE_HOURS-} =~ ^(0|24|48)$ ]]; then
+    local choice=""
+    while :; do
+      ask choice "Auswahl" 1
+      case $choice in
+        1) AUTO_UPDATE_HOURS=24; break ;;
+        2) AUTO_UPDATE_HOURS=48; break ;;
+        3) AUTO_UPDATE_HOURS=0; break ;;
+      esac
+      warn "Bitte 1, 2 oder 3 eingeben."
+      choice=""
+    done
+  fi
+  if ((AUTO_UPDATE_HOURS)); then ok "Automatische Updates an (vorher wird immer gesichert)"; else ok "Updates per Knopfdruck im Dashboard"; fi
+
+  if [[ -z ${SYSTEM_UPDATES-} ]]; then
+    SYSTEM_UPDATES=off
+    if is_apt; then
+      say ""
+      say "Auch das System selbst sollte aktuell bleiben. Libremod kann automatische Sicherheitsupdates"
+      say "für Linux und Docker einschalten (unattended-upgrades, ohne automatischen Neustart des Servers)."
+      yesno "Sicherheitsupdates automatisch installieren?" j && SYSTEM_UPDATES=on
+    fi
   fi
 }
 
@@ -777,9 +990,13 @@ if [[ $MODE == update ]]; then
   env_default COMPOSE_PROFILES ""
   env_default DASHBOARD_DOMAIN ""
   env_default ACME_EMAIL ""
+  env_default UPDATE_CHECK on
+  env_default AUTO_UPDATE_HOURS 0
+  env_default SYSTEM_UPDATES off
   write_compose
   write_cli
   install_backup_timer
+  install_updater_timer
   ok "Dateien aktualisiert"
   start_stack
   say ""
@@ -791,11 +1008,16 @@ mkdir -p "$LIBREMOD_DIR"
 chmod 755 "$LIBREMOD_DIR"
 ask_discord
 ask_access
+ask_updates
 write_env
 write_compose
 write_cli
 install_backup_timer
+install_updater_timer
 ok "Einstellungen gespeichert in $LIBREMOD_DIR/.env (nur für root lesbar)"
+if [[ $SYSTEM_UPDATES == on ]]; then
+  LIBREMOD_DIR="$LIBREMOD_DIR" "$CLI_PATH" autoupdate system an || warn "Automatische Sicherheitsupdates konnten nicht eingerichtet werden."
+fi
 start_stack
 
 INVITE="https://discord.com/oauth2/authorize?client_id=$DISCORD_CLIENT_ID&scope=bot%20applications.commands&permissions=$BOT_PERMISSIONS"
@@ -824,4 +1046,6 @@ elif [[ $ACCESS == 3 ]]; then
 fi
 say ""
 say "Verwalten mit dem Befehl ${B}libremod${R} (z. B. libremod status, libremod update). Jede Nacht wird automatisch gesichert."
+if ((AUTO_UPDATE_HOURS)); then say "Neue Versionen installiert Libremod nachts selbst. Ändern im Dashboard unter Status oder mit: libremod autoupdate"
+else say "Neue Versionen zeigt das Dashboard unter Status an, dort geht das Update per Knopfdruck."; fi
 say "Anleitung und Hilfe: https://github.com/libremod-bot/libremod/blob/main/docs/SELBSTHOSTEN.md"

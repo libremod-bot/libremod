@@ -5,7 +5,7 @@
 <br>
 
 [![Lizenz: AGPL-3.0](https://img.shields.io/badge/Lizenz-AGPL--3.0-7c66e8?style=flat-square)](LICENSE)
-[![Version 0.19](https://img.shields.io/badge/Version-0.19-4cb4ff?style=flat-square)](ROADMAP.md)
+[![Version 0.20](https://img.shields.io/badge/Version-0.20-4cb4ff?style=flat-square)](ROADMAP.md)
 [![Selbst gehostet mit Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed?style=flat-square&logo=docker&logoColor=white)](docs/SELBSTHOSTEN.md)
 [![discord.js 14](https://img.shields.io/badge/discord.js-14-5865f2?style=flat-square&logo=discord&logoColor=white)](https://discord.js.org)
 [![Keine Paywall](https://img.shields.io/badge/Paywall-keine-2f7d5b?style=flat-square)](#warum-libremod)
@@ -43,7 +43,7 @@ Libremod läuft auf deinem eigenen Server. Keine Telemetrie, kein zentraler Dien
 <td width="50%" valign="top">
 
 ### ⚡ In 5 Minuten eingerichtet
-Ein Install-Skript fragt alles ab, prüft deine Discord-Daten und richtet Datenbank, Dashboard, HTTPS und tägliche Sicherungen ein. Updates gehen mit einem Befehl.
+Ein Install-Skript fragt alles ab, prüft deine Discord-Daten und richtet Datenbank, Dashboard, HTTPS und tägliche Sicherungen ein. Updates gehen per Knopfdruck im Dashboard oder ganz automatisch.
 
 </td>
 <td width="50%" valign="top">
@@ -139,7 +139,8 @@ Bot und Dashboard sprechen beide Sprachen. Die Sprache des Bots stellst du pro S
 - **Änderungsprotokoll**: wer hat wann was geändert
 - **Statistik** zu Mitgliedern und Aktivität
 - **Export und Import** aller Einstellungen, auch auf andere Server
-- **Statusseite** und der Befehl `libremod` für Updates, Logs und Sicherungen
+- **Updates per Knopfdruck** im Dashboard oder automatisch über Nacht, auf Wunsch auch Sicherheitsupdates für System und Docker
+- **Statusseite** und der Befehl `libremod` für Logs und Sicherungen
 - **Deutsch und Englisch** im Bot und im Dashboard
 
 </td>
@@ -163,7 +164,7 @@ curl -fsSL https://raw.githubusercontent.com/libremod-bot/libremod/main/deploy/i
 sudo bash install.sh
 ```
 
-Das Skript fragt Token und Client Secret ab, prüft sie bei Discord, installiert bei Bedarf Docker und richtet Datenbank, Dashboard, HTTPS (über Let's Encrypt) und eine tägliche Sicherung ein.
+Das Skript fragt Token und Client Secret ab, prüft sie bei Discord, installiert bei Bedarf Docker und richtet Datenbank, Dashboard, HTTPS (über Let's Encrypt), eine tägliche Sicherung und auf Wunsch automatische Updates ein.
 
 **3. Fertig**
 
@@ -172,12 +173,17 @@ Am Ende bekommst du die Adresse des Dashboards und einen Einladungslink für dei
 > [!TIP]
 > Die ausführliche Anleitung mit Screenshots aus dem Developer Portal, eigenem Webserver (nginx, Apache), Umzug und Hilfe bei Problemen findest du in **[docs/SELBSTHOSTEN.md](docs/SELBSTHOSTEN.md)**.
 
+### Updates
+
+Neue Versionen zeigt das Dashboard auf der Statusseite an, ein Klick auf **Jetzt aktualisieren** genügt. Oder du lässt Libremod sich nachts selbst aktualisieren (alle 24 oder 48 Stunden, einstellbar bei der Installation und im Dashboard). Vor jedem Update wird automatisch gesichert. Das Dashboard bekommt dafür keinen Zugriff auf deinen Server: Ein kleiner Dienst auf dem Server holt die Anfrage ab.
+
 ### Im Alltag: der Befehl `libremod`
 
 | Befehl | Was er tut |
 | --- | --- |
 | `libremod status` | Zeigt, ob alles läuft, und wann zuletzt gesichert wurde |
 | `libremod update` | Holt die neueste Version, vorher wird automatisch gesichert |
+| `libremod autoupdate 24` | Automatische Updates einschalten (`48` oder `aus` geht auch) |
 | `libremod logs bot` | Meldungen des Bots live ansehen |
 | `libremod backup` / `restore` | Datenbank sichern oder eine Sicherung zurückspielen |
 | `libremod config` | Einstellungen bearbeiten und neu starten |
@@ -301,7 +307,7 @@ Dazu kommen die eigenen Befehle, die du im Dashboard anlegst.
 ## Datenschutz
 
 - **Keine Telemetrie.** Libremod meldet nichts an die Entwickler, an libremod.xyz oder sonst wohin.
-- **Nur nötige Verbindungen.** Der Bot spricht mit Discord, mit Kurzlink-Diensten (um zu prüfen, wohin ein Kurzlink führt), mit den Feeds, die ein Server-Team selbst einträgt, und mit den Betrugslink-Listen. Bilder und Videos lädt er nie herunter.
+- **Nur nötige Verbindungen.** Der Bot spricht mit Discord, mit Kurzlink-Diensten (um zu prüfen, wohin ein Kurzlink führt), mit den Feeds, die ein Server-Team selbst einträgt, mit den Betrugslink-Listen und einmal am Tag mit GitHub, um nach neuen Versionen zu sehen (abschaltbar mit `UPDATE_CHECK=off`). Bilder und Videos lädt er nie herunter.
 - **Sparsame Statistik.** Gezählt werden nur Nachrichten, Beitritte und Abgänge pro Tag, Kanal und Stunde, nicht wer was geschrieben hat. Die Zahlen werden nach 400 Tagen gelöscht, das Änderungsprotokoll nach einem Jahr.
 
 <details>

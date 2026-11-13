@@ -139,6 +139,14 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 - Events verstehen auch englische Zeitangaben wie „tomorrow 7:30 pm“
 - `pnpm i18n:check` findet Texte ohne Übersetzung
 
+## 0.20 Updates ohne Kommandozeile
+
+- Der Bot sieht einmal am Tag nach, ob es eine neue Version gibt, die Statusseite im Dashboard zeigt sie an
+- Update per Knopfdruck im Dashboard, mit Sicherung vorher, Fortschritt und Ergebnis
+- Automatische Updates nachts (alle 24 oder 48 Stunden), im Install-Skript und im Dashboard wählbar
+- Auf Wunsch automatische Sicherheitsupdates für System und Docker (Debian, Ubuntu)
+- Neuer Befehl `libremod autoupdate`
+
 ## Später
 
 Ideen und Wünsche gerne als Issue auf GitHub.

@@ -1245,6 +1245,26 @@ export const instanceStatus = pgTable("instance_status", {
   lastBackupBytes: integer("last_backup_bytes"),
   /** Discord-IDs der Bot-Besitzer (Anwendung bzw. Team), dürfen die Statusseite sehen */
   ownerIds: text("owner_ids").array().notNull().default([]),
+  /** Neueste veröffentlichte Version (prüft der Bot einmal am Tag bei GitHub) */
+  latestVersion: varchar("latest_version", { length: 32 }).notNull().default(""),
+  latestUrl: varchar("latest_url", { length: 255 }).notNull().default(""),
+  latestCheckedAt: timestamp("latest_checked_at", { withTimezone: true }),
+  /** Letzte Meldung des Update-Dienstes auf dem Server (libremod updater-tick, jede Minute) */
+  updaterSeenAt: timestamp("updater_seen_at", { withTimezone: true }),
+  /** Automatische Updates: 0 = aus, 24 oder 48 Stunden. -1 = noch nicht festgelegt (dann gilt die .env). */
+  autoUpdateHours: integer("auto_update_hours").notNull().default(-1),
+  /** Installiert der Server Sicherheitsupdates für System und Docker selbst? (meldet der Update-Dienst) */
+  systemUpdates: boolean("system_updates").notNull().default(false),
+  /** Update aus dem Dashboard angefordert, vom Update-Dienst abgearbeitet */
+  updateRequestedAt: timestamp("update_requested_at", { withTimezone: true }),
+  updateRequestedBy: varchar("update_requested_by", { length: 32 }),
+  updateStartedAt: timestamp("update_started_at", { withTimezone: true }),
+  updateFinishedAt: timestamp("update_finished_at", { withTimezone: true }),
+  updateOk: boolean("update_ok"),
+  /** Wie das Update ausgelöst wurde: dashboard, auto oder cli */
+  updateSource: varchar("update_source", { length: 16 }),
+  /** Letzte Zeilen der Ausgabe des Updates */
+  updateLog: text("update_log"),
 });
 
 export type InstanceStatus = typeof instanceStatus.$inferSelect;
