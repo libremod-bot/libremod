@@ -24,7 +24,7 @@ LIBREMOD_IMAGE="${LIBREMOD_IMAGE:-ghcr.io/libremod-bot/libremod}"
 LIBREMOD_VERSION="${LIBREMOD_VERSION:-latest}"
 LIBREMOD_SCRIPT_URL="${LIBREMOD_SCRIPT_URL:-https://raw.githubusercontent.com/libremod-bot/libremod/main/deploy/install.sh}"
 DISCORD_API="${DISCORD_API:-https://discord.com/api/v10}"
-BOT_PERMISSIONS="564444887510102"
+BOT_PERMISSIONS="564444887510262"
 CLI_PATH="/usr/local/bin/libremod"
 
 # --- Ausgabe -----------------------------------------------------------------

@@ -4,6 +4,7 @@ import { runMigrations } from "@libremod/db/migrate";
 import { config } from "./config.js";
 import { logger } from "./logger.js";
 import { handleDirectMessage, handleThreadMessage } from "./services/modmail.js";
+import { onAuditLogEntry } from "./services/antinuke.js";
 import { onInteractionCreate } from "./events/interactionCreate.js";
 import { onGuildCreate } from "./events/guildCreate.js";
 import { startTempBanScheduler } from "./services/tempbans.js";
@@ -239,6 +240,10 @@ client.on(
 client.on(
   Events.MessageReactionRemove,
   (r, u) => void onHighlightReaction(r, u, db).catch(logError("Highlights")),
+);
+client.on(
+  Events.GuildAuditLogEntryCreate,
+  (entry, guild) => void onAuditLogEntry(entry, guild, db).catch(logError("Anti-Nuke")),
 );
 client.on(Events.GuildMemberRemove, (m) => countLeave(m));
 client.on(

@@ -320,6 +320,43 @@ export default async function AutomodPage({
           </div>
         </section>
 
+        <section className="card" id="antinuke">
+          <div className="filter-head">
+            <div className="module-icon">
+              <Icon name="lock" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <Switch
+                name="antinukeEnabled"
+                defaultChecked={settings?.antinukeEnabled ?? false}
+                label={t("Anti-Nuke")}
+                description={t("Stoppt Personen oder Bots, die in einer Minute massenhaft Kanäle oder Rollen löschen, bannen, kicken oder Webhooks anlegen. Zum Beispiel ein gekapertes Team-Konto. Du bekommst sofort eine Direktnachricht.")}
+              />
+            </div>
+          </div>
+          <div className="grid-2" style={{ marginTop: "1rem", alignItems: "start" }}>
+            <div>
+              <label htmlFor="antinukeThreshold">{t("Erlaubte Aktionen pro Minute")}</label>
+              <input id="antinukeThreshold" name="antinukeThreshold" type="number" min={2} max={50} defaultValue={settings?.antinukeThreshold ?? 5} />
+              <div className="hint">{t("Die nächste Aktion darüber löst aus.")}</div>
+            </div>
+            <div>
+              <label htmlFor="antinukeAction">{t("Was passiert dann?")}</label>
+              <select id="antinukeAction" name="antinukeAction" defaultValue={settings?.antinukeAction ?? "strip"}>
+                <option value="strip">{t("Alle Rollen entziehen (empfohlen)")}</option>
+                <option value="kick">{t("Kicken")}</option>
+                <option value="ban">{t("Bannen")}</option>
+                <option value="alert">{t("Nur im Mod-Log warnen")}</option>
+              </select>
+            </div>
+          </div>
+          <div className="field" style={{ marginTop: "1rem", marginBottom: 0 }}>
+            <label htmlFor="antinukeTrusted">{t("Vertrauenswürdig (Nutzer- oder Bot-IDs)")}</label>
+            <input id="antinukeTrusted" name="antinukeTrusted" type="text" defaultValue={(settings?.antinukeTrusted ?? []).join(", ")} placeholder="123456789012345678, …" />
+            <div className="hint">{t("Diese Konten lösen nie aus. Der Server-Inhaber und Libremod selbst sind immer ausgenommen. Libremod braucht dafür das Recht „Audit-Log anzeigen“ und eine Rolle über den Rollen, die es entziehen soll.")}</div>
+          </div>
+        </section>
+
         <SaveBar note={t("Änderungen gelten sofort nach dem Speichern.")} />
       </form>
 

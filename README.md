@@ -232,7 +232,9 @@ Der Einladungslink aus dem Dashboard fragt alle nötigen Rechte direkt an. Im Ei
 - **Nachrichten verwalten** und **Nachrichtenverlauf lesen** für Auto-Mod, Aufräumen, Highlights und Kanal-Leeren
 - **Rollen verwalten** für Auto-Rollen, Rollen-Panels, Level-Belohnungen und Verifizierung
 - **Kanäle verwalten** und **Mitglieder verschieben** für Zähler-Kanäle, temporäre Sprachkanäle, Lockdown und Langsam-Modus
-- **Threads verwalten**, **private** und **öffentliche Threads erstellen**, **Nachrichten in Threads senden** für Tickets und Vorschläge
+- **Threads verwalten**, **private** und **öffentliche Threads erstellen**, **Nachrichten in Threads senden** für Tickets, Vorschläge und Modmail
+- **Audit-Log anzeigen** für den Anti-Nuke-Schutz
+- **Server verwalten** für Discords eigene AutoMod-Regeln im Dashboard
 - **Nachrichten senden**, **Links einbetten**, **Dateien anhängen**, **Reaktionen hinzufügen**, **Umfragen erstellen**
 - **@everyone erwähnen** nur, falls Benachrichtigungen das sollen
 

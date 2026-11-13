@@ -50,6 +50,14 @@ export const guildSettings = pgTable("guild_settings", {
   raidJoinThreshold: integer("raid_join_threshold").notNull().default(10),
   raidWindowSeconds: integer("raid_window_seconds").notNull().default(10),
   raidAction: varchar("raid_action", { length: 16 }).notNull().default("alert"),
+  /** Anti-Nuke: Wer in kurzer Zeit massenhaft Kanäle/Rollen löscht oder Leute bannt/kickt, wird gestoppt. */
+  antinukeEnabled: boolean("antinuke_enabled").notNull().default(false),
+  /** So viele zerstörerische Aktionen pro Minute sind erlaubt, die nächste löst aus. */
+  antinukeThreshold: integer("antinuke_threshold").notNull().default(5),
+  /** alert = nur melden, strip = Rollen entziehen, kick, ban */
+  antinukeAction: varchar("antinuke_action", { length: 16 }).notNull().default("strip"),
+  /** Personen und Bots, die nie ausgelöst werden (zusätzlich zum Inhaber). */
+  antinukeTrusted: jsonb("antinuke_trusted").$type<string[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

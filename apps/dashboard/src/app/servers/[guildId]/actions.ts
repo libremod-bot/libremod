@@ -127,6 +127,9 @@ import {
   parseSetupAnswers,
   planSetup,
   cleanExtensions,
+  ANTINUKE_ACTIONS,
+  ANTINUKE_MAX,
+  ANTINUKE_MIN,
 } from "@libremod/shared";
 import { recordChange, requireGuildAccess } from "@/lib/access";
 import { isTeamArea } from "@/lib/areas";
@@ -336,6 +339,13 @@ export async function saveAutomod(guildId: string, form: FormData) {
   const raidAction = text(form, "raidAction");
   if (Number.isNaN(raidJoinThreshold) || Number.isNaN(raidWindowSeconds)) back(path, t("Ungültige Werte beim Raid-Schutz."));
   if (!RAID_ACTIONS.includes(raidAction)) back(path, t("Unbekannte Raid-Aktion."));
+  const antinukeThreshold = int(form, "antinukeThreshold", ANTINUKE_MIN, ANTINUKE_MAX) ?? 5;
+  if (Number.isNaN(antinukeThreshold)) back(path, t("Anti-Nuke: bitte 2 bis 50 Aktionen pro Minute."));
+  const antinukeAction = text(form, "antinukeAction") || "strip";
+  if (!(ANTINUKE_ACTIONS as readonly string[]).includes(antinukeAction)) back(path, t("Unbekannte Anti-Nuke-Aktion."));
+  const trustedRaw = text(form, "antinukeTrusted").split(/[\s,;]+/).filter(Boolean);
+  if (trustedRaw.some((id) => !SNOWFLAKE.test(id))) back(path, t("Anti-Nuke: Bitte nur Discord-IDs (17 bis 20 Ziffern) eintragen."));
+  const antinukeTrusted = [...new Set(trustedRaw)].slice(0, 100);
 
   await db.transaction(async (tx) => {
     await tx
@@ -346,6 +356,10 @@ export async function saveAutomod(guildId: string, form: FormData) {
         raidJoinThreshold,
         raidWindowSeconds,
         raidAction,
+        antinukeEnabled: form.get("antinukeEnabled") === "on",
+        antinukeThreshold,
+        antinukeAction,
+        antinukeTrusted,
         updatedAt: new Date(),
       })
       .where(eq(guildSettings.guildId, guildId));

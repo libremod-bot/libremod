@@ -232,7 +232,9 @@ The invite link from the dashboard requests everything it needs. In detail:
 - **Manage Messages** and **Read Message History** for auto-mod, purge, highlights and channel clearing
 - **Manage Roles** for auto roles, role panels, level rewards and verification
 - **Manage Channels** and **Move Members** for counter channels, temporary voice channels, lockdown and slowmode
-- **Manage Threads**, **Create Private** and **Public Threads**, **Send Messages in Threads** for tickets and suggestions
+- **Manage Threads**, **Create Private** and **Public Threads**, **Send Messages in Threads** for tickets, suggestions and modmail
+- **View Audit Log** for anti-nuke protection
+- **Manage Server** for Discord's own AutoMod rules in the dashboard
 - **Send Messages**, **Embed Links**, **Attach Files**, **Add Reactions**, **Create Polls**
 - **Mention @everyone** only if your notifications should do that
 

@@ -52,7 +52,7 @@ export function undoActionText(action: string): string {
 /** guildSettings teilen sich Moderation und Auto-Mod: Jeder Bereich sieht nur seine eigenen Spalten. */
 const GUILD_COLUMNS: Partial<Record<AreaKey, string[]>> = {
   moderation: ["locale", "modLogChannelId", "dmOnAction", "warnExpiryDays", "reportChannelId"],
-  automod: ["automodEnabled", "raidEnabled", "raidJoinThreshold", "raidWindowSeconds", "raidAction"],
+  automod: ["automodEnabled", "raidEnabled", "raidJoinThreshold", "raidWindowSeconds", "raidAction", "antinukeEnabled", "antinukeThreshold", "antinukeAction", "antinukeTrusted"],
 };
 
 export const canUndoArea = (area: string) => area in AREA_TABLES;
