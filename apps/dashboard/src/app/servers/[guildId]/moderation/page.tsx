@@ -74,6 +74,12 @@ export default async function ModerationPage({
           description={t("Bei Verwarnung, Timeout, Kick und Ban bekommt die Person den Grund geschickt.")}
         />
         <div className="divider" />
+        <div className="field">
+          <label htmlFor="warnExpiryDays">{t("Verwarnungen verfallen nach (Tagen)")}</label>
+          <input id="warnExpiryDays" name="warnExpiryDays" type="number" min={0} max={365} defaultValue={settings?.warnExpiryDays ?? 0} style={{ maxWidth: "8rem" }} />
+          <div className="hint">{t("0 heißt: Verwarnungen bleiben für immer. Abgelaufene Verwarnungen bleiben in der Fallakte, zählen aber nicht mehr für die Verwarnungsstufen. Gilt für neue Verwarnungen.")}</div>
+        </div>
+        <div className="divider" />
         <button type="submit">{t("Speichern")}</button>
       </form>
 

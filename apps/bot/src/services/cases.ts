@@ -3,7 +3,11 @@ import {
   count,
   desc,
   eq,
+  gt,
   guildSettings,
+  isNull,
+  lte,
+  or,
   modCases,
   sql,
   type CaseType,
@@ -46,7 +50,13 @@ export async function createCase(db: Db, input: NewCase): Promise<ModCase> {
       .update(guildSettings)
       .set({ caseCounter: sql`${guildSettings.caseCounter} + 1` })
       .where(eq(guildSettings.guildId, input.guildId))
-      .returning({ next: guildSettings.caseCounter });
+      .returning({ next: guildSettings.caseCounter, warnExpiryDays: guildSettings.warnExpiryDays });
+
+    // Verwarnungen verfallen auf Wunsch nach einer festen Zahl von Tagen.
+    let expiresAt = input.expiresAt ?? null;
+    if (input.type === "warn" && !expiresAt && counter!.warnExpiryDays > 0) {
+      expiresAt = new Date(Date.now() + counter!.warnExpiryDays * 86_400_000);
+    }
 
     const [created] = await tx
       .insert(modCases)
@@ -57,7 +67,7 @@ export async function createCase(db: Db, input: NewCase): Promise<ModCase> {
         targetId: input.targetId,
         moderatorId: input.moderatorId,
         reason: input.reason ?? null,
-        expiresAt: input.expiresAt ?? null,
+        expiresAt,
         automatic: input.automatic ?? false,
       })
       .returning();
@@ -107,6 +117,7 @@ export async function countActiveWarnings(
         eq(modCases.targetId, targetId),
         eq(modCases.type, "warn"),
         eq(modCases.active, true),
+        or(isNull(modCases.expiresAt), gt(modCases.expiresAt, new Date())),
       ),
     );
   return row?.n ?? 0;
@@ -162,4 +173,14 @@ export async function deactivateBans(
         eq(modCases.active, true),
       ),
     );
+}
+
+/** Abgelaufene Verwarnungen als nicht mehr aktiv markieren. Gibt die Zahl zurück. */
+export async function expireWarnings(db: Db, now = new Date()): Promise<number> {
+  const rows = await db
+    .update(modCases)
+    .set({ active: false })
+    .where(and(eq(modCases.type, "warn"), eq(modCases.active, true), lte(modCases.expiresAt, now)))
+    .returning({ id: modCases.id });
+  return rows.length;
 }

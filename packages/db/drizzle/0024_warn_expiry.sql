@@ -1,0 +1,1 @@
+ALTER TABLE "guild_settings" ADD COLUMN "warn_expiry_days" integer DEFAULT 0 NOT NULL;

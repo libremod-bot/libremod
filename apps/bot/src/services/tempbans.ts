@@ -1,7 +1,7 @@
 import { RESTJSONErrorCodes, DiscordAPIError, type Client } from "discord.js";
 import { and, eq, lte, modCases, type Db } from "@libremod/db";
 import { logger } from "../logger.js";
-import { createCase, getSettings } from "./cases.js";
+import { createCase, expireWarnings, getSettings } from "./cases.js";
 import { postModLog } from "./modlog.js";
 import { t } from "@libremod/shared";
 import { inGuildLocale } from "../i18n.js";
@@ -67,10 +67,14 @@ export async function liftExpiredBans(client: Client, db: Db) {
 }
 
 export function startTempBanScheduler(client: Client, db: Db) {
-  const run = () =>
-    liftExpiredBans(client, db).catch((err) =>
+  const run = () => {
+    void liftExpiredBans(client, db).catch((err) =>
       logger.error({ err }, "Prüfung befristeter Bans fehlgeschlagen"),
     );
+    void expireWarnings(db).catch((err) =>
+      logger.error({ err }, "Ablauf von Verwarnungen fehlgeschlagen"),
+    );
+  };
   void run();
   return setInterval(run, INTERVAL_MS);
 }

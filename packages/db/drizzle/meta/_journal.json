@@ -169,6 +169,13 @@
       "when": 1794586340282,
       "tag": "0023_undo",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794592180149,
+      "tag": "0024_warn_expiry",
+      "breakpoints": true
     }
   ]
 }
