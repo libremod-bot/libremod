@@ -1,6 +1,6 @@
 import { SaveBar } from "@/components/SaveBar";
 import { automodExemptions, automodFilter, automodRules, eq, guildSettings, nameGuardSettings, type AutomodFilter } from "@libremod/db";
-import { DEFAULT_THRESHOLDS, formatDuration, NAME_GUARD_ACTIONS } from "@libremod/shared";
+import { DEFAULT_BLOCKED_EXTENSIONS, DEFAULT_THRESHOLDS, formatDuration, NAME_GUARD_ACTIONS } from "@libremod/shared";
 import { Icon, type IconName } from "@/components/Icon";
 import { Notice } from "@/components/Notice";
 import { PageHeader } from "@/components/PageHeader";
@@ -31,6 +31,11 @@ const FILTERS: Record<AutomodFilter, { label: string; description: string; icon:
   invites: { label: "Einladungslinks", description: "Einladungen zu anderen Discord-Servern.", icon: "invite" },
   links: { label: "Links", description: "Alle Links, außer zu Domains, die du erlaubst.", icon: "link" },
   words: { label: "Wortfilter", description: "Wörter aus deiner Liste, auch mit Tricks wie „1d10t“.", icon: "words" },
+  files: {
+    label: "Dateien",
+    description: "Anhänge mit gefährlichen Dateiarten wie .exe, .bat oder .apk, auch getarnt als „bild.jpg.exe“.",
+    icon: "file",
+  },
   caps: { label: "Großbuchstaben", description: "Nachrichten, die überwiegend in Großbuchstaben sind.", icon: "caps", threshold: "Prozent" },
   mentions: {
     label: "Massen-Erwähnungen",
@@ -167,6 +172,18 @@ export default async function AutomodPage({
                       />
                       <div className="hint">
                         {t("Prüft auch Kurzlinks (bit.ly usw.), getarnte Links und typische Betrugstexte. Postet jemand denselben Link in mehreren Kanälen, löscht Libremod alle Kopien und schaltet die Person mindestens 1 Stunde stumm. Im Mod-Log kann dein Team Domains per Knopf sperren oder freigeben, per Rechtsklick auf eine Nachricht → Apps → „Betrugslink sperren“ auch nachträglich.")}</div>
+                    </div>
+                  )}
+                  {f === "files" && (
+                    <div className="field">
+                      <label htmlFor="files.blockedExtensions">{t("Gesperrte Dateiendungen")}</label>
+                      <textarea
+                        id="files.blockedExtensions"
+                        name="files.blockedExtensions"
+                        defaultValue={(rule?.config.blockedExtensions ?? DEFAULT_BLOCKED_EXTENSIONS).join(" ")}
+                        style={{ minHeight: 80 }}
+                      />
+                      <div className="hint">{t("Mit Leerzeichen, Komma oder Zeilenumbruch getrennt, ohne Punkt. Leer lassen setzt die Standardliste zurück.")}</div>
                     </div>
                   )}
                   {f === "links" && (

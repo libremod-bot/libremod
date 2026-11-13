@@ -1,0 +1,1 @@
+ALTER TYPE "public"."automod_filter" ADD VALUE 'files';

@@ -103,7 +103,7 @@ export const warnEscalations = pgTable(
 
 export type WarnEscalation = typeof warnEscalations.$inferSelect;
 
-export const automodFilter = pgEnum("automod_filter", ["spam", "invites", "links", "words", "caps", "mentions", "phishing"]);
+export const automodFilter = pgEnum("automod_filter", ["spam", "invites", "links", "words", "caps", "mentions", "phishing", "files"]);
 export type AutomodFilter = (typeof automodFilter.enumValues)[number];
 
 export const automodAction = pgEnum("automod_action", ["delete", "warn", "timeout", "kick", "ban"]);
@@ -121,6 +121,8 @@ export interface AutomodConfig {
   blockedDomains?: string[];
   /** phishing: öffentliche Betrugslink-Listen mitnutzen (fehlt = an) */
   externalLists?: boolean;
+  /** files: gesperrte Dateiendungen ohne Punkt (fehlt = Standardliste) */
+  blockedExtensions?: string[];
   /** Hinweis, den die Person nach dem Löschen kurz im Kanal sieht. Platzhalter wie {user}. */
   notice?: string;
 }

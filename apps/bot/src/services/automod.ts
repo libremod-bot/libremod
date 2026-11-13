@@ -18,6 +18,7 @@ import {
 import { logger } from "../logger.js";
 import {
   checkCaps,
+  checkFiles,
   checkInvites,
   checkLinks,
   checkMentions,
@@ -57,6 +58,7 @@ const RAID_TIMEOUT_SECONDS = 60 * 60;
 /** Reihenfolge der Prüfung: die erste Regel, die anschlägt, gewinnt. */
 const FILTER_ORDER: AutomodFilter[] = [
   "phishing",
+  "files",
   "words",
   "invites",
   "links",
@@ -73,6 +75,7 @@ export const FILTER_LABELS: Record<AutomodFilter, string> = {
   caps: "Großbuchstaben",
   mentions: "Massen-Erwähnungen",
   phishing: "Anti-Phishing",
+  files: "Dateien",
 };
 
 const cache = new Map<string, GuildAutomod>();
@@ -162,6 +165,13 @@ function evaluate(
         !message.member?.permissions.has(PermissionFlagsBits.MentionEveryone);
       return checkMentions(count, everyone, rule.config.threshold);
     }
+    case "files":
+      return message.attachments.size
+        ? checkFiles(
+            message.attachments.map((a) => a.name),
+            rule.config.blockedExtensions,
+          )
+        : null;
     case "phishing":
       return null; // eigener Schritt, siehe phishingStep
     case "spam":

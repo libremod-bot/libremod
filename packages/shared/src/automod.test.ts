@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   checkCaps,
+  checkFiles,
+  cleanExtensions,
   checkInvites,
   checkLinks,
   checkMentions,
@@ -81,4 +83,13 @@ test("Raid: viele Beitritte im Zeitfenster", () => {
   for (let i = 0; i < 4; i++) assert.equal(j.record("g", 5, 10, start + i * 1000), false);
   assert.equal(j.record("g", 5, 10, start + 4000), true);
   assert.equal(j.record("g", 5, 10, start + 60_000), false);
+});
+
+test("Dateifilter: gefährliche Endungen, auch doppelt getarnt", () => {
+  assert.ok(checkFiles(["setup.EXE"]));
+  assert.ok(checkFiles(["urlaub.jpg.exe"]));
+  assert.equal(checkFiles(["urlaub.jpg", "notizen.txt", "ohne-endung"]), null);
+  assert.equal(checkFiles(["spiel.exe"], ["zip"]), null);
+  assert.ok(checkFiles(["paket.zip"], [".ZIP"]));
+  assert.deepEqual(cleanExtensions([" .Exe", "*.bat", "exe", "", "a b"]), ["exe", "bat"]);
 });

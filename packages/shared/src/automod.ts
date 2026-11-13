@@ -36,6 +36,28 @@ export function checkLinks(content: string, allowedDomains: string[] = []): stri
   return null;
 }
 
+/** Dateiarten, die Programme starten oder Systemeinstellungen ändern können. */
+export const DEFAULT_BLOCKED_EXTENSIONS = [
+  "exe", "scr", "com", "bat", "cmd", "msi", "msix", "ps1", "vbs", "vbe", "js", "jse", "wsf", "hta",
+  "jar", "apk", "dll", "lnk", "reg", "cpl", "pif", "dmg", "pkg", "app", "sh", "iso",
+];
+
+/** Endung in Kleinbuchstaben ohne Punkt aufräumen; ungültige Einträge fallen weg. */
+export function cleanExtensions(list: string[]): string[] {
+  const out = list.map((e) => e.trim().toLowerCase().replace(/^\*?\./, "")).filter((e) => /^[a-z0-9]{1,10}$/.test(e));
+  return [...new Set(out)];
+}
+
+/** Prüft Dateinamen von Anhängen. Zählt die letzte Endung, „bild.jpg.exe“ ist also eine .exe. */
+export function checkFiles(names: string[], blocked: string[] = DEFAULT_BLOCKED_EXTENSIONS): string | null {
+  const set = new Set(cleanExtensions(blocked));
+  for (const name of names) {
+    const ext = /\.([^.\s]+)\s*$/.exec(name)?.[1]?.toLowerCase();
+    if (ext && set.has(ext)) return t("Gesperrte Dateiart (.{ext})", { ext });
+  }
+  return null;
+}
+
 export function checkCaps(content: string, thresholdPercent: number = DEFAULT_THRESHOLDS.caps): string | null {
   const letters = content.replace(/<[@#:&!a-z0-9_]+>/gi, "").match(/\p{L}/gu) ?? [];
   if (letters.length < CAPS_MIN_LETTERS) return null;

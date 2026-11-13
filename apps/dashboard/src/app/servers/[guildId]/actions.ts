@@ -125,6 +125,7 @@ import {
   validateEventTime,
   parseSetupAnswers,
   planSetup,
+  cleanExtensions,
 } from "@libremod/shared";
 import { recordChange, requireGuildAccess } from "@/lib/access";
 import { isTeamArea } from "@/lib/areas";
@@ -308,6 +309,11 @@ export async function saveAutomod(guildId: string, form: FormData) {
       if (allowed.length > 500) back(path, t("Höchstens 500 freigegebene Domains."));
       config.allowedDomains = [...new Set(allowed.filter((d) => /^[a-z0-9.-]+\.[a-z0-9-]+$/.test(d)))];
       config.externalLists = form.get("phishing.externalLists") === "on";
+    }
+    if (filter === "files") {
+      const exts = cleanExtensions(text(form, "files.blockedExtensions").split(/[\s,;]+/));
+      if (exts.length > 200) back(path, t("Höchstens 200 Dateiendungen."));
+      if (exts.length) config.blockedExtensions = exts;
     }
     if (filter === "links") {
       config.allowedDomains = [
