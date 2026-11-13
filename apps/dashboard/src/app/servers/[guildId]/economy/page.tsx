@@ -1,3 +1,4 @@
+import { SaveBar } from "@/components/SaveBar";
 import Link from "next/link";
 import { asc, desc, economyLog, economySettings, eq, memberBalances, shopItems } from "@libremod/db";
 import { formatMoney, MAX_SHOP_ITEMS } from "@libremod/shared";
@@ -120,12 +121,11 @@ export default async function EconomyPage({
             {t("Den Bonus gibt es alle 20 Stunden. Wer ihn mehrere Tage in Folge abholt, bekommt bis zu 7 Tage lang einen Zuschlag. 0 bei „Pro Nachricht“ schaltet das aus.")}</div>
         </section>
 
-        <div className="savebar">
+        <SaveBar>
           <label className="check-inline" style={{ padding: 0 }}>
             <input type="checkbox" name="allowPay" defaultChecked={s?.allowPay ?? true} />
             {t("Überweisungen zwischen Mitgliedern erlauben")}</label>
-          <button type="submit">{t("Speichern")}</button>
-        </div>
+        </SaveBar>
       </form>
 
       <section className="card">

@@ -1,3 +1,4 @@
+import { SaveBar } from "@/components/SaveBar";
 import { birthdays, birthdaySettings, eq } from "@libremod/db";
 import { ageOn, BIRTHDAY_PLACEHOLDERS, formatBirthday, localDate, nextBirthday } from "@libremod/shared";
 import { Icon } from "@/components/Icon";
@@ -105,11 +106,7 @@ export default async function BirthdaysPage({
         </div>
         <div className="hint">
           {t("Wer am 29. Februar Geburtstag hat, wird in Jahren ohne Schalttag am 28. Februar gefeiert. Das Geburtsjahr ist freiwillig und wird nur für")}{" "}<code>{"{age}"}</code> {" "}{t("genutzt.")}</div>
-        <div className="savebar">
-          <span className="muted small">
-            {rows.length} {rows.length === 1 ? "Geburtstag" : "Geburtstage"} {" "}{t("eingetragen")}</span>
-          <button type="submit">{t("Speichern")}</button>
-        </div>
+        <SaveBar note={rows.length === 1 ? t("{n} Geburtstag eingetragen", { n: 1 }) : t("{n} Geburtstage eingetragen", { n: rows.length })} />
       </form>
 
       <section className="card">

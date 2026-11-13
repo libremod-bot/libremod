@@ -45,7 +45,8 @@ import {
 import { Icon, type IconName } from "@/components/Icon";
 import { PageHeader } from "@/components/PageHeader";
 import { canSee, requireGuildAccess } from "@/lib/access";
-import type { AreaKey } from "@/lib/areas";
+import { AREAS, type AreaKey } from "@/lib/areas";
+import { getUser } from "@/lib/session";
 import { Notice } from "@/components/Notice";
 import { database } from "@/lib/db";
 import { getGuildChannels } from "@/lib/discord";
@@ -67,6 +68,13 @@ const CASE_LABELS: Record<CaseType, string> = {
 };
 
 const relative = relFmt({ numeric: "auto" });
+
+/** Module der Übersicht in den Gruppen der Seitenleiste zeigen. */
+const MODULE_GROUPS = [...new Set(AREAS.map((a) => a.group))];
+function moduleGroup(href: string | undefined) {
+  const key = href?.split("/")[3]?.split("#")[0];
+  return AREAS.find((a) => a.key === key)?.group ?? "Schutz";
+}
 function ago(date: Date) {
   const minutes = Math.round((date.getTime() - Date.now()) / 60_000);
   if (Math.abs(minutes) < 60) return relative.format(minutes, "minute");
@@ -84,7 +92,8 @@ export default async function OverviewPage({
 }) {
   const { guildId } = await params;
   const { fehler } = await searchParams;
-  const { access } = await requireGuildAccess(guildId);
+  const { access, guild } = await requireGuildAccess(guildId);
+  const session = await getUser();
   const visible = (href: string) => {
     const area = href.split("/")[3]?.split("#")[0];
     return !area || canSee(access, area as AreaKey);
@@ -351,34 +360,37 @@ export default async function OverviewPage({
           {t("Du hast einen Team-Zugang und siehst nur die Bereiche, die das Server-Team für deine Rolle freigegeben hat.")}</div>
       )}
 
-      <div className="stats">
-        <div className="card stat">
-          <div className="stat-label">{t("Auto-Mod")}</div>
-          <div className="stat-value small-value">
-            {automodOn ? <span className="badge on">{t("Aktiv")}</span> : <span className="badge">{t("Aus")}</span>}
+      <section className="card welcome-card">
+        <div>
+          <h2>{t("Hallo {name}!", { name: session?.user.username ?? "" })}</h2>
+          <p className="muted">
+            {doneCount < steps.length
+              ? t("Libremod passt auf {server} auf. Ein paar Dinge kannst du noch einrichten, dann ist alles bereit.", { server: guild.name })
+              : t("Libremod passt auf {server} auf. Alles Wichtige ist eingerichtet.", { server: guild.name })}
+          </p>
+        </div>
+        <div className="stats stats-4">
+          <div className="stat">
+            <div className="stat-label">{t("Auto-Mod")}</div>
+            <div className="stat-value">{automodOn ? rules.length : 0} / 6</div>
+            <div className="stat-sub">{automodOn ? t("Filter aktiv") : t("ausgeschaltet")}</div>
+          </div>
+          <div className="stat">
+            <div className="stat-label">{t("Logging")}</div>
+            <div className="stat-value">{logs.length} / 5</div>
+            <div className="stat-sub">{t("Log-Arten eingerichtet")}</div>
+          </div>
+          <div className="stat">
+            <div className="stat-label">{t("Fälle (7 Tage)")}</div>
+            <div className="stat-value">{weekStats?.total ?? 0}</div>
+            <div className="stat-sub">{t("davon {n} automatisch", { n: weekStats?.automatic ?? 0 })}</div>
+          </div>
+          <div className="stat">
+            <div className="stat-label">{t("Mod-Log")}</div>
+            <div className="stat-value small-value">{modLogName ? `#${modLogName}` : <span className="badge warn">{t("Nicht gesetzt")}</span>}</div>
           </div>
         </div>
-        <div className="card stat">
-          <div className="stat-label">{t("Aktive Filter")}</div>
-          <div className="stat-value">{automodOn ? rules.length : 0} / 6</div>
-        </div>
-        <div className="card stat">
-          <div className="stat-label">{t("Logging")}</div>
-          <div className="stat-value">{logs.length} / 5</div>
-        </div>
-        <div className="card stat">
-          <div className="stat-label">{t("Fälle (7 Tage)")}</div>
-          <div className="stat-value">{weekStats?.total ?? 0}</div>
-        </div>
-        <div className="card stat">
-          <div className="stat-label">{t("Davon automatisch")}</div>
-          <div className="stat-value">{weekStats?.automatic ?? 0}</div>
-        </div>
-        <div className="card stat">
-          <div className="stat-label">{t("Mod-Log")}</div>
-          <div className="stat-value small-value">{modLogName ? `#${modLogName}` : <span className="badge warn">{t("Nicht gesetzt")}</span>}</div>
-        </div>
-      </div>
+      </section>
 
       {steps.length > 0 && doneCount < steps.length && (
         <section className="card">
@@ -411,39 +423,42 @@ export default async function OverviewPage({
         </section>
       )}
 
-      <section>
-        <h2 style={{ marginBottom: "0.85rem" }}>{t("Module")}</h2>
-        <div className="modules">
-          {shownModules.map((m) => {
-            const inner = (
-              <>
-                <div className="module-head">
-                  <div className="module-icon">
-                    <Icon name={m.icon} />
+      {MODULE_GROUPS.map((group) => {
+        const list = shownModules.filter((m) => moduleGroup(m.href) === group);
+        if (!list.length) return null;
+        return (
+          <section key={group} className="module-section">
+            <h2>{t(group)}</h2>
+            <div className="modules">
+              {list.map((m) => {
+                const inner = (
+                  <>
+                    <div className="module-icon">
+                      <Icon name={m.icon} />
+                    </div>
+                    <div className="module-body">
+                      <div className="module-title">
+                        <h3>{m.title}</h3>
+                        {m.status}
+                      </div>
+                      <p>{m.text}</p>
+                    </div>
+                  </>
+                );
+                return m.href ? (
+                  <Link key={m.title} href={m.href} className="card module">
+                    {inner}
+                  </Link>
+                ) : (
+                  <div key={m.title} className="card module" style={{ opacity: 0.6 }}>
+                    {inner}
                   </div>
-                  {m.status}
-                </div>
-                <h3>{m.title}</h3>
-                <p>{m.text}</p>
-                {m.href && (
-                  <span className="module-link">
-                    {t("Einstellen")}{" "}<Icon name="arrow" size={15} />
-                  </span>
-                )}
-              </>
-            );
-            return m.href ? (
-              <Link key={m.title} href={m.href} className="card module">
-                {inner}
-              </Link>
-            ) : (
-              <div key={m.title} className="card module" style={{ opacity: 0.6 }}>
-                {inner}
-              </div>
-            );
-          })}
-        </div>
-      </section>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
 
       {canSee(access, "cases") && (
       <section className="card">
@@ -482,7 +497,7 @@ export default async function OverviewPage({
       {access.full && (
         <form className="card" action={saveBotLanguage.bind(null, guildId)}>
           <h2>{t("Sprache des Bots")}</h2>
-          <p className="muted small">{t("In dieser Sprache antwortet Libremod auf dem Server, auch in Logs, Begrüßungen und Erinnerungen. Die Slash-Befehle zeigt Discord in der Sprache an, die jede Person in Discord eingestellt hat.")}</p>
+          <p className="card-sub">{t("In dieser Sprache antwortet Libremod auf dem Server, auch in Logs, Begrüßungen und Erinnerungen. Die Slash-Befehle zeigt Discord in der Sprache an, die jede Person in Discord eingestellt hat.")}</p>
           <div className="inline-form">
             <select name="locale" defaultValue={settings?.locale ?? "de"} aria-label={t("Sprache des Bots")}>
               {LOCALES.map((l) => (

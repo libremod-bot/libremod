@@ -1,3 +1,4 @@
+import { SaveBar } from "@/components/SaveBar";
 import { count, eq, verificationPending, verificationSettings } from "@libremod/db";
 import { VERIFY_MODES } from "@libremod/shared";
 import { Icon } from "@/components/Icon";
@@ -164,10 +165,7 @@ export default async function VerificationPage({
           <textarea id="description" name="description" rows={4} maxLength={2000} defaultValue={s?.description ?? ""} />
         </section>
 
-        <div className="savebar">
-          <span className="small muted">{t("Beim Speichern wird die Nachricht gepostet oder aktualisiert.")}</span>
-          <button type="submit">{t("Speichern")}</button>
-        </div>
+        <SaveBar note={t("Beim Speichern wird die Nachricht gepostet oder aktualisiert.")} />
       </form>
     </>
   );

@@ -147,6 +147,15 @@ Die Reihenfolge ist ein Vorschlag und kann sich ändern.
 - Auf Wunsch automatische Sicherheitsupdates für System und Docker (Debian, Ubuntu)
 - Neuer Befehl `libremod autoupdate`
 
+## 0.21 Neues Dashboard-Design
+
+- Ruhigeres, luftigeres Design: mehr Abstand, größere Schrift, Einstellungen in einer Spalte
+- Hell oder dunkel per Schalter oben, sonst wie im Betriebssystem eingestellt
+- Seitenleiste in Gruppen (Schutz, Community, Spaß, Verwaltung), die sich einklappen lassen, am Handy als Menü
+- Übersicht mit Begrüßung, den wichtigsten Zahlen und Modulen nach Gruppen
+- Speichern-Leiste erscheint unten, sobald etwas geändert wurde, mit „Verwerfen“
+- Schnellsuche mit Strg+K (Mac: Cmd+K) oder „/“: findet jede Seite, auch über Stichwörter wie „Spam“ oder „XP“
+
 ## Später
 
 Ideen und Wünsche gerne als Issue auf GitHub.

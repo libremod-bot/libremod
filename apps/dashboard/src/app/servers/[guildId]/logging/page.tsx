@@ -1,3 +1,4 @@
+import { SaveBar } from "@/components/SaveBar";
 import { eq, logCategory, logChannels, logIgnoredChannels, type LogCategory } from "@libremod/db";
 import { Icon } from "@/components/Icon";
 import { Notice } from "@/components/Notice";
@@ -128,10 +129,7 @@ export default async function LoggingPage({
           </select>
         </section>
 
-        <div className="savebar">
-          <span className="small muted">{t("Bot-Nachrichten werden nicht geloggt. Kicks und Bans stehen im Mod-Log.")}</span>
-          <button type="submit">{t("Speichern")}</button>
-        </div>
+        <SaveBar note={t("Bot-Nachrichten werden nicht geloggt. Kicks und Bans stehen im Mod-Log.")} />
       </form>
     </>
   );

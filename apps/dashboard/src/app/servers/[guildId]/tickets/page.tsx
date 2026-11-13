@@ -81,7 +81,7 @@ export default async function TicketsPage({
       />
       <Notice saved={gespeichert} error={fehler} />
 
-      <div className="stats">
+      <div className="stats stats-4">
         <div className="card stat">
           <div className="stat-label">{t("Offen")}</div>
           <div className="stat-value">{open.length}</div>

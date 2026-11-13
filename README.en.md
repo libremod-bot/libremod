@@ -5,7 +5,7 @@
 <br>
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-7c66e8?style=flat-square)](LICENSE)
-[![Version 0.20](https://img.shields.io/badge/Version-0.20-4cb4ff?style=flat-square)](ROADMAP.md)
+[![Version 0.21](https://img.shields.io/badge/Version-0.21-4cb4ff?style=flat-square)](ROADMAP.md)
 [![Self-hosted with Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed?style=flat-square&logo=docker&logoColor=white)](docs/SELBSTHOSTEN.md)
 [![discord.js 14](https://img.shields.io/badge/discord.js-14-5865f2?style=flat-square&logo=discord&logoColor=white)](https://discord.js.org)
 [![No paywall](https://img.shields.io/badge/Paywall-none-2f7d5b?style=flat-square)](#why-libremod)
@@ -40,7 +40,7 @@ Bot and dashboard speak both languages. You pick the bot's language per server, 
 
 ## A quick look
 
-Everything is set up in the web dashboard, with Discord login and on mobile too.
+Everything is set up in the web dashboard, with Discord login and on mobile too. Light or dark, just as you like, and <kbd>Ctrl</kbd> + <kbd>K</kbd> takes you to any setting in a second.
 
 <img src="docs/assets/overview-en.webp" alt="Dashboard overview with auto-mod, logging, cases and all modules" width="100%">
 

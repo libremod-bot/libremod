@@ -1,3 +1,4 @@
+import { SaveBar } from "@/components/SaveBar";
 import { asc, desc, economySettings, eq, levelMultipliers, levelNoXp, levelRewards, levelSeasons, levelSettings, memberXp } from "@libremod/db";
 import { levelProgress, MAX_XP_PERCENT, SEASON_MODES, totalXpForLevel } from "@libremod/shared";
 import { Icon } from "@/components/Icon";
@@ -231,12 +232,11 @@ export default async function LevelsPage({
           </div>
         </section>
 
-        <div className="savebar">
+        <SaveBar>
           <label className="check-inline" style={{ padding: 0 }}>
             <input type="checkbox" name="stackRewards" defaultChecked={s?.stackRewards ?? true} />
             {t("Frühere Belohnungsrollen behalten")}</label>
-          <button type="submit">{t("Speichern")}</button>
-        </div>
+        </SaveBar>
       </form>
 
       <section className="card">

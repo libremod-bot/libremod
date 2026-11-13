@@ -1,3 +1,4 @@
+import { SaveBar } from "@/components/SaveBar";
 import { eq, welcomeSettings } from "@libremod/db";
 import { PLACEHOLDERS } from "@libremod/shared";
 import { EmbedEditor } from "@/components/EmbedEditor";
@@ -179,10 +180,7 @@ export default async function WelcomePage({
           />
         </section>
 
-        <div className="savebar">
-          <span className="small muted">{t("Auto-Rollen für neue Mitglieder stellst du unter „Rollen“ ein.")}</span>
-          <button type="submit">{t("Speichern")}</button>
-        </div>
+        <SaveBar note={t("Auto-Rollen für neue Mitglieder stellst du unter „Rollen“ ein.")} />
       </form>
     </>
   );

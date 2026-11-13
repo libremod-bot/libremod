@@ -1,3 +1,4 @@
+import { SaveBar } from "@/components/SaveBar";
 import { automodExemptions, automodFilter, automodRules, eq, guildSettings, nameGuardSettings, type AutomodFilter } from "@libremod/db";
 import { DEFAULT_THRESHOLDS, formatDuration, NAME_GUARD_ACTIONS } from "@libremod/shared";
 import { Icon, type IconName } from "@/components/Icon";
@@ -302,10 +303,7 @@ export default async function AutomodPage({
           </div>
         </section>
 
-        <div className="savebar">
-          <span className="small muted">{t("Änderungen gelten sofort nach dem Speichern.")}</span>
-          <button type="submit">{t("Speichern")}</button>
-        </div>
+        <SaveBar note={t("Änderungen gelten sofort nach dem Speichern.")} />
       </form>
 
       <form action={saveNameGuard.bind(null, guildId)} className="card" id="namensschutz">

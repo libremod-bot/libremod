@@ -1,3 +1,4 @@
+import { SaveBar } from "@/components/SaveBar";
 import type { TicketCategory } from "@libremod/db";
 import { MAX_TICKET_QUESTIONS, TICKET_PLACEHOLDERS } from "@libremod/shared";
 import { Switch } from "@/components/Switch";
@@ -153,10 +154,7 @@ export function CategoryForm({
         </div>
       </section>
 
-      <div className="savebar">
-        <span />
-        <button type="submit">{submitLabel}</button>
-      </div>
+      <SaveBar label={submitLabel} />
     </form>
   );
 }
