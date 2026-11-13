@@ -24,76 +24,85 @@ Das Besondere: **Jede Funktion ist frei.** Keine Premium-Stufen, keine Limits, d
 
 ## Warum Libremod?
 
-<table>
-<tr>
-<td width="50%" valign="top">
-
-### 💸 Wirklich kostenlos
+#### 💸 Wirklich kostenlos
 Bei vielen Bots sind die guten Sachen hinter einer Paywall: mehr Rollenbelohnungen, eigene Befehle, Begrüßungsbilder. Bei Libremod nicht. Alles ist für jeden Server freigeschaltet, für immer.
 
-</td>
-<td width="50%" valign="top">
-
-### 🏠 Deine Daten bleiben bei dir
+#### 🏠 Deine Daten bleiben bei dir
 Libremod läuft auf deinem eigenen Server. Keine Telemetrie, kein zentraler Dienst, keine Werbung. Die Statistik zählt nur Zahlen, nicht wer was geschrieben hat.
 
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
-### ⚡ In 5 Minuten eingerichtet
+#### ⚡ In 5 Minuten eingerichtet
 Ein Install-Skript fragt alles ab, prüft deine Discord-Daten und richtet Datenbank, Dashboard, HTTPS und tägliche Sicherungen ein. Updates gehen per Knopfdruck im Dashboard oder ganz automatisch.
 
-</td>
-<td width="50%" valign="top">
-
-### 🌍 Deutsch und Englisch
+#### 🌍 Deutsch und Englisch
 Bot und Dashboard sprechen beide Sprachen. Die Sprache des Bots stellst du pro Server ein, Slash-Befehle sieht jede Person in ihrer eigenen Discord-Sprache.
-
-</td>
-</tr>
-</table>
-
-## So sieht es aus
-
-<div align="center">
-<img src="docs/assets/overview-de.webp" alt="Übersicht im Dashboard mit Auto-Mod, Logging, Fällen und allen Modulen" width="100%">
-<sub><b>Übersicht</b>: was Libremod gerade auf deinem Server macht, auf einen Blick.</sub>
-</div>
 
 <br>
 
-<table>
-<tr>
-<td width="50%"><img src="docs/assets/automod-de.webp" alt="Auto-Mod-Einstellungen mit Anti-Phishing und Spam-Filter"><br><sub><b>Auto-Mod</b>: Spam, Betrugslinks, Einladungen, Wortfilter und mehr.</sub></td>
-<td width="50%"><img src="docs/assets/tickets-de.webp" alt="Ticket-System mit Ticket-Arten, Panels und Bewertungen"><br><sub><b>Tickets</b>: Ticket-Arten, Formulare, Transkripte, Bewertungen.</sub></td>
-</tr>
-<tr>
-<td width="50%"><img src="docs/assets/stats-de.webp" alt="Server-Statistik mit Mitgliederentwicklung und Nachrichten pro Tag"><br><sub><b>Statistik</b>: Wachstum und Aktivität, ohne Inhalte zu speichern.</sub></td>
-<td width="50%"><img src="docs/assets/status-de.webp" alt="Statusseite der Installation mit Version, Ping und letzter Sicherung"><br><sub><b>Status</b>: Version, Verbindung und Sicherungen deiner Installation.</sub></td>
-</tr>
-</table>
+## So sieht es aus
 
-<table>
-<tr>
-<td width="50%" align="center"><img src="docs/assets/rankcard-de.webp" alt="Rang-Karte mit Level, Rang und Fortschritt"><br><sub><code>/rank</code> zeigt eine Rang-Karte in deiner Wunschfarbe.</sub></td>
-<td width="50%" align="center"><img src="docs/assets/welcomecard-de.webp" alt="Begrüßungsbild mit Profilbild, Name und Mitgliedsnummer"><br><sub>Begrüßungsbild für jedes neue Mitglied.</sub></td>
-</tr>
-</table>
+Alles stellst du im Web-Dashboard ein, mit Discord-Login und auch am Handy.
 
-<div align="center">
-<img src="docs/assets/embed-de.webp" alt="Live-Vorschau einer Begrüßungsnachricht im Discord-Stil" width="80%"><br>
-<sub>Karten (Embeds) gestaltest du mit <b>Live-Vorschau</b> im Discord-Stil, mit Platzhaltern wie <code>{user}</code> und <code>{server}</code>.</sub>
-</div>
+<img src="docs/assets/overview-de.webp" alt="Übersicht im Dashboard mit Auto-Mod, Logging, Fällen und allen Modulen" width="100%">
+
+<p align="center"><sub><b>Übersicht</b>: was Libremod gerade auf deinem Server macht, auf einen Blick.</sub></p>
+
+<br>
+
+<img src="docs/assets/automod-de.webp" alt="Auto-Mod-Einstellungen mit Anti-Phishing und Spam-Filter" width="100%">
+
+<p align="center"><sub><b>Auto-Mod</b>: Spam, Betrugslinks, Einladungen, Wortfilter und mehr.</sub></p>
+
+<br>
+
+<img src="docs/assets/tickets-de.webp" alt="Ticket-System mit Ticket-Arten, Panels und Bewertungen" width="100%">
+
+<p align="center"><sub><b>Tickets</b>: Ticket-Arten, Formulare, Transkripte, Bewertungen.</sub></p>
+
+<br>
+
+<p align="center">
+  <img src="docs/assets/rankcard-de.webp" alt="Rang-Karte mit Level, Rang und Fortschritt" width="75%">
+</p>
+<p align="center"><sub><code>/rank</code> zeigt eine Rang-Karte in deiner Wunschfarbe.</sub></p>
+
+<br>
+
+<p align="center">
+  <img src="docs/assets/welcomecard-de.webp" alt="Begrüßungsbild mit Profilbild, Name und Mitgliedsnummer" width="60%">
+</p>
+<p align="center"><sub>Ein Begrüßungsbild für jedes neue Mitglied.</sub></p>
+
+<br>
+
+<details>
+<summary><b>Noch mehr Screenshots</b>: Statistik, Statusseite und Embed-Editor</summary>
+
+<br>
+
+<img src="docs/assets/stats-de.webp" alt="Server-Statistik mit Mitgliederentwicklung und Nachrichten pro Tag" width="100%">
+
+<p align="center"><sub><b>Statistik</b>: Wachstum und Aktivität, ohne Inhalte zu speichern.</sub></p>
+
+<br>
+
+<img src="docs/assets/status-de.webp" alt="Statusseite der Installation mit Version, Ping und letzter Sicherung" width="100%">
+
+<p align="center"><sub><b>Status</b>: Version, Verbindung, Sicherungen und Updates deiner Installation.</sub></p>
+
+<br>
+
+<img src="docs/assets/embed-de.webp" alt="Live-Vorschau einer Begrüßungsnachricht im Discord-Stil" width="100%">
+
+<p align="center"><sub>Karten (Embeds) gestaltest du mit <b>Live-Vorschau</b> im Discord-Stil, mit Platzhaltern wie <code>{user}</code> und <code>{server}</code>.</sub></p>
+
+</details>
+
+<br>
 
 ## Funktionen
 
-<table>
-<tr>
-<td width="50%" valign="top">
+### 🛡️ Schutz
 
-#### 🛡️ Schutz
 - **Moderation**: Verwarnen, Timeout, Kick, Ban (auch befristet), Aufräumen, Fallakte mit Gründen
 - **Verwarnungsstufen**: ab X Verwarnungen automatisch Timeout oder Ban
 - **Auto-Mod**: Spam, Einladungen, Links, Wortfilter (auch gegen Tricks wie „1d10t“), Großbuchstaben, Massen-Erwähnungen
@@ -104,10 +113,8 @@ Bot und Dashboard sprechen beide Sprachen. Die Sprache des Bots stellst du pro S
 - **Massenaktionen** gegen Raids, **Team-Notizen**, **Einsprüche** gegen Bans über eine eigene Seite
 - **Logging**: gelöschte und bearbeitete Nachrichten, Beitritte, Rollen, Kanäle, Sprachkanäle
 
-</td>
-<td width="50%" valign="top">
+### 💬 Community
 
-#### 💬 Community
 - **Begrüßung und Abschied** mit Karte, Begrüßungsbild und Direktnachricht
 - **Rollen**: Auto-Rollen beim Beitritt, Rollen zum Selbstaussuchen per Knopf oder Menü, Rollen auf Zeit, Rolle im Sprachkanal
 - **Tickets** mit Ticket-Arten, Formularfragen, Team-Rollen, Übernahme, Transkripten und Bewertungen
@@ -117,12 +124,8 @@ Bot und Dashboard sprechen beide Sprachen. Die Sprache des Bots stellst du pro S
 - **Vorschläge** mit Abstimmung, **Zitate**, **Highlights**
 - **Temporäre Sprachkanäle**, **Zähler-Kanäle**, Kanäle automatisch leeren, automatischer Langsam-Modus
 
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
+### 🎉 Spaß und Belohnungen
 
-#### 🎉 Spaß und Belohnungen
 - **Level** für Nachrichten und Zeit im Sprachkanal, Rang-Karte, Rangliste, Rollenbelohnungen, Bonus-Rollen, Saisons mit Ruhmeshalle
 - **Server-Währung** mit täglichem Bonus, Arbeiten, Überweisungen und einem **Shop** für Rollen und eigene Artikel
 - **Gewinnspiele** mit Bedingungen und fairer Auslosung
@@ -130,10 +133,8 @@ Bot und Dashboard sprechen beide Sprachen. Die Sprache des Bots stellst du pro S
 - **Umfragen**, **Erinnerungen**, **Geburtstage**
 - **Zähl-Kanal** und **Wortkette**
 
-</td>
-<td width="50%" valign="top">
+### ⚙️ Verwaltung
 
-#### ⚙️ Verwaltung
 - **Web-Dashboard** mit Discord-Login, auch am Handy gut bedienbar
 - **Team-Zugänge**: Moderatoren sehen nur die Bereiche, die du freigibst
 - **Änderungsprotokoll**: wer hat wann was geändert
@@ -143,11 +144,9 @@ Bot und Dashboard sprechen beide Sprachen. Die Sprache des Bots stellst du pro S
 - **Statusseite** und der Befehl `libremod` für Logs und Sicherungen
 - **Deutsch und Englisch** im Bot und im Dashboard
 
-</td>
-</tr>
-</table>
-
 Was als Nächstes kommt und was in welcher Version dazukam, steht in der [Roadmap](ROADMAP.md).
+
+<br>
 
 ## Installation in 5 Minuten
 

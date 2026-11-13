@@ -24,76 +24,85 @@ The twist: **every feature is free.** No premium tiers, no limits to buy your wa
 
 ## Why Libremod?
 
-<table>
-<tr>
-<td width="50%" valign="top">
-
-### 💸 Actually free
+#### 💸 Actually free
 Many bots lock the good stuff behind a paywall: more role rewards, custom commands, welcome images. Libremod doesn't. Everything is unlocked for every server, forever.
 
-</td>
-<td width="50%" valign="top">
-
-### 🏠 Your data stays with you
+#### 🏠 Your data stays with you
 Libremod runs on your own server. No telemetry, no central service, no ads. Statistics only count numbers, never who wrote what.
 
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
-### ⚡ Set up in 5 minutes
+#### ⚡ Set up in 5 minutes
 An install script asks for everything it needs, checks your Discord credentials and sets up the database, dashboard, HTTPS and daily backups. Updates take one click in the dashboard, or happen automatically.
 
-</td>
-<td width="50%" valign="top">
-
-### 🌍 English and German
+#### 🌍 English and German
 Bot and dashboard speak both languages. You pick the bot's language per server, and everyone sees slash commands in their own Discord language.
-
-</td>
-</tr>
-</table>
-
-## A quick look
-
-<div align="center">
-<img src="docs/assets/overview-en.webp" alt="Dashboard overview with auto-mod, logging, cases and all modules" width="100%">
-<sub><b>Overview</b>: everything Libremod is doing on your server, at a glance.</sub>
-</div>
 
 <br>
 
-<table>
-<tr>
-<td width="50%"><img src="docs/assets/automod-en.webp" alt="Auto-mod settings with anti-phishing and spam filter"><br><sub><b>Auto-mod</b>: spam, scam links, invites, word filter and more.</sub></td>
-<td width="50%"><img src="docs/assets/tickets-en.webp" alt="Ticket system with ticket types, panels and ratings"><br><sub><b>Tickets</b>: ticket types, forms, transcripts, ratings.</sub></td>
-</tr>
-<tr>
-<td width="50%"><img src="docs/assets/stats-en.webp" alt="Server statistics with member growth and messages per day"><br><sub><b>Statistics</b>: growth and activity, without storing any content.</sub></td>
-<td width="50%"><img src="docs/assets/status-en.webp" alt="Installation status page with version, ping and last backup"><br><sub><b>Status</b>: version, connection and backups of your installation.</sub></td>
-</tr>
-</table>
+## A quick look
 
-<table>
-<tr>
-<td width="50%" align="center"><img src="docs/assets/rankcard-en.webp" alt="Rank card with level, rank and progress"><br><sub><code>/rank</code> shows a rank card in your favourite colour.</sub></td>
-<td width="50%" align="center"><img src="docs/assets/welcomecard-en.webp" alt="Welcome image with avatar, name and member number"><br><sub>A welcome image for every new member.</sub></td>
-</tr>
-</table>
+Everything is set up in the web dashboard, with Discord login and on mobile too.
 
-<div align="center">
-<img src="docs/assets/embed-en.webp" alt="Discord-style live preview of a welcome message" width="80%"><br>
-<sub>Design embeds with a Discord-style <b>live preview</b> and placeholders like <code>{user}</code> and <code>{server}</code>.</sub>
-</div>
+<img src="docs/assets/overview-en.webp" alt="Dashboard overview with auto-mod, logging, cases and all modules" width="100%">
+
+<p align="center"><sub><b>Overview</b>: everything Libremod is doing on your server, at a glance.</sub></p>
+
+<br>
+
+<img src="docs/assets/automod-en.webp" alt="Auto-mod settings with anti-phishing and spam filter" width="100%">
+
+<p align="center"><sub><b>Auto-mod</b>: spam, scam links, invites, word filter and more.</sub></p>
+
+<br>
+
+<img src="docs/assets/tickets-en.webp" alt="Ticket system with ticket types, panels and ratings" width="100%">
+
+<p align="center"><sub><b>Tickets</b>: ticket types, forms, transcripts, ratings.</sub></p>
+
+<br>
+
+<p align="center">
+  <img src="docs/assets/rankcard-en.webp" alt="Rank card with level, rank and progress" width="75%">
+</p>
+<p align="center"><sub><code>/rank</code> shows a rank card in your favourite colour.</sub></p>
+
+<br>
+
+<p align="center">
+  <img src="docs/assets/welcomecard-en.webp" alt="Welcome image with avatar, name and member number" width="60%">
+</p>
+<p align="center"><sub>A welcome image for every new member.</sub></p>
+
+<br>
+
+<details>
+<summary><b>More screenshots</b>: statistics, status page and embed editor</summary>
+
+<br>
+
+<img src="docs/assets/stats-en.webp" alt="Server statistics with member growth and messages per day" width="100%">
+
+<p align="center"><sub><b>Statistics</b>: growth and activity, without storing any content.</sub></p>
+
+<br>
+
+<img src="docs/assets/status-en.webp" alt="Installation status page with version, ping and last backup" width="100%">
+
+<p align="center"><sub><b>Status</b>: version, connection, backups and updates of your installation.</sub></p>
+
+<br>
+
+<img src="docs/assets/embed-en.webp" alt="Discord-style live preview of a welcome message" width="100%">
+
+<p align="center"><sub>Design embeds with a Discord-style <b>live preview</b> and placeholders like <code>{user}</code> and <code>{server}</code>.</sub></p>
+
+</details>
+
+<br>
 
 ## Features
 
-<table>
-<tr>
-<td width="50%" valign="top">
+### 🛡️ Protection
 
-#### 🛡️ Protection
 - **Moderation**: warn, timeout, kick, ban (temporary too), purge, case log with reasons
 - **Warning thresholds**: automatic timeout or ban after X warnings
 - **Auto-mod**: spam, invites, links, word filter (catches tricks like "1d10t"), caps, mass mentions
@@ -104,10 +113,8 @@ Bot and dashboard speak both languages. You pick the bot's language per server, 
 - **Mass actions** against raids, **staff notes**, **ban appeals** on their own page
 - **Logging**: deleted and edited messages, joins, roles, channels, voice channels
 
-</td>
-<td width="50%" valign="top">
+### 💬 Community
 
-#### 💬 Community
 - **Welcome and goodbye** with embed, welcome image and direct message
 - **Roles**: auto roles on join, self-assignable roles via buttons or menus, temporary roles, voice channel role
 - **Tickets** with ticket types, form questions, staff roles, claiming, transcripts and ratings
@@ -117,12 +124,8 @@ Bot and dashboard speak both languages. You pick the bot's language per server, 
 - **Suggestions** with voting, **quotes**, **highlights**
 - **Temporary voice channels**, **counter channels**, automatic channel clearing, auto slowmode
 
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
+### 🎉 Fun and rewards
 
-#### 🎉 Fun and rewards
 - **Levels** for messages and voice time, rank card, leaderboard, role rewards, bonus roles, seasons with a hall of fame
 - **Server currency** with daily bonus, work, transfers and a **shop** for roles and custom items
 - **Giveaways** with requirements and fair drawing
@@ -130,10 +133,8 @@ Bot and dashboard speak both languages. You pick the bot's language per server, 
 - **Polls**, **reminders**, **birthdays**
 - **Counting channel** and **word chain**
 
-</td>
-<td width="50%" valign="top">
+### ⚙️ Management
 
-#### ⚙️ Management
 - **Web dashboard** with Discord login, works great on mobile too
 - **Team access**: moderators only see the sections you allow
 - **Audit log**: who changed what and when
@@ -143,11 +144,9 @@ Bot and dashboard speak both languages. You pick the bot's language per server, 
 - **Status page** and the `libremod` command for logs and backups
 - **English and German** in bot and dashboard
 
-</td>
-</tr>
-</table>
-
 What's coming next and what arrived in which version is in the [roadmap](ROADMAP.md) (German).
+
+<br>
 
 ## Up and running in 5 minutes
 
