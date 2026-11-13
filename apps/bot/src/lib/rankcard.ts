@@ -53,8 +53,8 @@ export async function renderRankCard(d: RankCardData): Promise<Buffer> {
     ctx.fillText(label, x, 92);
     x -= ctx.measureText(label).width + 30;
   };
-  stat("LEVEL", String(d.level), accent);
-  if (d.rank) stat("RANG", `#${d.rank}`, "#ffffff");
+  stat(t("LEVEL"), String(d.level), accent);
+  if (d.rank) stat(t("RANG"), `#${d.rank}`, "#ffffff");
 
   // Name
   ctx.textAlign = "left";

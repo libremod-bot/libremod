@@ -1,3 +1,4 @@
+import { intlLocale } from "./i18n.js";
 /** Eigene Befehle und Zähler-Kanäle. */
 
 export const COMMAND_NAME = /^[a-z0-9_-]{1,32}$/;
@@ -39,7 +40,7 @@ export const COUNTER_PLACEHOLDERS: { key: string; description: string }[] = [
   { key: "{roles}", description: "Rollen" },
 ];
 
-const nf = new Intl.NumberFormat("de-DE");
+const nf = { format: (n: number | bigint) => new Intl.NumberFormat(intlLocale()).format(n) };
 
 export function renderCounter(template: string, v: CounterValues): string {
   return template

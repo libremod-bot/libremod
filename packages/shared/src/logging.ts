@@ -1,7 +1,7 @@
 /** Hilfsfunktionen für das Logging-Modul, unabhängig von discord.js. */
 
 /** Kürzt Text auf max Zeichen und hängt bei Bedarf „…“ an. Leerer Text wird zu fallback. */
-import { t } from "./i18n.js";
+import { intlLocale, t } from "./i18n.js";
 export function truncate(text: string | null | undefined, max: number, fallback = "(leer)"): string {
   const value = (text ?? "").trim();
   if (!value) return fallback;
@@ -26,11 +26,9 @@ export interface TranscriptMessage {
   attachments?: string[];
 }
 
-const transcriptTime = new Intl.DateTimeFormat("de-DE", {
-  dateStyle: "short",
-  timeStyle: "medium",
-  timeZone: "Europe/Berlin",
-});
+const transcriptTime = {
+  format: (d: Date) => new Intl.DateTimeFormat(intlLocale(), { dateStyle: "short", timeStyle: "medium", timeZone: "Europe/Berlin" }).format(d),
+};
 
 /** Baut eine Textdatei aus gelöschten Nachrichten, älteste zuerst. */
 export function formatTranscript(messages: TranscriptMessage[]): string {

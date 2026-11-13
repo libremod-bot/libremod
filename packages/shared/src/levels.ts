@@ -2,7 +2,7 @@
  * Level-Kurve von Libremod: Der Schritt von Level L auf L+1 kostet 100 + 40·L XP.
  * Level 1 gibt es nach 100 XP, Level 10 nach 2.800 XP, Level 50 nach 54.000 XP.
  */
-import { t } from "./i18n.js";
+import { currentLocale, intlLocale, t } from "./i18n.js";
 export function xpToNext(level: number): number {
   return 100 + 40 * level;
 }
@@ -103,14 +103,15 @@ export function seasonDue(mode: string, startedAt: Date, now = new Date()): bool
 /** Kurze Zahl für die Rang-Karte: 950, 1,2k, 3,4 Mio. */
 export function compactNumber(n: number): string {
   if (n < 1000) return String(n);
-  if (n < 1_000_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0).replace(".", ",").replace(/,0$/, "")}k`;
-  return t("{n0} Mio.", { n0: (n / 1_000_000).toFixed(1).replace(".", ",").replace(/,0$/, "") });
+  const dec = (s: string) => (currentLocale() === "de" ? s.replace(".", ",").replace(/,0$/, "") : s.replace(/\.0$/, ""));
+  if (n < 1_000_000) return `${dec((n / 1000).toFixed(n < 10_000 ? 1 : 0))}k`;
+  return t("{n0} Mio.", { n0: dec((n / 1_000_000).toFixed(1)) });
 }
 
 /** Ansage zum Saisonende, für Bot und Dashboard. */
 export function seasonEndMessage(season: { number: number; top: { userId: string; xp: number; level: number }[] }) {
   const medal = ["🥇", "🥈", "🥉"];
-  const lines = season.top.slice(0, 10).map((tItem, i) => t("{n0} <@{userId}> · Level {level} · {n3} XP", { n0: medal[i] ?? `**${i + 1}.**`, userId: tItem.userId, level: tItem.level, n3: tItem.xp.toLocaleString("de-DE") }));
+  const lines = season.top.slice(0, 10).map((tItem, i) => t("{n0} <@{userId}> · Level {level} · {n3} XP", { n0: medal[i] ?? `**${i + 1}.**`, userId: tItem.userId, level: tItem.level, n3: tItem.xp.toLocaleString(intlLocale()) }));
   return {
     content: t("🏁 **Saison {number} ist vorbei!** Danke fürs Mitmachen. Die Besten:\n{n1}\n\nAb jetzt läuft Saison {n2}, alle starten wieder bei 0 XP.", { number: season.number, n1: lines.join("\n"), n2: season.number + 1 }),
     allowed_mentions: { parse: [] as string[], users: season.top.slice(0, 3).map((tItem) => tItem.userId) },

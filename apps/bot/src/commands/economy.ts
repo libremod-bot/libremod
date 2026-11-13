@@ -34,9 +34,10 @@ import {
   pay,
 } from "../services/economy.js";
 import { t } from "@libremod/shared";
+import { intlLocale } from "@libremod/shared";
 
 const COLOR = 0xffc83d;
-const nf = new Intl.NumberFormat("de-DE");
+const nf = { format: (n: number | bigint) => new Intl.NumberFormat(intlLocale()).format(n) };
 
 /** Lädt die Einstellungen und antwortet selbst, wenn die Währung aus ist. */
 async function economyOn(

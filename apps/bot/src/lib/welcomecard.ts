@@ -7,7 +7,7 @@ import {
   fit,
   hex,
 } from "./canvas.js";
-import { t } from "@libremod/shared";
+import { intlLocale, t } from "@libremod/shared";
 
 export interface WelcomeCardData {
   title: string;
@@ -19,7 +19,7 @@ export interface WelcomeCardData {
 
 const W = 1000;
 const H = 400;
-const nf = new Intl.NumberFormat("de-DE");
+const nf = () => new Intl.NumberFormat(intlLocale());
 
 /** Begrüßungsbild: Avatar oben in der Mitte, darunter Überschrift, Name und Mitgliedsnummer. */
 export async function renderWelcomeCard(d: WelcomeCardData): Promise<Buffer> {
@@ -49,7 +49,7 @@ export async function renderWelcomeCard(d: WelcomeCardData): Promise<Buffer> {
   ctx.font = "24px Inter";
   ctx.fillStyle = "#9aa4b5";
   ctx.fillText(
-    t("Mitglied #{n0}", { n0: nf.format(d.memberCount) }),
+    t("Mitglied #{n0}", { n0: nf().format(d.memberCount) }),
     W / 2,
     372,
   );

@@ -1,3 +1,4 @@
+import { intlLocale } from "./i18n.js";
 /** Server-Währung: Regeln für Bonus, Arbeit und Anzeige, gemeinsam für Bot und Dashboard. */
 
 export const MAX_BALANCE = 1_000_000_000;
@@ -8,7 +9,7 @@ export const DAILY_COOLDOWN_H = 20;
 export const DAILY_STREAK_RESET_H = 48;
 export const MAX_STREAK_BONUS_DAYS = 7;
 
-const nf = new Intl.NumberFormat("de-DE");
+const nf = { format: (n: number | bigint) => new Intl.NumberFormat(intlLocale()).format(n) };
 
 export function formatMoney(amount: number, symbol: string) {
   const s = /^\d{17,20}$/.test(symbol) ? `<:c:${symbol}>` : symbol;

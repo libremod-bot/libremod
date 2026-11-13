@@ -23,8 +23,9 @@ import { renderRankCard } from "../lib/rankcard.js";
 import { logger } from "../logger.js";
 import { inGuild, replyPrivate } from "./moderation/shared.js";
 import { t } from "@libremod/shared";
+import { intlLocale } from "@libremod/shared";
 
-const nf = new Intl.NumberFormat("de-DE");
+const nf = { format: (n: number | bigint) => new Intl.NumberFormat(intlLocale()).format(n) };
 
 async function loadSettings(
   db: Parameters<Command["execute"]>[1]["db"],

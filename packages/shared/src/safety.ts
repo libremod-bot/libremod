@@ -5,7 +5,7 @@
 // --- Gemeinsame Hilfen ---
 
 /** Zeichen, die sich zum Verwechseln ähnlich sehen, auf ein Grundzeichen bringen. */
-import { t } from "./i18n.js";
+import { intlLocale, t } from "./i18n.js";
 const LOOKALIKE: Record<string, string> = {
   "0": "o", "1": "i", l: "i", "|": "i", "!": "i", "3": "e", "4": "a", "@": "a", "5": "s", $: "s", "7": "t", "8": "b", "9": "g",
   // Kyrillische und griechische Doppelgänger
@@ -324,7 +324,7 @@ export function appealBlocker(
     .sort((a, b) => b - a)[0];
   if (lastDenied && now.getTime() - lastDenied < cooldownDays * 86_400_000) {
     const until = new Date(lastDenied + cooldownDays * 86_400_000);
-    return t("Dein letzter Einspruch wurde abgelehnt. Einen neuen kannst du ab {n0} stellen.", { n0: until.toLocaleDateString("de-DE", { timeZone: "Europe/Berlin" }) });
+    return t("Dein letzter Einspruch wurde abgelehnt. Einen neuen kannst du ab {n0} stellen.", { n0: until.toLocaleDateString(intlLocale(), { timeZone: "Europe/Berlin" }) });
   }
   return null;
 }
